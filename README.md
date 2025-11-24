@@ -59,25 +59,32 @@ ZeroStack is a modern no-code database platform that combines the simplicity of 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/zerostack.git
-cd zerostack
+git clone https://github.com/Txshaa90/ZeroStack.git
+cd ZeroStack
 ```
 
 2. Install dependencies:
 ```bash
 npm install
-# or
-yarn install
 ```
 
-3. Run the development server:
+3. Set up environment variables:
+```bash
+# Copy the example env file
+cp .env.example .env.local
+
+# Edit .env.local and add your Supabase credentials
+# Get these from: https://app.supabase.com/project/_/settings/api
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+4. Run the development server:
 ```bash
 npm run dev
-# or
-yarn dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ## Usage
 

@@ -507,16 +507,12 @@ export default function DatasetWorkspacePage() {
               />
             </div>
           ) : (
-            <div className="flex-1 p-4 flex flex-col h-full">
-              <div className="flex-1 flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="flex-1 p-4 flex flex-col">
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
                 <div 
-                  className="flex-1 overflow-y-auto"
-                  style={{ 
-                    overflowX: 'hidden'
-                  }}
+                  className="flex-1 overflow-auto"
                 >
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border-separate border-spacing-0" style={{ width: 'max-content' }}>
+                  <table className="w-full border-separate border-spacing-0" style={{ width: 'max-content', minWidth: '100%' }}>
                     <thead className="sticky top-0 bg-white dark:bg-gray-800 z-20 shadow-sm">
                       <tr>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase" style={{ width: '60px', minWidth: '60px' }}>#</th>
@@ -554,8 +550,7 @@ export default function DatasetWorkspacePage() {
                         ))
                       )}
                     </tbody>
-                    </table>
-                  </div>
+                  </table>
                 </div>
                 
                 {/* Total row count - Google Sheets style */}
