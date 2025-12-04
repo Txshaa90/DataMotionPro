@@ -35,6 +35,7 @@ import {
   Grid3x3,
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
   Folder,
   LayoutGrid,
   List,
@@ -92,6 +93,8 @@ export default function Dashboard() {
   const [movingTableId, setMovingTableId] = useState<string | null>(null)
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null)
+  const [currentPath, setCurrentPath] = useState<'root' | string>('root') // 'root' or folderId
   
   // Supabase data
   const [supabaseFolders, setSupabaseFolders] = useState<SupabaseFolder[]>([])
@@ -410,14 +413,44 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Breadcrumb Navigation */}
+        {currentPath !== 'root' && (
+          <div className="mb-6">
+            <button
+              onClick={() => setCurrentPath('root')}
+              className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back to all folders
+            </button>
+            <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
+              <button
+                onClick={() => setCurrentPath('root')}
+                className="hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                My Workspace
+              </button>
+              <ChevronRight className="h-4 w-4 mx-2" />
+              <span className="text-gray-900 dark:text-white font-medium">
+                {supabaseFolders.find(f => f.id === currentPath)?.name}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Page Title and Actions */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              My Workspace
+              {currentPath === 'root' 
+                ? 'My Workspace' 
+                : supabaseFolders.find(f => f.id === currentPath)?.name || 'Folder'}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {displayTables.length} {displayTables.length === 1 ? 'dataset' : 'datasets'} · {displayFolders.length} {displayFolders.length === 1 ? 'folder' : 'folders'}
+              {currentPath === 'root'
+                ? `${displayTables.length} ${displayTables.length === 1 ? 'dataset' : 'datasets'} · ${displayFolders.length} ${displayFolders.length === 1 ? 'folder' : 'folders'}`
+                : `${getFolderTablesHelper(currentPath).length} ${getFolderTablesHelper(currentPath).length === 1 ? 'dataset' : 'datasets'}`
+              }
             </p>
           </div>
           <div className="flex items-center space-x-3">
@@ -544,166 +577,97 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Folders with Datasets Section */}
-        {filteredFolders.length > 0 && (
-          <section className="mb-12">
+        {/* Folders Section - Only show at root */}
+        {currentPath === 'root' && filteredFolders.length > 0 && (
+          <section>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
               <FolderPlus className="h-5 w-5 mr-2" />
-              Folders & Datasets
+              Folders
             </h2>
-            <div className="space-y-6">
+            <div className={viewMode === 'grid' 
+              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8"
+              : "space-y-2 mb-8"
+            }>
               {filteredFolders.map((folder) => {
                 const folderTables = getFolderTablesHelper(folder.id).filter((table) =>
                   table.name.toLowerCase().includes(searchQuery.toLowerCase())
                 )
-                const isExpanded = expandedFolders.has(folder.id)
 
                 return (
-                  <div
+                  <FolderCard
                     key={folder.id}
-                    className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
-                  >
-                    {/* Folder Header */}
-                    <div
-                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      onClick={() => toggleFolder(folder.id)}
-                    >
-                      <div className="flex items-center space-x-3 flex-1">
-                        {isExpanded ? (
-                          <ChevronDown className="h-5 w-5 text-gray-400" />
-                        ) : (
-                          <ChevronRight className="h-5 w-5 text-gray-400" />
-                        )}
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center"
-                          style={{ backgroundColor: folder.color }}
-                        >
-                          <Folder className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900 dark:text-white">
-                            {folder.name}
-                          </h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {folderTables.length} {folderTables.length === 1 ? 'dataset' : 'datasets'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedFolderId(folder.id)
-                            setShowTableDialog(true)
-                          }}
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add Dataset
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <Settings className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setRenamingItem({ type: 'folder', id: folder.id, name: folder.name })
-                                setRenameDialogOpen(true)
-                              }}
-                            >
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                if (confirm(`Delete folder "${folder.name}"? Datasets will not be deleted.`)) {
-                                  handleDeleteFolder(folder.id)
-                                }
-                              }}
-                              className="text-red-600"
-                            >
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-
-                    {/* Folder Datasets */}
-                    {isExpanded && (
-                      <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900/50">
-                        {folderTables.length > 0 ? (
-                          <div className={viewMode === 'grid' 
-                            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-                            : "space-y-2"
-                          }>
-                            {folderTables.map((table) => {
-                              const tableViews = views.filter((v) => v.tableId === table.id)
-                              const colorRulesCount = tableViews.reduce((acc, v) => acc + v.colorRules.length, 0)
-                              const filtersCount = tableViews.reduce((acc, v) => acc + v.filters.length, 0)
-
-                              return (
-                                <DatasetCard
-                                  key={table.id}
-                                  table={table}
-                                  colorRulesCount={colorRulesCount}
-                                  filtersCount={filtersCount}
-                                  viewMode={viewMode}
-                                  onClick={() => router.push(`/workspace/${table.id}`)}
-                                  onRename={() => {
-                                    setRenamingItem({ type: 'table', id: table.id, name: table.name })
-                                    setRenameDialogOpen(true)
-                                  }}
-                                  onDelete={() => {
-                                    if (confirm(`Delete dataset "${table.name}"? This cannot be undone.`)) {
-                                      handleDeleteTable(table.id)
-                                    }
-                                  }}
-                                  onMoveToFolder={() => {
-                                    setMovingTableId(table.id)
-                                    setMoveToFolderDialog(true)
-                                  }}
-                                />
-                              )
-                            })}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8">
-                            <Database className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                              No datasets in this folder yet
-                            </p>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedFolderId(folder.id)
-                                setShowTableDialog(true)
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Add Dataset
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                    folder={{
+                      id: folder.id,
+                      name: folder.name,
+                      color: folder.color,
+                      createdAt: (folder as SupabaseFolder).created_at || new Date().toISOString()
+                    }}
+                    tableCount={folderTables.length}
+                    onClick={() => setCurrentPath(folder.id)}
+                    onRename={() => {
+                      setRenamingItem({ type: 'folder', id: folder.id, name: folder.name })
+                      setRenameDialogOpen(true)
+                    }}
+                    onDelete={() => {
+                      if (confirm(`Delete folder "${folder.name}"? Datasets will not be deleted.`)) {
+                        handleDeleteFolder(folder.id)
+                      }
+                    }}
+                  />
                 )
               })}
             </div>
           </section>
         )}
 
-        {/* Datasets Section */}
+        {/* Datasets Section - Show folder contents OR uncategorized datasets */}
         <section>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-            <Grid3x3 className="h-5 w-5 mr-2" />
-            {uncategorizedTables.length === filteredTables.length ? 'All Datasets' : 'Uncategorized Datasets'}
-          </h2>
-          {uncategorizedTables.length > 0 ? (
+          {currentPath !== 'root' ? (
+            // Inside a folder - show folder's datasets
+            <>
+              <div className={viewMode === 'grid'
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                : "space-y-2"
+              }>
+                {getFolderTablesHelper(currentPath).map((table) => {
+                  const tableViews = views.filter((v) => v.tableId === table.id)
+                  const colorRulesCount = tableViews.reduce((acc, v) => acc + v.colorRules.length, 0)
+                  const filtersCount = tableViews.reduce((acc, v) => acc + v.filters.length, 0)
+
+                  return (
+                    <DatasetCard
+                      key={table.id}
+                      table={table}
+                      colorRulesCount={colorRulesCount}
+                      filtersCount={filtersCount}
+                      viewMode={viewMode}
+                      onClick={() => window.open(`/workspace/${table.id}`, '_blank')}
+                      onRename={() => {
+                        setRenamingItem({ type: 'table', id: table.id, name: table.name })
+                        setRenameDialogOpen(true)
+                      }}
+                      onDelete={() => {
+                        if (confirm(`Delete dataset "${table.name}"? This cannot be undone.`)) {
+                          handleDeleteTable(table.id)
+                        }
+                      }}
+                      onMoveToFolder={() => {
+                        setMovingTableId(table.id)
+                        setMoveToFolderDialog(true)
+                      }}
+                    />
+                  )
+                })}
+              </div>
+            </>
+          ) : (
+            // At root - show uncategorized datasets
+            <>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <Grid3x3 className="h-5 w-5 mr-2" />
+                {uncategorizedTables.length === filteredTables.length ? 'All Datasets' : 'Uncategorized Datasets'}
+              </h2>
+              {uncategorizedTables.length > 0 ? (
             <div className={viewMode === 'grid'
               ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
               : "space-y-2"
@@ -720,7 +684,7 @@ export default function Dashboard() {
                     colorRulesCount={colorRulesCount}
                     filtersCount={filtersCount}
                     viewMode={viewMode}
-                    onClick={() => router.push(`/workspace/${table.id}`)}
+                    onClick={() => window.open(`/workspace/${table.id}`, '_blank')}
                     onRename={() => {
                       setRenamingItem({ type: 'table', id: table.id, name: table.name })
                       setRenameDialogOpen(true)
@@ -738,19 +702,21 @@ export default function Dashboard() {
                 )
               })}
             </div>
-          ) : (
-            <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <Database className="h-16 w-16 mx-auto mb-4 opacity-20" />
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
-                {searchQuery ? 'No datasets found' : 'No datasets yet'}
-              </p>
-              {!searchQuery && (
-                <Button onClick={() => setShowTableDialog(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Dataset
-                </Button>
+              ) : (
+                <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <Database className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">
+                    {searchQuery ? 'No datasets found' : 'No datasets yet'}
+                  </p>
+                  {!searchQuery && (
+                    <Button onClick={() => setShowTableDialog(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Your First Dataset
+                    </Button>
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
         </section>
       </main>

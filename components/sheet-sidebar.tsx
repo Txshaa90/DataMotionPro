@@ -44,6 +44,7 @@ interface Sheet {
 }
 
 interface SheetSidebarProps {
+  datasetName?: string
   sheets: Sheet[]
   activeSheetId: string | null
   onSheetSelect: (sheetId: string) => void
@@ -54,6 +55,7 @@ interface SheetSidebarProps {
 }
 
 export function SheetSidebar({
+  datasetName,
   sheets,
   activeSheetId,
   onSheetSelect,
@@ -98,6 +100,13 @@ export function SheetSidebar({
 
   return (
     <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+      {/* Dataset Title */}
+      {datasetName && (
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="font-semibold text-lg text-gray-900 dark:text-gray-100 truncate">{datasetName}</h2>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-3">

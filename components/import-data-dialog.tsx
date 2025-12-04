@@ -89,19 +89,56 @@ export function ImportDataDialog({
     const lines = text.split('\n').filter(line => line.trim())
     if (lines.length === 0) return []
 
+    // Improved CSV parser that handles quoted fields with commas
+    const parseCSVLine = (line: string): string[] => {
+      const result: string[] = []
+      let current = ''
+      let inQuotes = false
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i]
+        const nextChar = line[i + 1]
+        
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            // Escaped quote
+            current += '"'
+            i++ // Skip next quote
+          } else {
+            // Toggle quote state
+            inQuotes = !inQuotes
+          }
+        } else if (char === ',' && !inQuotes) {
+          // End of field
+          result.push(current.trim())
+          current = ''
+        } else {
+          current += char
+        }
+      }
+      
+      // Add last field
+      result.push(current.trim())
+      
+      return result
+    }
+
     // Parse header
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+    const headers = parseCSVLine(lines[0])
+    console.log('📋 CSV Headers:', headers)
     
     // Parse rows
     const rows = []
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+      const values = parseCSVLine(lines[i])
       const row: any = { id: crypto.randomUUID() }
       headers.forEach((header, index) => {
         row[header] = values[index] || ''
       })
       rows.push(row)
     }
+    
+    console.log('📊 Sample parsed row:', rows[0])
     
     return rows
   }
@@ -136,7 +173,8 @@ export function ImportDataDialog({
           const workbook = XLSX.read(data, { 
             type: 'binary',
             cellDates: true,  // Convert Excel dates to JS Date objects
-            cellStyles: true  // Read cell styles for conditional formatting
+            cellStyles: true, // Read cell styles for conditional formatting
+            raw: true         // Keep raw values to preserve ASINs and text
           })
           
           const result: { [sheetName: string]: any[] } = {}
@@ -150,11 +188,29 @@ export function ImportDataDialog({
             // Get the range of the worksheet
             const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1')
             
+            // First pass: identify ASIN columns by checking header row
+            const headerRow: any = {}
+            for (let col = range.s.c; col <= range.e.c; col++) {
+              const cellAddress = XLSX.utils.encode_cell({ r: range.s.r, c: col })
+              const cell = worksheet[cellAddress]
+              if (cell && cell.v) {
+                headerRow[col] = String(cell.v)
+              }
+            }
+            
+            // Find ASIN column indices
+            const asinColumns = new Set<number>()
+            Object.entries(headerRow).forEach(([colIndex, headerName]) => {
+              if (String(headerName).toLowerCase().includes('asin')) {
+                asinColumns.add(parseInt(colIndex))
+              }
+            })
+            
             // Convert to JSON with options to handle dates and hidden columns
             const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-              raw: false,        // Format values (converts dates to strings)
-              dateNF: 'yyyy-mm-dd', // Date format
-              defval: ''         // Default value for empty cells
+              raw: true,         // Keep raw values to preserve text like ASINs
+              defval: '',        // Default value for empty cells
+              blankrows: false   // Skip blank rows
               // Don't specify header - let it auto-detect from first row
             })
             
@@ -166,8 +222,15 @@ export function ImportDataDialog({
               const processedRow: any = { id: crypto.randomUUID() }
               
               Object.entries(row).forEach(([key, value]) => {
+                const keyLower = key.toLowerCase()
+                
+                // Force ASIN columns to be text (prevent scientific notation)
+                if (keyLower.includes('asin') && typeof value === 'number') {
+                  // Convert number back to string, preserving leading zeros if possible
+                  processedRow[key] = String(value)
+                }
                 // If value looks like an Excel serial date (number between 1 and 100000)
-                if (typeof value === 'number' && value > 1 && value < 100000 && key.toLowerCase().includes('date')) {
+                else if (typeof value === 'number' && value > 1 && value < 100000 && keyLower.includes('date')) {
                   // Convert Excel serial date to JavaScript Date
                   const excelEpoch = new Date(1899, 11, 30)
                   const jsDate = new Date(excelEpoch.getTime() + value * 86400000)
@@ -211,12 +274,19 @@ export function ImportDataDialog({
         // Multi-sheet Excel import
         const sheetsData = await parseExcel(file, selectedExcelSheets)
         
-        // Extract columns from first sheet's first row
-        const firstSheetRows = Object.values(sheetsData)[0]
-        if (firstSheetRows && firstSheetRows.length > 0) {
-          const sampleRow = firstSheetRows[0]
-          const columnKeys = Object.keys(sampleRow).filter(key => key !== 'id')
-          
+        // Extract columns from ALL sheets to get complete column list
+        const allColumnKeys = new Set<string>()
+        Object.values(sheetsData).forEach(sheetRows => {
+          if (sheetRows && sheetRows.length > 0) {
+            const sampleRow = sheetRows[0]
+            Object.keys(sampleRow).filter(key => key !== 'id').forEach(key => allColumnKeys.add(key))
+          }
+        })
+        
+        const columnKeys = Array.from(allColumnKeys)
+        console.log('📋 All unique columns from import:', columnKeys)
+        
+        if (columnKeys.length > 0) {
           // Get current dataset columns
           const { data: tableData, error: tableError } = await supabase
             .from('tables')
@@ -233,18 +303,25 @@ export function ImportDataDialog({
               .filter(key => !existingColumnIds.has(key))
               .map(key => ({
                 id: key,
-                name: key.charAt(0).toUpperCase() + key.slice(1), // Capitalize
+                name: key, // Keep original name
                 type: 'text',
                 width: 200
               }))
             
-            if (newColumns.length > 0) {
-              // Update dataset with new columns
-              const updatedColumns = [...existingColumns, ...newColumns]
-              await supabase
-                .from('tables')
-                .update({ columns: updatedColumns })
-                .eq('id', datasetId)
+            console.log('📋 New columns to add:', newColumns.length)
+            console.log('📋 Existing columns:', existingColumns.length)
+            
+            // Always update with merged columns
+            const updatedColumns = [...existingColumns, ...newColumns]
+            const { error: updateError } = await supabase
+              .from('tables')
+              .update({ columns: updatedColumns })
+              .eq('id', datasetId)
+            
+            if (updateError) {
+              console.error('❌ Error updating columns:', updateError)
+            } else {
+              console.log('✅ Columns updated successfully:', updatedColumns.length, 'total columns')
             }
           }
         }
@@ -318,10 +395,83 @@ export function ImportDataDialog({
           throw new Error('No data found in file')
         }
 
+        console.log('📊 Imported rows:', importedRows.length)
+        console.log('📋 Sample row:', importedRows[0])
+
+        // Show progress for CSV/JSON imports
+        setImportProgress({ 
+          current: 1, 
+          total: 3, 
+          sheetName: file.name,
+          rowCount: importedRows.length 
+        })
+
+        // Extract column names from imported data
+        const columnKeys = importedRows.length > 0 
+          ? Object.keys(importedRows[0]).filter(key => key !== 'id')
+          : []
+        
+        console.log('📋 Detected columns:', columnKeys)
+
+        // Update dataset columns
+        if (columnKeys.length > 0) {
+          const { data: tableData, error: tableError } = await supabase
+            .from('tables')
+            .select('columns')
+            .eq('id', datasetId)
+            .single()
+          
+          if (!tableError && tableData) {
+            const existingColumns = tableData.columns || []
+            const existingColumnIds = new Set(existingColumns.map((c: any) => c.id))
+            
+            // Create new columns for any that don't exist
+            const newColumns = columnKeys
+              .filter(key => !existingColumnIds.has(key))
+              .map(key => ({
+                id: key,
+                name: key,
+                type: 'text',
+                width: 200
+              }))
+            
+            if (newColumns.length > 0 || existingColumns.length === 0) {
+              const updatedColumns = [...existingColumns, ...newColumns]
+              
+              // Update progress - step 2
+              setImportProgress({ 
+                current: 2, 
+                total: 3, 
+                sheetName: file.name,
+                rowCount: importedRows.length 
+              })
+              
+              const { error: updateColError } = await supabase
+                .from('tables')
+                .update({ columns: updatedColumns })
+                .eq('id', datasetId)
+              
+              if (updateColError) {
+                console.error('❌ Error updating columns:', updateColError)
+              } else {
+                console.log('✅ Columns updated:', updatedColumns.length)
+              }
+            }
+          }
+        }
+
+        // Update progress - step 3
+        setImportProgress({ 
+          current: 3, 
+          total: 3, 
+          sheetName: file.name,
+          rowCount: importedRows.length 
+        })
+
         // Get current sheet data
         const { data: sheetData, error: fetchError } = await supabase
           .from('views')
-          .select('rows')
+          .select('rows, visible_columns')
           .eq('id', sheetId)
           .single()
 
@@ -330,10 +480,13 @@ export function ImportDataDialog({
         const currentRows = sheetData?.rows || []
         const updatedRows = [...currentRows, ...importedRows]
 
-        // Update sheet with imported data
+        // Update sheet with imported data and visible columns
         const { error: updateError } = await supabase
           .from('views')
-          .update({ rows: updatedRows })
+          .update({ 
+            rows: updatedRows,
+            visible_columns: columnKeys // Update visible columns
+          })
           .eq('id', sheetId)
 
         if (updateError) throw updateError
@@ -498,27 +651,38 @@ export function ImportDataDialog({
             )}
 
             {/* Import Progress */}
-            {importProgress && (
+            {(importing || importProgress) && (
               <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <div className="font-medium text-blue-900 dark:text-blue-100">
-                      Importing {importProgress.sheetName || 'sheet'}...
+                    <div className="font-medium text-blue-900 dark:text-blue-100 flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                      {importProgress ? (
+                        <>Importing {importProgress.sheetName || 'data'}...</>
+                      ) : (
+                        <>Processing file...</>
+                      )}
                     </div>
-                    <div className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                      {importProgress.rowCount?.toLocaleString() || 0} rows • Sheet {importProgress.current} of {importProgress.total}
-                    </div>
+                    {importProgress && (
+                      <div className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        {importProgress.rowCount?.toLocaleString() || 0} rows • Step {importProgress.current} of {importProgress.total}
+                      </div>
+                    )}
                   </div>
-                  <span className="font-bold text-blue-900 dark:text-blue-100">
-                    {Math.round((importProgress.current / importProgress.total) * 100)}%
-                  </span>
+                  {importProgress && (
+                    <span className="font-bold text-blue-900 dark:text-blue-100">
+                      {Math.round((importProgress.current / importProgress.total) * 100)}%
+                    </span>
+                  )}
                 </div>
-                <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-3 overflow-hidden">
-                  <div 
-                    className="bg-blue-600 dark:bg-blue-400 h-3 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
-                  />
-                </div>
+                {importProgress && (
+                  <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className="bg-blue-600 dark:bg-blue-400 h-3 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                    />
+                  </div>
+                )}
               </div>
             )}
 

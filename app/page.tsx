@@ -16,7 +16,7 @@ export default function Home() {
           </div>
           <div className="hidden md:flex items-center space-x-8">
             <a href="#features" className="text-green-200 hover:text-white">Features</a>
-            <a href="#pricing" className="text-green-200 hover:text-white">Pricing</a>
+            <Link href="/pricing" className="text-green-200 hover:text-white">Pricing</Link>
             <a href="#about" className="text-green-200 hover:text-white">About</a>
           </div>
           <div className="flex items-center space-x-4">
@@ -62,8 +62,8 @@ export default function Home() {
           <div className="mt-16 rounded-xl shadow-2xl border border-green-700 bg-green-900/50 p-4 max-w-5xl mx-auto">
             <div className="aspect-video bg-gradient-to-br from-green-800 to-green-900 rounded-lg flex items-center justify-center">
               <div className="text-center">
-                <Database className="h-24 w-24 text-green-300 mx-auto mb-4 opacity-50" />
-                <p className="text-green-200">Interactive Database Workspace</p>
+                <Database className="h-24 w-24 text-green-200 mx-auto mb-4" />
+                <p className="text-xl font-medium text-green-100">Interactive Database Workspace</p>
               </div>
             </div>
           </div>
@@ -137,6 +137,63 @@ export default function Home() {
               description="Keep track of your products, stock levels, and suppliers."
               features={["Stock tracking", "Order management", "Supplier database"]}
             />
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section id="about" className="py-20 px-4 bg-green-800">
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4 text-white">About ZeroStack</h2>
+            <p className="text-xl text-green-100">Building the future of data management</p>
+          </div>
+          
+          <div className="space-y-8 text-green-50">
+            <div className="bg-green-900/50 p-8 rounded-lg border border-green-700">
+              <h3 className="text-2xl font-semibold mb-4 text-white">Our Mission</h3>
+              <p className="text-lg leading-relaxed text-green-100">
+                We believe that powerful data management tools shouldn't require a computer science degree. 
+                ZeroStack makes it easy for anyone to build, manage, and scale databases with the simplicity 
+                of a spreadsheet and the power of a modern database.
+              </p>
+            </div>
+
+            <div className="bg-green-900/50 p-8 rounded-lg border border-green-700">
+              <h3 className="text-2xl font-semibold mb-4 text-white">Why ZeroStack?</h3>
+              <p className="text-lg leading-relaxed text-green-100 mb-4">
+                Traditional databases are complex and require specialized knowledge. Spreadsheets are easy 
+                but lack the power and scalability needed for modern applications. ZeroStack bridges this gap.
+              </p>
+              <ul className="space-y-3 text-green-100">
+                <li className="flex items-start">
+                  <CheckCircle2 className="h-6 w-6 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <span className="text-base">No-code interface that anyone can use</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="h-6 w-6 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <span className="text-base">Real database power with relationships and validations</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="h-6 w-6 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <span className="text-base">Automatic API generation for your data</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="h-6 w-6 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <span className="text-base">Enterprise-grade security and scalability</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-green-900/50 p-8 rounded-lg border border-green-700">
+              <h3 className="text-2xl font-semibold mb-4 text-white">Built for Teams</h3>
+              <p className="text-lg leading-relaxed text-green-100">
+                Whether you're a startup building your first product, a growing business managing customer data, 
+                or an enterprise team coordinating complex workflows, ZeroStack scales with you. Real-time 
+                collaboration, powerful permissions, and seamless integrations make it the perfect choice for 
+                teams of any size.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -219,14 +276,14 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode; titl
 
 function UseCaseCard({ title, description, features }: { title: string; description: string; features: string[] }) {
   return (
-    <div className="p-8 rounded-lg border bg-white">
-      <h3 className="text-2xl font-semibold mb-3">{title}</h3>
-      <p className="text-gray-600 mb-6">{description}</p>
-      <ul className="space-y-2">
+    <div className="p-8 rounded-lg border border-green-700 bg-white dark:bg-green-800/50 shadow-lg">
+      <h3 className="text-2xl font-semibold mb-3 text-gray-900 dark:text-white">{title}</h3>
+      <p className="text-gray-700 dark:text-green-100 mb-6 text-base">{description}</p>
+      <ul className="space-y-3">
         {features.map((feature, i) => (
-          <li key={i} className="flex items-center text-sm">
-            <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-            {feature}
+          <li key={i} className="flex items-center text-sm text-gray-800 dark:text-green-200">
+            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mr-3 flex-shrink-0" />
+            <span>{feature}</span>
           </li>
         ))}
       </ul>

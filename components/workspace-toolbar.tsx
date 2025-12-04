@@ -74,6 +74,7 @@ export function WorkspaceToolbar({
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false)
   const [newSort, setNewSort] = useState({ field: 'placeholder', direction: 'asc' })
   const [newColorRule, setNewColorRule] = useState({ columnId: 'placeholder', value: '', color: '#10b981' })
+  const [newCellColorFilter, setNewCellColorFilter] = useState({ color: '#10b981', operator: 'is' })
   const [showSearchInput, setShowSearchInput] = useState(false)
 
   const currentRowHeight = rowHeight || 'comfortable'
@@ -196,11 +197,16 @@ export function WorkspaceToolbar({
                 <div className="space-y-2">
                   {filters.map((filter, index) => {
                     const column = columns.find(c => c.id === filter.columnId)
+                    const isCellColorFilter = filter.columnId === '__cell_color__'
                     const operatorLabels: Record<string, string> = {
                       'is': 'is',
                       'is_not': 'is not',
                       'contains': 'contains',
                       'does_not_contain': 'does not contain',
+                      'greater_than': '>',
+                      'less_than': '<',
+                      'greater_than_or_equal': '≥',
+                      'less_than_or_equal': '≤',
                       'is_empty': 'is empty',
                       'is_not_empty': 'is not empty'
                     }
@@ -208,10 +214,17 @@ export function WorkspaceToolbar({
                       <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <div className="flex items-center gap-2 flex-1">
                           <span className="text-xs text-gray-500 dark:text-gray-400">Where</span>
-                          <span className="text-sm font-medium">{column?.name}</span>
+                          <span className="text-sm font-medium">{isCellColorFilter ? '🎨 Cell Color' : column?.name}</span>
                           <span className="text-sm text-gray-600 dark:text-gray-300">{operatorLabels[filter.operator] || filter.operator}</span>
                           {filter.value && (
-                            <span className="text-sm font-medium">"{filter.value}"</span>
+                            isCellColorFilter ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded border-2 border-gray-300" style={{ backgroundColor: filter.value }}></div>
+                                <span className="text-sm font-medium">{filter.value}</span>
+                              </div>
+                            ) : (
+                              <span className="text-sm font-medium">"{filter.value}"</span>
+                            )
                           )}
                         </div>
                         <Button
@@ -238,6 +251,7 @@ export function WorkspaceToolbar({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="placeholder" disabled>Select field</SelectItem>
+                      <SelectItem value="__cell_color__">🎨 Cell Color</SelectItem>
                       {columns.filter(col => col.id && col.id !== '').map(col => (
                         <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
                       ))}
@@ -252,17 +266,38 @@ export function WorkspaceToolbar({
                       <SelectItem value="is_not">is not</SelectItem>
                       <SelectItem value="contains">contains</SelectItem>
                       <SelectItem value="does_not_contain">does not contain</SelectItem>
+                      <SelectItem value="greater_than">greater than (&gt;)</SelectItem>
+                      <SelectItem value="less_than">less than (&lt;)</SelectItem>
+                      <SelectItem value="greater_than_or_equal">greater than or equal (&gt;=)</SelectItem>
+                      <SelectItem value="less_than_or_equal">less than or equal (&lt;=)</SelectItem>
                       <SelectItem value="is_empty">is empty</SelectItem>
                       <SelectItem value="is_not_empty">is not empty</SelectItem>
                     </SelectContent>
                   </Select>
                   {newFilter.operator !== 'is_empty' && newFilter.operator !== 'is_not_empty' && (
-                    <Input
-                      placeholder="Value"
-                      value={newFilter.value}
-                      onChange={(e) => setNewFilter({...newFilter, value: e.target.value})}
-                      className="h-9 flex-1"
-                    />
+                    newFilter.columnId === '__cell_color__' ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="color"
+                          value={newFilter.value || '#10b981'}
+                          onChange={(e) => setNewFilter({...newFilter, value: e.target.value})}
+                          className="h-9 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
+                        />
+                        <Input
+                          placeholder="#10b981"
+                          value={newFilter.value}
+                          onChange={(e) => setNewFilter({...newFilter, value: e.target.value})}
+                          className="h-9 flex-1"
+                        />
+                      </div>
+                    ) : (
+                      <Input
+                        placeholder="Value"
+                        value={newFilter.value}
+                        onChange={(e) => setNewFilter({...newFilter, value: e.target.value})}
+                        className="h-9 flex-1"
+                      />
+                    )
                   )}
                 </div>
 
@@ -442,6 +477,109 @@ export function WorkspaceToolbar({
                     Add Rule
                   </Button>
                 </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Cell Color Filter Panel */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8">
+              <Palette className="h-4 w-4 mr-2" />
+              Cell Color
+              {filters.filter(f => f.columnId === '__cell_color__').length > 0 && (
+                <span className="ml-1 text-xs text-primary">
+                  ({filters.filter(f => f.columnId === '__cell_color__').length})
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="start">
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">Filter by Cell Color</h4>
+              
+              {/* Existing Cell Color Filters */}
+              {filters.filter(f => f.columnId === '__cell_color__').map((filter, index) => {
+                const actualIndex = filters.findIndex(f => f === filter)
+                return (
+                  <div key={actualIndex} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                    <div
+                      className="w-6 h-6 rounded border-2 border-gray-300"
+                      style={{ backgroundColor: filter.value }}
+                    />
+                    <span className="text-sm flex-1">
+                      {filter.operator === 'is' ? 'Show' : 'Hide'} cells with this color
+                    </span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      onClick={() => removeFilter(actualIndex)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )
+              })}
+
+              {filters.filter(f => f.columnId === '__cell_color__').length === 0 && (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No cell color filters applied</p>
+                </div>
+              )}
+
+              {/* Add New Cell Color Filter */}
+              <div className="space-y-3 pt-3 border-t">
+                <div className="flex items-center gap-2">
+                  <Select 
+                    value={newCellColorFilter.operator} 
+                    onValueChange={(v) => setNewCellColorFilter({...newCellColorFilter, operator: v})}
+                  >
+                    <SelectTrigger className="h-9 w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="is">Show</SelectItem>
+                      <SelectItem value="is_not">Hide</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">cells with color:</span>
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={newCellColorFilter.color}
+                    onChange={(e) => setNewCellColorFilter({...newCellColorFilter, color: e.target.value})}
+                    className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
+                    title="Pick a color"
+                  />
+                  <Input
+                    placeholder="#10b981"
+                    value={newCellColorFilter.color}
+                    onChange={(e) => setNewCellColorFilter({...newCellColorFilter, color: e.target.value})}
+                    className="h-10 flex-1"
+                  />
+                </div>
+
+                <Button 
+                  size="sm" 
+                  onClick={() => {
+                    if (newCellColorFilter.color) {
+                      onFiltersChange([...filters, {
+                        columnId: '__cell_color__',
+                        operator: newCellColorFilter.operator,
+                        value: newCellColorFilter.color
+                      }])
+                      setNewCellColorFilter({ color: '#10b981', operator: 'is' })
+                    }
+                  }}
+                  className="w-full"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Color Filter
+                </Button>
               </div>
             </div>
           </PopoverContent>

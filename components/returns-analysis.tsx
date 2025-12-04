@@ -19,11 +19,13 @@ interface ReturnsAnalysisProps {
   sheets?: Sheet[]
 }
 
-type DateRange = 'all' | 'last60days' | 'lastmonth' | 'thismonth' | 'thisweek'
+type DateRange = 'all' | 'last60days' | 'lastmonth' | 'thismonth' | 'thisweek' | 'custom'
 
 export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalysisProps) {
   const [selectedASIN, setSelectedASIN] = useState<string>('all')
   const [dateRange, setDateRange] = useState<DateRange>('all')
+  const [customStartDate, setCustomStartDate] = useState<string>('')
+  const [customEndDate, setCustomEndDate] = useState<string>('')
   const [sourceSheetId, setSourceSheetId] = useState<string>(
     sheets && sheets.find(s => s.type === 'grid')?.id || ''
   )
@@ -89,10 +91,12 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
       
       if (!dateValue) {
         // Only log first few missing dates to avoid console spam
-        if (Math.random() < 0.01) {
-          console.log('⚠️ No date found in row. Available keys:', Object.keys(row).slice(0, 10))
+        if (!sampleDateLogged) {
+          console.log('⚠️ No date column found in data. Available keys:', Object.keys(row).slice(0, 15))
+          console.log('💡 Date filtering disabled - showing all rows')
+          sampleDateLogged = true
         }
-        return false // Exclude rows without dates when filtering by date
+        return true // Include rows without dates (show all data when no date column exists)
       }
 
       // Handle Excel serial dates (numbers like 45603)
@@ -149,6 +153,19 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
             console.log(`📅 Checking lastmonth: ${lastMonthStart.toISOString().split('T')[0]} <= ${dateStr} <= ${lastMonthEnd.toISOString().split('T')[0]} = ${matches}`)
           }
           break
+        case 'custom':
+          if (customStartDate && customEndDate) {
+            const startDate = new Date(customStartDate)
+            const endDate = new Date(customEndDate)
+            endDate.setHours(23, 59, 59, 999) // Include the entire end date
+            matches = dateObj >= startDate && dateObj <= endDate
+            if (!sampleDateLogged) {
+              console.log(`📅 Checking custom: ${customStartDate} <= ${dateStr} <= ${customEndDate} = ${matches}`)
+            }
+          } else {
+            matches = true // If custom dates not set, show all
+          }
+          break
         default:
           matches = true
       }
@@ -190,13 +207,14 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
     })
 
     return filtered
-  }, [displayRows, dateRange])
+  }, [displayRows, dateRange, customStartDate, customEndDate])
 
   // Calculate return rate for each ASIN
   const returnRateData = useMemo(() => {
     const asinStats: Record<string, {
       asin: string
       itemName: string
+      totalUnitsSold: number
       totalOrders: number
       totalReturns: number
       returnRate: number
@@ -206,18 +224,28 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
 
     filteredByDate.forEach((row: any) => {
       // Try multiple possible column name variations
-      const asin = row.asin || row.ASIN || row['ASIN'] || 'Unknown'
-      const itemName = row.item_name || row['ITEM NAME'] || row.itemName || row['Item Name'] || 'Unknown Item'
-      const returnReason = row.return_reason || row['RETURN REASON'] || row.returnReason || row['Return Reason'] || 'Unknown'
+      const asin = row.asin || row.ASIN || row['ASIN'] || row['Product ASIN'] || row['product_asin'] || 'Unknown'
+      const itemName = row.item_name || row['ITEM NAME'] || row.itemName || row['Item Name'] || row['Product Name'] || row['product_name'] || 'Unknown Item'
+      const returnReason = row.return_reason || row['RETURN REASON'] || row.returnReason || row['Return Reason'] || 
+                          row['Reason'] || row.reason || row['Return reason'] || 'Unknown'
       
-      // Get order quantity and return quantity
-      const orderQty = parseInt(row.order_quantity || row['ORDER QUANTITY'] || row.orderQuantity || row['Order quantity'] || row.Orders || '1')
-      const returnQty = parseInt(row.return_quantity || row['RETURN QUANTITY'] || row.returnQuantity || row['Return quantity'] || row.Returns || '1')
+      // Get total units sold, total orders, and total returns from the new CSV structure
+      const totalUnitsSold = parseInt(row.asin_total_units_sold || row['asin_total_units_sold'] || 
+                                     row.ASIN_TOTAL_UNITS_SOLD || row['ASIN_TOTAL_UNITS_SOLD'] || 
+                                     row.total_units_sold || '0')
+      const totalOrders = parseInt(row.asin_total_orders || row['asin_total_orders'] || 
+                                   row.ASIN_TOTAL_ORDERS || row['ASIN_TOTAL_ORDERS'] ||
+                                   row.total_orders || row.order_quantity || row['ORDER QUANTITY'] || '0')
+      const totalReturns = parseInt(row.asin_total_units_returned || row['asin_total_units_returned'] ||
+                                   row.ASIN_TOTAL_UNITS_RETURNED || row['ASIN_TOTAL_UNITS_RETURNED'] ||
+                                   row.asin_total_returns || row['asin_total_returns'] || row.total_returns ||
+                                   row.return_quantity || row['RETURN QUANTITY'] || '0')
 
       if (!asinStats[asin]) {
         asinStats[asin] = {
           asin,
           itemName,
+          totalUnitsSold: 0,
           totalOrders: 0,
           totalReturns: 0,
           returnRate: 0,
@@ -226,15 +254,19 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
         }
       }
 
-      // Add to totals
-      asinStats[asin].totalOrders += orderQty
-      asinStats[asin].totalReturns += returnQty
+      // Use the values from the row (they're already aggregated per ASIN)
+      // Only update if the new value is higher (in case of multiple rows per ASIN)
+      asinStats[asin].totalUnitsSold = Math.max(asinStats[asin].totalUnitsSold, totalUnitsSold)
+      asinStats[asin].totalOrders = Math.max(asinStats[asin].totalOrders, totalOrders)
+      asinStats[asin].totalReturns = Math.max(asinStats[asin].totalReturns, totalReturns)
       
       // Count return reasons
-      if (!asinStats[asin].returnReasonCount[returnReason]) {
-        asinStats[asin].returnReasonCount[returnReason] = 0
+      if (returnReason && returnReason !== 'Unknown') {
+        if (!asinStats[asin].returnReasonCount[returnReason]) {
+          asinStats[asin].returnReasonCount[returnReason] = 0
+        }
+        asinStats[asin].returnReasonCount[returnReason] += 1
       }
-      asinStats[asin].returnReasonCount[returnReason] += returnQty
     })
 
     // Calculate return rate and find top reason
@@ -252,8 +284,8 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
       })
     })
 
-    // Sort by return rate (highest first)
-    return Object.values(asinStats).sort((a, b) => b.returnRate - a.returnRate)
+    // Sort by total returns (highest first)
+    return Object.values(asinStats).sort((a, b) => b.totalReturns - a.totalReturns)
   }, [filteredByDate])
 
   // Get return reasons for selected ASIN
@@ -294,6 +326,31 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
     return Array.from(new Set(returnRateData.map(d => d.asin)))
   }, [returnRateData])
 
+  // Format date range display
+  const getDateRangeLabel = () => {
+    switch (dateRange) {
+      case 'all':
+        return 'All Time'
+      case 'last60days':
+        return 'Last 60 Days'
+      case 'lastmonth':
+        return 'Last Month'
+      case 'thismonth':
+        return 'This Month'
+      case 'thisweek':
+        return 'This Week'
+      case 'custom':
+        if (customStartDate && customEndDate) {
+          const start = new Date(customStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          const end = new Date(customEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          return `${start} - ${end}`
+        }
+        return 'Custom Range'
+      default:
+        return 'All Time'
+    }
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header with filters */}
@@ -329,8 +386,30 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
               <SelectItem value="lastmonth">Last Month</SelectItem>
               <SelectItem value="thismonth">This Month</SelectItem>
               <SelectItem value="thisweek">This Week</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Custom Date Range Inputs */}
+          {dateRange === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="h-9 px-3 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
+                placeholder="Start Date"
+              />
+              <span className="text-sm text-gray-500">to</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="h-9 px-3 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
+                placeholder="End Date"
+              />
+            </div>
+          )}
 
           <Select value={selectedASIN} onValueChange={setSelectedASIN}>
             <SelectTrigger className="w-[250px]">
@@ -399,7 +478,7 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
         <CardHeader>
           <CardTitle>Return Reasons Distribution</CardTitle>
           <CardDescription>
-            {selectedASIN === 'all' ? 'All ASINs' : `ASIN: ${selectedASIN}`} - {dateRange === 'all' ? 'All Time' : dateRange === 'ytd' ? 'Year to Date' : 'This Month'}
+            {selectedASIN === 'all' ? 'All ASINs' : `ASIN: ${selectedASIN}`} - {getDateRangeLabel()}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -439,8 +518,8 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
       {/* Return Rate Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Return Rate by ASIN</CardTitle>
-          <CardDescription>Ranked from highest to lowest return rate</CardDescription>
+          <CardTitle>Returns by ASIN</CardTitle>
+          <CardDescription>Ranked by total number of returns (highest to lowest)</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -450,9 +529,10 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Rank</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">ASIN</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Item Name</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Total Units Sold</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Total Orders</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Total Returns</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Return Rate</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Orders</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Returns</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Top Return Reason</th>
                 </tr>
               </thead>
@@ -466,13 +546,22 @@ export default function ReturnsAnalysis({ rows, columns, sheets }: ReturnsAnalys
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">#{index + 1}</td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{data.asin}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{data.itemName}</td>
+                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100 font-medium">
+                      {data.totalUnitsSold.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100 font-medium">
+                      {data.totalOrders.toLocaleString()}
+                    </td>
                     <td className="px-4 py-3 text-sm text-right">
-                      <span className={`font-semibold ${data.returnRate > 50 ? 'text-red-600' : data.returnRate > 25 ? 'text-yellow-600' : 'text-green-600'}`}>
+                      <span className={`font-bold ${data.totalReturns > 50 ? 'text-red-600' : data.totalReturns > 25 ? 'text-yellow-600' : 'text-blue-600'}`}>
+                        {data.totalReturns.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right">
+                      <span className={`font-bold ${data.returnRate > 10 ? 'text-red-600' : data.returnRate > 5 ? 'text-yellow-600' : 'text-green-600'}`}>
                         {data.returnRate.toFixed(1)}%
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">{data.totalOrders.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">{data.totalReturns.toLocaleString()}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{data.topReturnReason}</td>
                   </tr>
                 ))}
