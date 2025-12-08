@@ -135,7 +135,7 @@ export default function DatasetPage() {
   const filteredRows = useMemo(() => {
     let rows = currentView?.rows || []
     
-    if (globalSearch) {
+    if (globalSearch && dataset) {
       rows = rows.filter((row: any) =>
         dataset.columns.some((col: any) =>
           String(row[col.id] || '').toLowerCase().includes(globalSearch.toLowerCase())
