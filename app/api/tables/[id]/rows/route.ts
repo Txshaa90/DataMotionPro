@@ -9,7 +9,7 @@ export async function GET(
     const { id } = params
 
     // TODO: Fetch from database
-    const rows = []
+    const rows: any[] = []
 
     return NextResponse.json({ rows }, { status: 200 })
   } catch (error) {
