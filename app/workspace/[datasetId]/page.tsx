@@ -163,6 +163,7 @@ export default function DatasetWorkspacePage() {
     }
   })
 
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -535,7 +536,7 @@ export default function DatasetWorkspacePage() {
   const inputHeightClass = rowHeight === 'compact' ? 'h-7' : 'h-8'
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden">
       <div className="flex flex-1 overflow-hidden">
         <IconSidebar 
           isExpanded={!sidebarCollapsed}
@@ -545,7 +546,7 @@ export default function DatasetWorkspacePage() {
           onShare={() => setShareDialogOpen(true)}
         />
 
-        <main className="flex-1 flex flex-col overflow-hidden pb-14">
+        <main className="flex-1 flex flex-col overflow-hidden pb-14" style={{ maxWidth: '100%' }}>
           <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-4 py-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -627,9 +628,13 @@ export default function DatasetWorkspacePage() {
               />
             </div>
           ) : (
-            <div className="flex-1 overflow-hidden">
-              {/* Table container with scroll */}
-              <div ref={tableContainerRef} className="h-full overflow-auto">
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {/* Table container with scroll - visible vertical scrollbar, hidden horizontal */}
+              <div 
+                ref={tableContainerRef} 
+                className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar-track]:bg-gray-100 dark:[&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-md dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb:hover]:bg-gray-400 dark:[&::-webkit-scrollbar-thumb:hover]:bg-gray-500" 
+                style={{ scrollbarWidth: 'thin' }}
+              >
                 <table className="border-separate border-spacing-0 w-full border-2 border-gray-300 dark:border-gray-600" style={{ minWidth: '100%' }}>
                     <thead className="bg-white dark:bg-gray-800">
                       <tr className="sticky top-0 z-20 bg-white dark:bg-gray-800 shadow-sm border-b-2 border-gray-300 dark:border-gray-600">

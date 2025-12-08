@@ -7,7 +7,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'ZeroStack - Build Databases Like Spreadsheets',
+  title: 'DataMotionPro - Build Databases Like Spreadsheets',
   description: 'The modern no-code database platform. Create powerful databases with the simplicity of a spreadsheet.',
 }
 
@@ -21,7 +21,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider
           defaultTheme="system"
-          storageKey="zerostack-theme"
+          storageKey="datamotionpro-theme"
         >
           <AuthProvider>
             {children}

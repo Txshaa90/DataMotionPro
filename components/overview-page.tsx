@@ -51,7 +51,7 @@ export function OverviewPage({ onCreateTable, onImportData }: OverviewPageProps)
             Overview
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Get started with ZeroStack by creating tables, importing data, or exploring features
+            Get started with DataMotionPro by creating tables, importing data, or exploring features
           </p>
         </div>
 
@@ -85,8 +85,8 @@ export function OverviewPage({ onCreateTable, onImportData }: OverviewPageProps)
             />
             <ActionCard
               icon={<Layers className="h-6 w-6" />}
-              title="Scripts by ZeroStack"
-              description="Ready to use scripts by ZeroStack"
+              title="Scripts by DataMotionPro"
+              description="Ready to use scripts by DataMotionPro"
             />
             <ActionCard
               icon={<BarChart3 className="h-6 w-6" />}

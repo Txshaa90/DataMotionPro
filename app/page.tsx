@@ -12,7 +12,7 @@ export default function Home() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Database className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">ZeroStack</span>
+            <span className="text-2xl font-bold">DataMotionPro</span>
           </div>
           <div className="hidden md:flex items-center space-x-8">
             <a href="#features" className="text-green-200 hover:text-white">Features</a>
@@ -145,7 +145,7 @@ export default function Home() {
       <section id="about" className="py-20 px-4 bg-green-800">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4 text-white">About ZeroStack</h2>
+            <h2 className="text-4xl font-bold mb-4 text-white">About DataMotionPro</h2>
             <p className="text-xl text-green-100">Building the future of data management</p>
           </div>
           
@@ -154,16 +154,16 @@ export default function Home() {
               <h3 className="text-2xl font-semibold mb-4 text-white">Our Mission</h3>
               <p className="text-lg leading-relaxed text-green-100">
                 We believe that powerful data management tools shouldn't require a computer science degree. 
-                ZeroStack makes it easy for anyone to build, manage, and scale databases with the simplicity 
+                DataMotionPro makes it easy for anyone to build, manage, and scale databases with the simplicity 
                 of a spreadsheet and the power of a modern database.
               </p>
             </div>
 
             <div className="bg-green-900/50 p-8 rounded-lg border border-green-700">
-              <h3 className="text-2xl font-semibold mb-4 text-white">Why ZeroStack?</h3>
+              <h3 className="text-2xl font-semibold mb-4 text-white">Why DataMotionPro?</h3>
               <p className="text-lg leading-relaxed text-green-100 mb-4">
                 Traditional databases are complex and require specialized knowledge. Spreadsheets are easy 
-                but lack the power and scalability needed for modern applications. ZeroStack bridges this gap.
+                but lack the power and scalability needed for modern applications. DataMotionPro bridges this gap.
               </p>
               <ul className="space-y-3 text-green-100">
                 <li className="flex items-start">
@@ -189,7 +189,7 @@ export default function Home() {
               <h3 className="text-2xl font-semibold mb-4 text-white">Built for Teams</h3>
               <p className="text-lg leading-relaxed text-green-100">
                 Whether you're a startup building your first product, a growing business managing customer data, 
-                or an enterprise team coordinating complex workflows, ZeroStack scales with you. Real-time 
+                or an enterprise team coordinating complex workflows, DataMotionPro scales with you. Real-time 
                 collaboration, powerful permissions, and seamless integrations make it the perfect choice for 
                 teams of any size.
               </p>
@@ -202,7 +202,7 @@ export default function Home() {
       <section className="py-20 px-4 bg-green-600 text-white">
         <div className="container mx-auto text-center">
           <h2 className="text-4xl font-bold mb-6">Ready to get started?</h2>
-          <p className="text-xl mb-8 opacity-90">Join thousands of teams building with ZeroStack</p>
+          <p className="text-xl mb-8 opacity-90">Join thousands of teams building with DataMotionPro</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/auth/signup">
               <Button size="lg" variant="secondary" className="text-lg px-8">
@@ -226,7 +226,7 @@ export default function Home() {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <Database className="h-6 w-6 text-primary" />
-                <span className="text-xl font-bold text-white">ZeroStack</span>
+                <span className="text-xl font-bold text-white">DataMotionPro</span>
               </div>
               <p className="text-sm">Build databases like spreadsheets</p>
             </div>
@@ -256,7 +256,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 text-sm text-center">
-            <p>&copy; 2024 ZeroStack. All rights reserved.</p>
+            <p>&copy; 2024 DataMotionPro. All rights reserved.</p>
           </div>
         </div>
       </footer>

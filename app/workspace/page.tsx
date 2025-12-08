@@ -197,7 +197,7 @@ export default function WorkspacePageEnhanced() {
             <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
             <Link href="/" className="flex items-center space-x-2">
               <Database className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">ZeroStack</span>
+              <span className="text-xl font-bold">DataMotionPro</span>
             </Link>
             <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
             <div className="flex items-center space-x-2">

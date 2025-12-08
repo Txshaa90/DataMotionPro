@@ -26,7 +26,7 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
             <Database className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">ZeroStack</span>
+            <span className="text-xl font-bold">DataMotionPro</span>
           </Link>
 
           {/* Navigation Links */}

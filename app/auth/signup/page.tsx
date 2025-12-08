@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Database, Mail, Lock, Chrome, User } from 'lucide-react'
+import { Database, Mail, Lock, Chrome, User, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 
 export default function SignUpPage() {
@@ -17,6 +17,9 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, label: '', color: '' })
 
   useEffect(() => {
     if (user) {
@@ -36,6 +39,11 @@ export default function SignUpPage() {
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters')
+      return
+    }
+
+    if (passwordStrength.score < 2) {
+      setError('Please use a stronger password')
       return
     }
 
@@ -62,6 +70,30 @@ export default function SignUpPage() {
       setLoading(false)
     }
   }
+
+  const calculatePasswordStrength = (pwd: string) => {
+    let score = 0
+    if (!pwd) return { score: 0, label: '', color: '' }
+
+    // Length check
+    if (pwd.length >= 8) score++
+    if (pwd.length >= 12) score++
+
+    // Character variety
+    if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++
+    if (/\d/.test(pwd)) score++
+    if (/[^a-zA-Z\d]/.test(pwd)) score++
+
+    // Determine label and color
+    if (score <= 2) return { score, label: 'Weak', color: 'bg-red-500' }
+    if (score === 3) return { score, label: 'Fair', color: 'bg-yellow-500' }
+    if (score === 4) return { score, label: 'Good', color: 'bg-blue-500' }
+    return { score, label: 'Strong', color: 'bg-green-500' }
+  }
+
+  useEffect(() => {
+    setPasswordStrength(calculatePasswordStrength(password))
+  }, [password])
 
   if (!isConfigured) {
     return (
@@ -146,15 +178,43 @@ export default function SignUpPage() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 pr-10"
                   required
                   minLength={6}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
+              {password && (
+                <div className="mt-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-gray-600 dark:text-gray-400">Password strength:</span>
+                    <span className={`text-xs font-medium ${
+                      passwordStrength.score <= 2 ? 'text-red-600' :
+                      passwordStrength.score === 3 ? 'text-yellow-600' :
+                      passwordStrength.score === 4 ? 'text-blue-600' : 'text-green-600'
+                    }`}>{passwordStrength.label}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.color}`}
+                      style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Use 8+ characters with a mix of letters, numbers & symbols
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
@@ -162,14 +222,21 @@ export default function SignUpPage() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 pr-10"
                   required
                   minLength={6}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
             </div>
 

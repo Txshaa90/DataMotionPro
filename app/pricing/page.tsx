@@ -11,7 +11,7 @@ export default function PricingPage() {
       <nav className="border-b border-green-800 bg-green-950/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold">ZeroStack</span>
+            <span className="text-2xl font-bold">DataMotionPro</span>
           </Link>
           <div className="flex items-center space-x-4">
             <Link href="/auth/signin">
