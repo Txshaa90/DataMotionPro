@@ -512,7 +512,7 @@ export default function DatasetWorkspacePage() {
         if (row.manualColor) {
           rowColor = row.manualColor
         } else if (activeColorRules.length > 0) {
-          const matchingRule = activeColorRules.find(rule => String(row[rule.columnId] || '').toLowerCase() === String(rule.value).toLowerCase())
+          const matchingRule = activeColorRules.find((rule: any) => String(row[rule.columnId] || '').toLowerCase() === String(rule.value).toLowerCase())
           if (matchingRule) rowColor = matchingRule.color
         }
         return { ...row, rowColor }
