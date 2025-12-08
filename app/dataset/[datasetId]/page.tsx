@@ -66,7 +66,7 @@ export default function DatasetPage() {
       r.id === rowId ? { ...r, [columnId]: value } : r
     )
     try {
-      await supabase.from('views').update({ rows: updatedRows } as any).eq('id', currentView.id)
+      await (supabase.from('views').update({ rows: updatedRows }) as any).eq('id', currentView.id)
       setViews(views.map(v => v.id === currentView.id ? { ...v, rows: updatedRows } : v))
     } catch (error) {
       console.error('Error updating cell:', error)
@@ -79,7 +79,7 @@ export default function DatasetPage() {
     dataset.columns.forEach((col: any) => { newRow[col.id] = '' })
     const updatedRows = [...(currentView.rows || []), newRow]
     try {
-      await supabase.from('views').update({ rows: updatedRows } as any).eq('id', currentView.id)
+      await (supabase.from('views').update({ rows: updatedRows }) as any).eq('id', currentView.id)
       setViews(views.map(v => v.id === currentView.id ? { ...v, rows: updatedRows } : v))
     } catch (error) {
       console.error('Error adding row:', error)
@@ -90,7 +90,7 @@ export default function DatasetPage() {
     if (!currentView) return
     const updatedRows = (currentView.rows || []).filter((r: any) => r.id !== rowId)
     try {
-      await supabase.from('views').update({ rows: updatedRows } as any).eq('id', currentView.id)
+      await (supabase.from('views').update({ rows: updatedRows }) as any).eq('id', currentView.id)
       setViews(views.map(v => v.id === currentView.id ? { ...v, rows: updatedRows } : v))
     } catch (error) {
       console.error('Error deleting row:', error)
