@@ -86,14 +86,14 @@ export default function DatasetWorkspacePage() {
       if (!datasetId) return
       setLoading(true)
       try {
-        const { data: datasetData, error: datasetError } = await supabase
+        const { data: datasetData, error: datasetError } = await (supabase as any)
           .from('tables')
           .select('*')
           .eq('id', datasetId)
           .single()
         if (datasetError) throw datasetError
 
-        const { data: viewsData, error: viewsError } = await supabase
+        const { data: viewsData, error: viewsError } = await (supabase as any)
           .from('views')
           .select('*')
           .eq('table_id', datasetId)
