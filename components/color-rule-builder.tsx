@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ColorRule, FilterOperator } from '@/store/useViewStore-enhanced'
+import { ColorRule, FilterOperator } from '@/store/useViewStore'
 import { Column } from '@/store/useTableStore'
 import { getOperatorsForType, getOperatorLabel, COLOR_OPTIONS } from '@/lib/filter-utils'
 import { X, Palette } from 'lucide-react'
