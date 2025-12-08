@@ -194,7 +194,7 @@ export default function Dashboard() {
           user_id: userId,
           name: newFolderName,
           color: newFolderColor
-        })
+        } as any)
         .select()
         .single()
       
