@@ -49,7 +49,7 @@ export default function DatasetPage() {
         setViews(viewsData || [])
         
         if (viewsData && viewsData.length > 0 && !activeViewId) {
-          setActiveViewId(viewsData[0].id)
+          setActiveViewId((viewsData[0] as any).id)
         }
       } catch (error) {
         console.error('Error fetching dataset:', error)
