@@ -507,7 +507,7 @@ export default function DatasetWorkspacePage() {
   const rowsWithColor = Object.fromEntries(
     Object.entries(groupedRows).map(([group, rows]) => [
       group,
-      rows.map(row => {
+      (rows as any[]).map((row: any) => {
         let rowColor = 'transparent'
         if (row.manualColor) {
           rowColor = row.manualColor
@@ -522,14 +522,15 @@ export default function DatasetWorkspacePage() {
 
   const displayRowsWithColor = Object.fromEntries(
     Object.entries(rowsWithColor).map(([group, rows]) => {
-      if (showAllRows) return [group, { rows, total: rows.length }]
+      const rowsArray = rows as any[]
+      if (showAllRows) return [group, { rows: rowsArray, total: rowsArray.length }]
       const startIndex = (currentPage - 1) * rowsPerPage
-      const paginatedRows = rows.slice(startIndex, startIndex + rowsPerPage)
-      return [group, { rows: paginatedRows, total: rows.length }]
+      const paginatedRows = rowsArray.slice(startIndex, startIndex + rowsPerPage)
+      return [group, { rows: paginatedRows, total: rowsArray.length }]
     })
   )
 
-  const totalRows = Object.values(rowsWithColor).reduce((sum, rows) => sum + rows.length, 0)
+  const totalRows = Object.values(rowsWithColor).reduce((sum, rows) => sum + (rows as any[]).length, 0)
   const totalPages = Math.ceil(totalRows / rowsPerPage)
   const rowPaddingClass = rowHeight === 'compact' ? 'py-1 text-xs' : 'py-3 text-sm'
   const cellPaddingClass = rowHeight === 'compact' ? 'py-1' : 'py-3'
