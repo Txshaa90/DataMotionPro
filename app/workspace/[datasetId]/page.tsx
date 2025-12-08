@@ -216,7 +216,7 @@ export default function DatasetWorkspacePage() {
     currentDataset.columns.forEach((col: any) => { newRow[col.id] = '' })
     const updatedRows = [...(currentSheet.rows || []), newRow]
     try {
-      await supabase.from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
+      await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
       updateSupabaseView(currentSheet.id, { rows: updatedRows })
     } catch (error) {
       console.error('Error adding row:', error)
@@ -227,7 +227,7 @@ export default function DatasetWorkspacePage() {
     if (!currentSheet) return
     const updatedRows = (currentSheet.rows || []).filter((r: any) => r.id !== rowId)
     try {
-      await supabase.from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
+      await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
       setSupabaseViews(supabaseViews.map(v => v.id === currentSheet.id ? { ...v, rows: updatedRows } : v))
     } catch (error) {
       console.error('Error deleting row:', error)
@@ -248,7 +248,7 @@ export default function DatasetWorkspacePage() {
     
     try {
       // Update the table
-      await supabase.from('tables').update({ 
+      await (supabase as any).from('tables').update({ 
         columns: updatedColumns,
         rows: updatedRows 
       }).eq('id', datasetId)
@@ -261,7 +261,7 @@ export default function DatasetWorkspacePage() {
           return rest
         })
         
-        await supabase.from('views').update({
+        await (supabase as any).from('views').update({
           visible_columns: updatedVisibleColumns,
           rows: updatedViewRows
         }).eq('id', view.id)
@@ -280,7 +280,7 @@ export default function DatasetWorkspacePage() {
     if (!currentSheet) return
     const updatedRows = (currentSheet.rows || []).map((r: any) => r.id === rowId ? { ...r, [columnId]: value } : r)
     try {
-      await supabase.from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
+      await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
       updateSupabaseView(currentSheet.id, { rows: updatedRows })
     } catch (error) {
       console.error('Error updating cell:', error)
@@ -302,7 +302,7 @@ export default function DatasetWorkspacePage() {
       chart_config: viewType === 'chart' ? { chartType: 'bar', xAxisField: '', yAxisField: '', aggregation: 'count' } : null
     }
     try {
-      const { data } = await supabase.from('views').insert([newSheet]).select().single()
+      const { data } = await (supabase as any).from('views').insert([newSheet]).select().single()
       if (data) {
         setSupabaseViews([...supabaseViews, data])
         setActiveSheetId(data.id)
@@ -314,7 +314,7 @@ export default function DatasetWorkspacePage() {
 
   const handleRenameSheet = async (sheetId: string, newName: string) => {
     try {
-      await supabase.from('views').update({ name: newName }).eq('id', sheetId)
+      await (supabase as any).from('views').update({ name: newName }).eq('id', sheetId)
       setSupabaseViews(supabaseViews.map(v => v.id === sheetId ? { ...v, name: newName } : v))
     } catch (error) {
       console.error('Error renaming sheet:', error)
@@ -324,7 +324,7 @@ export default function DatasetWorkspacePage() {
   const handleDeleteSheet = async (sheetId: string) => {
     if (datasetSheets.length <= 1) return alert('Cannot delete the last sheet')
     try {
-      await supabase.from('views').delete().eq('id', sheetId)
+      await (supabase as any).from('views').delete().eq('id', sheetId)
       const remainingSheets = supabaseViews.filter(v => v.id !== sheetId)
       setSupabaseViews(remainingSheets)
       if (activeSheetId === sheetId) setActiveSheetId(remainingSheets[0].id)
@@ -345,7 +345,7 @@ export default function DatasetWorkspacePage() {
       rows: sheetToDuplicate.rows || [], chart_config: sheetToDuplicate.chart_config || null
     }
     try {
-      const { data } = await supabase.from('views').insert([duplicatedSheet]).select().single()
+      const { data } = await (supabase as any).from('views').insert([duplicatedSheet]).select().single()
       if (data) {
         setSupabaseViews([...supabaseViews, data])
         setActiveSheetId(data.id)
@@ -358,7 +358,7 @@ export default function DatasetWorkspacePage() {
   const updateView = async (updates: any) => {
     if (!currentSheet) return
     try {
-      await supabase.from('views').update(updates).eq('id', currentSheet.id)
+      await (supabase as any).from('views').update(updates).eq('id', currentSheet.id)
       setSupabaseViews(supabaseViews.map(v => v.id === currentSheet.id ? { ...v, ...updates } : v))
     } catch (error) {
       console.error('Error updating view:', error)
@@ -597,7 +597,7 @@ export default function DatasetWorkspacePage() {
                 chartConfig={currentSheet.chart_config || { chartType: 'bar', xAxisField: '', yAxisField: '', aggregation: 'count' }}
                 onConfigChange={async (config) => {
                   try {
-                    await supabase.from('views').update({ chart_config: config }).eq('id', currentSheet.id)
+                    await (supabase as any).from('views').update({ chart_config: config }).eq('id', currentSheet.id)
                     setSupabaseViews(supabaseViews.map(v => v.id === currentSheet.id ? { ...v, chart_config: config } : v))
                   } catch (error) {
                     console.error('Error updating chart config:', error)
@@ -619,7 +619,7 @@ export default function DatasetWorkspacePage() {
                 widgets={currentSheet.dashboard_widgets || []}
                 onWidgetsChange={async (widgets) => {
                   try {
-                    await supabase.from('views').update({ dashboard_widgets: widgets }).eq('id', currentSheet.id)
+                    await (supabase as any).from('views').update({ dashboard_widgets: widgets }).eq('id', currentSheet.id)
                     setSupabaseViews(supabaseViews.map(v => v.id === currentSheet.id ? { ...v, dashboard_widgets: widgets } : v))
                   } catch (error) {
                     console.error('Error updating dashboard widgets:', error)
@@ -826,7 +826,7 @@ export default function DatasetWorkspacePage() {
         datasetId={datasetId}
         sheetId={currentSheet?.id || ''}
         onImportComplete={async () => {
-          const { data: viewsData } = await supabase.from('views').select('*').eq('table_id', datasetId)
+          const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId)
           if (viewsData) setSupabaseViews(viewsData)
         }}
       />
