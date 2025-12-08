@@ -1,4 +1,4 @@
-import { FilterCondition, FilterOperator, ColorRule } from '@/store/useViewStore-enhanced'
+import { FilterCondition, FilterOperator, ColorRule } from '@/store/useViewStore'
 import { Row } from '@/store/useTableStore'
 
 /**

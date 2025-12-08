@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { FilterCondition, FilterOperator } from '@/store/useViewStore-enhanced'
+import { FilterCondition, FilterOperator } from '@/store/useViewStore'
 import { Column } from '@/store/useTableStore'
 import { getOperatorsForType, getOperatorLabel } from '@/lib/filter-utils'
 import { X } from 'lucide-react'
