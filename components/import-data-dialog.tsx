@@ -288,7 +288,7 @@ export function ImportDataDialog({
         
         if (columnKeys.length > 0) {
           // Get current dataset columns
-          const { data: tableData, error: tableError } = await supabase
+          const { data: tableData, error: tableError } = await (supabase as any)
             .from('tables')
             .select('columns')
             .eq('id', datasetId)
@@ -313,7 +313,7 @@ export function ImportDataDialog({
             
             // Always update with merged columns
             const updatedColumns = [...existingColumns, ...newColumns]
-            const { error: updateError } = await supabase
+            const { error: updateError } = await (supabase as any)
               .from('tables')
               .update({ columns: updatedColumns })
               .eq('id', datasetId)
@@ -351,7 +351,7 @@ export function ImportDataDialog({
           console.log(`📊 Sample row:`, rows[0])
           
           // Create new sheet for each Excel sheet
-          const { data: insertedData, error: insertError } = await supabase
+          const { data: insertedData, error: insertError } = await (supabase as any)
             .from('views')
             .insert({
               user_id: userId,
@@ -415,7 +415,7 @@ export function ImportDataDialog({
 
         // Update dataset columns
         if (columnKeys.length > 0) {
-          const { data: tableData, error: tableError } = await supabase
+          const { data: tableData, error: tableError } = await (supabase as any)
             .from('tables')
             .select('columns')
             .eq('id', datasetId)
@@ -446,7 +446,7 @@ export function ImportDataDialog({
                 rowCount: importedRows.length 
               })
               
-              const { error: updateColError } = await supabase
+              const { error: updateColError } = await (supabase as any)
                 .from('tables')
                 .update({ columns: updatedColumns })
                 .eq('id', datasetId)
@@ -469,7 +469,7 @@ export function ImportDataDialog({
         })
 
         // Get current sheet data
-        const { data: sheetData, error: fetchError } = await supabase
+        const { data: sheetData, error: fetchError } = await (supabase as any)
           .from('views')
           .select('rows, visible_columns')
           .eq('id', sheetId)
@@ -481,7 +481,7 @@ export function ImportDataDialog({
         const updatedRows = [...currentRows, ...importedRows]
 
         // Update sheet with imported data and visible columns
-        const { error: updateError } = await supabase
+        const { error: updateError } = await (supabase as any)
           .from('views')
           .update({ 
             rows: updatedRows,
