@@ -90,7 +90,7 @@ export default function DatasetPage() {
     )
     try {
       await supabase
-        .from('views')
+        .from<View>('views')
         .update({ rows: updatedRows })
         .eq('id', currentView.id)
       
@@ -107,7 +107,7 @@ export default function DatasetPage() {
     const updatedRows = [...(currentView.rows || []), newRow]
     try {
       await supabase
-        .from('views')
+        .from<View>('views')
         .update({ rows: updatedRows })
         .eq('id', currentView.id)
       
@@ -122,7 +122,7 @@ export default function DatasetPage() {
     const updatedRows = (currentView.rows || []).filter((r: any) => r.id !== rowId)
     try {
       await supabase
-        .from('views')
+        .from<View>('views')
         .update({ rows: updatedRows })
         .eq('id', currentView.id)
       
