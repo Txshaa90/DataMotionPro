@@ -407,7 +407,7 @@ export const useTableStore = create<TableStore>()(
                   columns: t.columns.filter((c) => c.id !== columnId),
                   rows: t.rows.map((r) => {
                     const { [columnId]: _, ...rest } = r
-                    return rest
+                    return rest as Row
                   }),
                   updatedAt: new Date().toISOString(),
                 }
