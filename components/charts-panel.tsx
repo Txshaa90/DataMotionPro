@@ -83,14 +83,15 @@ export default function ChartsPanel({ columns, rows }: ChartsPanelProps) {
 
     // Calculate aggregation
     return Object.entries(grouped).map(([key, items]) => {
+      const itemsArray = items as any[]
       let value = 0
       
       if (aggregation === 'count') {
-        value = items.length
+        value = itemsArray.length
       } else if (yAxisField) {
-        const values = items
-          .map(item => Number(item[yAxisField]))
-          .filter(v => !isNaN(v))
+        const values = itemsArray
+          .map((item: any) => Number(item[yAxisField]))
+          .filter((v: number) => !isNaN(v))
         
         if (aggregation === 'sum') {
           value = values.reduce((sum, v) => sum + v, 0)
