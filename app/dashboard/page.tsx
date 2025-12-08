@@ -227,7 +227,7 @@ export default function Dashboard() {
           name: newTableName,
           columns: [],
           rows: []
-        })
+        } as any)
         .select()
         .single()
       
