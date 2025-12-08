@@ -233,14 +233,17 @@ export default function Dashboard() {
       
       if (error) throw error
       
+      // Type assertion for data
+      const newTable = data as any
+      
       // Update local state
-      setSupabaseTables([...supabaseTables, data])
+      setSupabaseTables([...supabaseTables, newTable])
       
       // Create default views for the new table (Grid View and Chart View)
       const defaultViews = [
         {
           user_id: userId,
-          table_id: data.id,
+          table_id: newTable.id,
           name: 'Grid View',
           type: 'grid',
           visible_columns: [],
@@ -252,7 +255,7 @@ export default function Dashboard() {
         },
         {
           user_id: userId,
-          table_id: data.id,
+          table_id: newTable.id,
           name: 'Chart View',
           type: 'chart',
           visible_columns: [],
