@@ -8,13 +8,36 @@ import { supabase } from '@/lib/supabase'
 import { ArrowLeft, Plus, Trash2, Search, Filter, SortAsc, Eye, Settings } from 'lucide-react'
 import Link from 'next/link'
 
+interface Row {
+  id: string
+  [key: string]: any
+}
+
+interface View {
+  id: string
+  table_id: string
+  name: string
+  rows: Row[]
+  visible_columns?: string[]
+}
+
+interface Dataset {
+  id: string
+  name: string
+  columns: {
+    id: string
+    name: string
+    type: string
+  }[]
+}
+
 export default function DatasetPage() {
   const params = useParams<{ datasetId: string }>()
   const router = useRouter()
   const datasetId = params.datasetId
   
-  const [dataset, setDataset] = useState<any>(null)
-  const [views, setViews] = useState<any[]>([])
+  const [dataset, setDataset] = useState<Dataset | null>(null)
+  const [views, setViews] = useState<View[]>([])
   const [activeViewId, setActiveViewId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [globalSearch, setGlobalSearch] = useState('')
@@ -66,7 +89,8 @@ export default function DatasetPage() {
       r.id === rowId ? { ...r, [columnId]: value } : r
     )
     try {
-      await (supabase.from('views').update({ rows: updatedRows }) as any).eq('id', currentView.id)
+      // @ts-ignore
+      await supabase.from('views').update({ rows: updatedRows }).eq('id', currentView.id)
       setViews(views.map(v => v.id === currentView.id ? { ...v, rows: updatedRows } : v))
     } catch (error) {
       console.error('Error updating cell:', error)
@@ -79,7 +103,8 @@ export default function DatasetPage() {
     dataset.columns.forEach((col: any) => { newRow[col.id] = '' })
     const updatedRows = [...(currentView.rows || []), newRow]
     try {
-      await (supabase.from('views').update({ rows: updatedRows }) as any).eq('id', currentView.id)
+      // @ts-ignore
+      await supabase.from('views').update({ rows: updatedRows }).eq('id', currentView.id)
       setViews(views.map(v => v.id === currentView.id ? { ...v, rows: updatedRows } : v))
     } catch (error) {
       console.error('Error adding row:', error)
@@ -90,7 +115,8 @@ export default function DatasetPage() {
     if (!currentView) return
     const updatedRows = (currentView.rows || []).filter((r: any) => r.id !== rowId)
     try {
-      await (supabase.from('views').update({ rows: updatedRows }) as any).eq('id', currentView.id)
+      // @ts-ignore
+      await supabase.from('views').update({ rows: updatedRows }).eq('id', currentView.id)
       setViews(views.map(v => v.id === currentView.id ? { ...v, rows: updatedRows } : v))
     } catch (error) {
       console.error('Error deleting row:', error)
