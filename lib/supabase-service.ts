@@ -9,7 +9,7 @@ import { View } from '@/store/useViewStore'
 export async function fetchFolders(userId: string): Promise<Folder[]> {
   if (!isSupabaseConfigured()) return []
   
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('folders')
     .select('*')
     .eq('user_id', userId)
@@ -20,7 +20,7 @@ export async function fetchFolders(userId: string): Promise<Folder[]> {
     return []
   }
 
-  return data.map((folder) => ({
+  return data.map((folder: any) => ({
     id: folder.id,
     name: folder.name,
     color: folder.color || '#10b981',
@@ -36,7 +36,7 @@ export async function createFolder(
 ): Promise<Folder | null> {
   if (!isSupabaseConfigured()) return null
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('folders')
     .insert({
       user_id: userId,
@@ -66,7 +66,7 @@ export async function updateFolder(
 ): Promise<boolean> {
   if (!isSupabaseConfigured()) return false
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('folders')
     .update({
       name: updates.name,
@@ -85,7 +85,7 @@ export async function updateFolder(
 export async function deleteFolder(folderId: string): Promise<boolean> {
   if (!isSupabaseConfigured()) return false
 
-  const { error } = await supabase.from('folders').delete().eq('id', folderId)
+  const { error } = await (supabase as any).from('folders').delete().eq('id', folderId)
 
   if (error) {
     console.error('Error deleting folder:', error)
@@ -102,7 +102,7 @@ export async function deleteFolder(folderId: string): Promise<boolean> {
 export async function fetchTables(userId: string): Promise<Table[]> {
   if (!isSupabaseConfigured()) return []
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('tables')
     .select('*')
     .eq('user_id', userId)
@@ -113,7 +113,7 @@ export async function fetchTables(userId: string): Promise<Table[]> {
     return []
   }
 
-  return data.map((table) => ({
+  return data.map((table: any) => ({
     id: table.id,
     name: table.name,
     folderId: table.folder_id,
@@ -133,7 +133,7 @@ export async function createTable(
 
   const defaultColumns = [{ id: 'c1', name: 'Name', type: 'text', width: 200 }]
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('tables')
     .insert({
       user_id: userId,
@@ -167,7 +167,7 @@ export async function updateTable(
 ): Promise<boolean> {
   if (!isSupabaseConfigured()) return false
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('tables')
     .update({
       name: updates.name,
@@ -188,7 +188,7 @@ export async function updateTable(
 export async function deleteTable(tableId: string): Promise<boolean> {
   if (!isSupabaseConfigured()) return false
 
-  const { error } = await supabase.from('tables').delete().eq('id', tableId)
+  const { error } = await (supabase as any).from('tables').delete().eq('id', tableId)
 
   if (error) {
     console.error('Error deleting table:', error)
@@ -205,7 +205,7 @@ export async function deleteTable(tableId: string): Promise<boolean> {
 export async function fetchViews(userId: string): Promise<View[]> {
   if (!isSupabaseConfigured()) return []
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('views')
     .select('*')
     .eq('user_id', userId)
@@ -216,7 +216,7 @@ export async function fetchViews(userId: string): Promise<View[]> {
     return []
   }
 
-  return data.map((view) => ({
+  return data.map((view: any) => ({
     id: view.id,
     tableId: view.table_id,
     name: view.name,
@@ -237,7 +237,7 @@ export async function createView(
 ): Promise<View | null> {
   if (!isSupabaseConfigured()) return null
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('views')
     .insert({
       user_id: userId,
@@ -277,7 +277,7 @@ export async function updateView(
 ): Promise<boolean> {
   if (!isSupabaseConfigured()) return false
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('views')
     .update({
       name: updates.name,
@@ -300,7 +300,7 @@ export async function updateView(
 export async function deleteView(viewId: string): Promise<boolean> {
   if (!isSupabaseConfigured()) return false
 
-  const { error } = await supabase.from('views').delete().eq('id', viewId)
+  const { error } = await (supabase as any).from('views').delete().eq('id', viewId)
 
   if (error) {
     console.error('Error deleting view:', error)
