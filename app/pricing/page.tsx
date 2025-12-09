@@ -77,8 +77,8 @@ export default function PricingPage() {
             {/* Free Tier */}
             <PricingCard
               name="Free"
-              price="$0"
-              period="per user / month"
+              price="₱0"
+              period="forever"
               description="For Personal Applications"
               features={[
                 { name: "3 Editor seats", included: true },
@@ -118,11 +118,11 @@ export default function PricingPage() {
             {/* Business Tier */}
             <PricingCard
               name="Business"
-              price="$24"
-              period="per seat / month, billed annually"
+              price="₱2,400"
+              period="per month"
               description="For Scaling Businesses"
               features={[
-                { name: "Unlimited seats at $216/month", included: true },
+                { name: "Unlimited seats", included: true },
                 { name: "300,000 records", included: true },
                 { name: "100 GB storage", included: true },
                 { name: "50,000 webhook runs / month", included: true },
@@ -130,8 +130,9 @@ export default function PricingPage() {
                 { name: "10 External database connections", included: true },
                 { name: "SAML Single Sign-On", included: true },
               ]}
-              buttonText="Choose Business"
-              buttonLink="/auth/signup?plan=business"
+              buttonText={loading === 'business' ? 'Processing...' : 'Subscribe Now'}
+              onPayment={() => handlePayment('business', 2400)}
+              loading={loading === 'business'}
             />
 
             {/* Enterprise Tier */}
