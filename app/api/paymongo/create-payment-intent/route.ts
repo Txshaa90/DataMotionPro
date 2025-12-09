@@ -8,6 +8,7 @@ export async function POST(request: NextRequest) {
 
     // Validate amount
     if (!amount || amount < 100) {
+      console.error('❌ Validation Error: Amount too low:', amount)
       return NextResponse.json(
         { error: 'Amount must be at least PHP 1.00 (100 centavos)' },
         { status: 400 }
@@ -20,27 +21,32 @@ export async function POST(request: NextRequest) {
       : process.env.PAYMONGO_SECRET_KEY_TEST
 
     if (!secretKey) {
+      console.error('❌ Config Error: PayMongo secret key not found')
+      console.error('Environment:', process.env.NODE_ENV)
+      console.error('Available keys:', {
+        hasProductionKey: !!process.env.PAYMONGO_SECRET_KEY,
+        hasTestKey: !!process.env.PAYMONGO_SECRET_KEY_TEST,
+      })
       return NextResponse.json(
-        { error: 'PayMongo API key not configured' },
+        { error: 'PayMongo API key not configured. Please add PAYMONGO_SECRET_KEY_TEST to your .env.local file.' },
         { status: 500 }
       )
     }
 
-    // Create payment intent
+    console.log('✅ Creating Payment Link (HPP)...')
+    console.log('Amount:', amount, 'centavos (PHP', amount / 100, ')')
+    console.log('Plan:', plan)
+    console.log('Using key:', secretKey.substring(0, 15) + '...')
+
+    // Create Payment Link (Hosted Payment Page)
     const response = await axios.post(
-      'https://api.paymongo.com/v1/payment_intents',
+      'https://api.paymongo.com/v1/links',
       {
         data: {
           attributes: {
             amount: amount, // in centavos (PHP 12.00 = 1200)
-            currency: currency,
-            payment_method_allowed: ['card', 'gcash', 'paymaya'],
-            description: description || `DataMotionPro ${plan || 'Payment'}`,
-            statement_descriptor: 'DataMotionPro',
-            metadata: {
-              plan: plan,
-              timestamp: new Date().toISOString(),
-            },
+            description: description || `DataMotionPro ${plan || 'Subscription'}`,
+            remarks: `${plan} Plan Subscription`,
           },
         },
       },
@@ -51,19 +57,28 @@ export async function POST(request: NextRequest) {
         },
         headers: {
           'Content-Type': 'application/json',
+          'accept': 'application/json',
         },
       }
     )
 
+    console.log('✅ Payment Link created successfully')
+    console.log('Checkout URL:', response.data.data.attributes.checkout_url)
+
     return NextResponse.json(response.data)
   } catch (error: any) {
-    console.error('PayMongo API Error:', error.response?.data || error.message)
+    console.error('❌ PayMongo API Error:')
+    console.error('Status:', error.response?.status)
+    console.error('Error Details:', JSON.stringify(error.response?.data, null, 2))
+    console.error('Full Error:', error.message)
+    
     return NextResponse.json(
       { 
-        error: 'Failed to create payment intent',
-        details: error.response?.data || error.message 
+        error: 'Failed to create payment link',
+        details: error.response?.data || error.message,
+        status: error.response?.status,
       },
-      { status: 500 }
+      { status: error.response?.status || 500 }
     )
   }
 }

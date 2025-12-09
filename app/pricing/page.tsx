@@ -14,37 +14,48 @@ export default function PricingPage() {
     setLoading(plan)
     
     try {
-      // Create payment intent
+      console.log('🚀 Starting payment for', plan, 'plan - Amount:', amount)
+      
+      // Create payment link (HPP)
       const response = await fetch('/api/paymongo/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: amount * 100, // Convert to centavos
+          amount: amount * 100, // Convert to centavos (1200 PHP = 120000 centavos)
           currency: 'PHP',
-          description: `DataMotionPro ${plan} Plan`,
+          description: `DataMotionPro ${plan} Plan Subscription`,
           plan: plan,
         }),
       })
 
+      console.log('📡 Response status:', response.status)
       const data = await response.json()
+      console.log('📦 Response data:', data)
 
       if (data.error) {
-        alert('Payment failed: ' + data.error)
+        const errorMessage = data.details?.errors?.[0]?.detail || data.error
+        console.error('❌ Payment Error:', errorMessage)
+        alert('Payment failed: ' + errorMessage)
         setLoading(null)
         return
       }
 
-      // Redirect to PayMongo hosted payment page
-      const checkoutUrl = data.data.attributes.next_action?.redirect?.url
+      // Get checkout URL from Payment Link response
+      const checkoutUrl = data.data?.attributes?.checkout_url
+      
+      console.log('🔗 Checkout URL:', checkoutUrl)
       
       if (checkoutUrl) {
+        console.log('✅ Redirecting to PayMongo checkout...')
         window.location.href = checkoutUrl
       } else {
-        alert('Unable to create payment session')
+        console.error('❌ No checkout URL in response')
+        console.error('Full response:', JSON.stringify(data, null, 2))
+        alert('Unable to create payment session. Please contact support.')
         setLoading(null)
       }
     } catch (error) {
-      console.error('Payment error:', error)
+      console.error('❌ Payment error:', error)
       alert('An error occurred. Please try again.')
       setLoading(null)
     }

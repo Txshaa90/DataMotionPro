@@ -1,14 +1,46 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
-import { Database, User, LogOut, Settings, ChevronDown } from 'lucide-react'
+import { Database, User, LogOut, Settings, ChevronDown, ChevronRight, ChevronLeft, Palette, CreditCard, MessageSquare, Trash2, Sun, Moon, Monitor, Check } from 'lucide-react'
+
+type Theme = 'light' | 'dark' | 'system'
 
 export function Navbar() {
   const { user, signOut } = useAuth()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showAppearanceMenu, setShowAppearanceMenu] = useState(false)
+  const [theme, setTheme] = useState<Theme>('system')
+  const [menuView, setMenuView] = useState<'main' | 'appearance'>('main')
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as Theme
+    if (savedTheme) {
+      setTheme(savedTheme)
+    }
+  }, [])
+
+  const handleThemeChange = (newTheme: Theme) => {
+    setTheme(newTheme)
+    localStorage.setItem('theme', newTheme)
+    
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else if (newTheme === 'light') {
+      document.documentElement.classList.remove('dark')
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      if (prefersDark) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    }
+    
+    setMenuView('main')
+  }
 
   const handleSignOut = async () => {
     try {
@@ -69,38 +101,127 @@ export function Navbar() {
                     onClick={() => setShowUserMenu(false)}
                   />
                   <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-20">
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                      <p className="text-sm font-medium">{user.user_metadata?.name || 'User'}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
-                    </div>
+                    {menuView === 'main' ? (
+                      <>
+                        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                          <p className="text-sm font-medium">{user.user_metadata?.name || 'User'}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
+                        </div>
 
-                    <Link
-                      href="/profile"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <User className="h-4 w-4 mr-3" />
-                      Profile Settings
-                    </Link>
+                        <Link
+                          href="/profile"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <User className="h-4 w-4 mr-3" />
+                          Account
+                        </Link>
 
-                    <Link
-                      href="/dashboard"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <Settings className="h-4 w-4 mr-3" />
-                      Dashboard
-                    </Link>
+                        <button
+                          onClick={() => setMenuView('appearance')}
+                          className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          <div className="flex items-center">
+                            <Palette className="h-4 w-4 mr-3" />
+                            Appearance
+                          </div>
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
 
-                    <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+                        <Link
+                          href="/pricing"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <CreditCard className="h-4 w-4 mr-3" />
+                          Upgrade
+                        </Link>
 
-                    <button
-                      onClick={handleSignOut}
-                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      <LogOut className="h-4 w-4 mr-3" />
-                      Sign Out
-                    </button>
+                        <Link
+                          href="/profile?tab=contact"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <MessageSquare className="h-4 w-4 mr-3" />
+                          Contact Sales
+                        </Link>
+
+                        <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+
+                        <Link
+                          href="/dashboard"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <Settings className="h-4 w-4 mr-3" />
+                          Dashboard
+                        </Link>
+
+                        <Link
+                          href="/profile?tab=trash"
+                          className="flex items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-3" />
+                          Trash
+                        </Link>
+
+                        <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+
+                        <button
+                          onClick={handleSignOut}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          <LogOut className="h-4 w-4 mr-3" />
+                          Sign Out
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                          <button
+                            onClick={() => setMenuView('main')}
+                            className="flex items-center text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
+                          >
+                            <ChevronLeft className="h-4 w-4 mr-2" />
+                            Appearance
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => handleThemeChange('light')}
+                          className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          <div className="flex items-center">
+                            <Sun className="h-4 w-4 mr-3" />
+                            Light
+                          </div>
+                          {theme === 'light' && <Check className="h-4 w-4 text-green-600" />}
+                        </button>
+
+                        <button
+                          onClick={() => handleThemeChange('dark')}
+                          className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          <div className="flex items-center">
+                            <Moon className="h-4 w-4 mr-3" />
+                            Dark
+                          </div>
+                          {theme === 'dark' && <Check className="h-4 w-4 text-green-600" />}
+                        </button>
+
+                        <button
+                          onClick={() => handleThemeChange('system')}
+                          className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          <div className="flex items-center">
+                            <Monitor className="h-4 w-4 mr-3" />
+                            Use system setting
+                          </div>
+                          {theme === 'system' && <Check className="h-4 w-4 text-green-600" />}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </>
               )}
