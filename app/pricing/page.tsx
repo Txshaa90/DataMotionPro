@@ -1,10 +1,54 @@
 'use client'
 
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Check, X } from 'lucide-react'
+import { Check, X, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function PricingPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState<string | null>(null)
+
+  const handlePayment = async (plan: string, amount: number) => {
+    setLoading(plan)
+    
+    try {
+      // Create payment intent
+      const response = await fetch('/api/paymongo/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amount * 100, // Convert to centavos
+          currency: 'PHP',
+          description: `DataMotionPro ${plan} Plan`,
+          plan: plan,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.error) {
+        alert('Payment failed: ' + data.error)
+        setLoading(null)
+        return
+      }
+
+      // Redirect to PayMongo hosted payment page
+      const checkoutUrl = data.data.attributes.next_action?.redirect?.url
+      
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl
+      } else {
+        alert('Unable to create payment session')
+        setLoading(null)
+      }
+    } catch (error) {
+      console.error('Payment error:', error)
+      alert('An error occurred. Please try again.')
+      setLoading(null)
+    }
+  }
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-950 to-green-900 text-white">
       {/* Navigation */}
@@ -53,11 +97,11 @@ export default function PricingPage() {
             {/* Plus Tier */}
             <PricingCard
               name="Plus"
-              price="$12"
-              period="per seat / month, billed annually"
+              price="₱1,200"
+              period="per month"
               description="For Small Teams"
               features={[
-                { name: "Unlimited seats at $108/month", included: true },
+                { name: "Unlimited seats", included: true },
                 { name: "Free commenter seats", included: true },
                 { name: "50,000 records", included: true },
                 { name: "20 GB storage", included: true },
@@ -65,9 +109,10 @@ export default function PricingPage() {
                 { name: "100,000 API calls / month", included: true },
                 { name: "Unlimited extensions", included: true },
               ]}
-              buttonText="Start Free Trial"
-              buttonLink="/auth/signup?plan=plus"
+              buttonText={loading === 'plus' ? 'Processing...' : 'Subscribe Now'}
+              onPayment={() => handlePayment('plus', 1200)}
               highlighted={true}
+              loading={loading === 'plus'}
             />
 
             {/* Business Tier */}
@@ -149,12 +194,14 @@ interface PricingCardProps {
   description: string
   features: Feature[]
   buttonText: string
-  buttonLink: string
+  buttonLink?: string
+  onPayment?: () => void
   highlighted?: boolean
   note?: string
+  loading?: boolean
 }
 
-function PricingCard({ name, price, period, description, features, buttonText, buttonLink, highlighted, note }: PricingCardProps) {
+function PricingCard({ name, price, period, description, features, buttonText, buttonLink, onPayment, highlighted, note, loading }: PricingCardProps) {
   return (
     <div className={`rounded-xl p-6 ${
       highlighted 
@@ -194,8 +241,10 @@ function PricingCard({ name, price, period, description, features, buttonText, b
         ))}
       </ul>
 
-      <Link href={buttonLink}>
+      {onPayment ? (
         <Button 
+          onClick={onPayment}
+          disabled={loading}
           className={`w-full ${
             highlighted 
               ? 'bg-white text-green-600 hover:bg-green-50' 
@@ -203,9 +252,23 @@ function PricingCard({ name, price, period, description, features, buttonText, b
           }`}
           size="lg"
         >
+          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {buttonText}
         </Button>
-      </Link>
+      ) : buttonLink ? (
+        <Link href={buttonLink}>
+          <Button 
+            className={`w-full ${
+              highlighted 
+                ? 'bg-white text-green-600 hover:bg-green-50' 
+                : 'bg-green-600 hover:bg-green-500'
+            }`}
+            size="lg"
+          >
+            {buttonText}
+          </Button>
+        </Link>
+      ) : null}
     </div>
   )
 }
