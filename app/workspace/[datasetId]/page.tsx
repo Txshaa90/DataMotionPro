@@ -32,7 +32,8 @@ import {
   MessageSquare,
   History,
   ChevronDown,
-  ClipboardPaste
+  ClipboardPaste,
+  Check
 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -65,6 +66,8 @@ export default function DatasetWorkspacePage() {
   const [localFilters, setLocalFilters] = useState<any[]>([])
   const [localSorts, setLocalSorts] = useState<any[]>([])
   const [localColorRules, setLocalColorRules] = useState<any[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(100)
   const [globalSearch, setGlobalSearch] = useState('')
   const [rowHeight, setRowHeight] = useState<'compact' | 'comfortable'>('comfortable')
   const [cellColors, setCellColors] = useState<Record<string, string>>({}) // { "rowId-columnId": "color" }
@@ -603,11 +606,14 @@ export default function DatasetWorkspacePage() {
   const displayRowsWithColor = Object.fromEntries(
     Object.entries(rowsWithColor).map(([group, rows]) => {
       const rowsArray = rows as any[]
-      return [group, { rows: rowsArray, total: rowsArray.length }]
+      const startIndex = (currentPage - 1) * rowsPerPage
+      const paginatedRows = rowsArray.slice(startIndex, startIndex + rowsPerPage)
+      return [group, { rows: paginatedRows, total: rowsArray.length }]
     })
   )
 
   const totalRows = Object.values(rowsWithColor).reduce((sum, rows) => sum + (rows as any[]).length, 0)
+  const totalPages = Math.ceil(totalRows / rowsPerPage)
   const rowPaddingClass = rowHeight === 'compact' ? 'py-1 text-xs' : 'py-3 text-sm'
   const cellPaddingClass = rowHeight === 'compact' ? 'py-1' : 'py-3'
   const inputHeightClass = rowHeight === 'compact' ? 'h-7' : 'h-8'
@@ -627,6 +633,34 @@ export default function DatasetWorkspacePage() {
           <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-4 py-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
+                {/* Sheet Selector */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="min-w-[180px] justify-between">
+                      <span className="flex items-center gap-2">
+                        {currentSheet && getSheetIcon(currentSheet.type)}
+                        <span className="text-sm">{currentSheet?.name || 'Select Sheet'}</span>
+                      </span>
+                      <ChevronDown className="h-4 w-4 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-[180px]">
+                    {datasetSheets.map(sheet => (
+                      <DropdownMenuItem 
+                        key={sheet.id}
+                        onClick={() => setActiveSheetId(sheet.id)}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="flex items-center gap-2">
+                          {getSheetIcon(sheet.type)}
+                          <span>{sheet.name}</span>
+                        </span>
+                        {sheet.id === activeSheetId && <Check className="h-4 w-4" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 <Button size="sm" variant="outline" onClick={() => setImportDialogOpen(true)}>
                   <Upload className="h-4 w-4 mr-1" />
                   Import
@@ -647,6 +681,48 @@ export default function DatasetWorkspacePage() {
                     <DropdownMenuItem onClick={handlePasteFromClipboard}>
                       <ClipboardPaste className="h-4 w-4 mr-2" />
                       Paste from Clipboard
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="flex items-center gap-2">
+                {currentSheet && datasetSheets.length > 1 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (confirm(`Delete sheet "${currentSheet.name}"? This cannot be undone.`)) {
+                        handleDeleteSheet(currentSheet.id)
+                      }
+                    }}
+                    className="text-gray-400 hover:text-red-600"
+                    title="Delete current sheet"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" title="Add new sheet">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleAddSheet('grid')}>
+                      <Grid3x3 className="h-4 w-4 mr-2" />
+                      Grid View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAddSheet('chart')}>
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Chart View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAddSheet('returns')}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Returns Analysis
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAddSheet('dashboard')}>
+                      <LayoutDashboard className="h-4 w-4 mr-2" />
+                      Dashboard
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -764,32 +840,31 @@ export default function DatasetWorkspacePage() {
                                 >
                                   <Maximize2 className="h-3 w-3" />
                                 </Button>
-                                <span>{index + 1}</span>
+                                <span>{(currentPage - 1) * rowsPerPage + index + 1}</span>
                               </div>
                             </td>
                             {finalVisibleColumns.map((column: any) => {
-                              // Get cell color from imported Excel data
                               const cellColor = row._cellColors?.[column.id] || cellColors[`${row.id}-${column.id}`]
                               const isCopied = copiedCell?.rowId === row.id && copiedCell?.columnId === column.id
                               
                               return (
-                              <td 
-                                key={column.id} 
-                                className={`px-4 ${cellPaddingClass} border-r-2 border-b-2 border-gray-300 dark:border-gray-600 ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
-                                style={{ 
-                                  minWidth: '250px',
-                                  backgroundColor: cellColor || 'transparent'
-                                }}
-                              >
-                                <Input
-                                  type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
-                                  value={row[column.id] || ''}
-                                  onChange={(e) => handleUpdateCell(row.id, column.id, e.target.value)}
-                                  onKeyDown={(e: any) => handleKeyDown(e, row.id, column.id, row[column.id])}
-                                  className={`border-0 focus:ring-1 focus:ring-primary bg-transparent w-full px-2 ${inputHeightClass} text-sm`}
-                                  style={{ backgroundColor: 'transparent' }}
-                                />
-                              </td>
+                                <td 
+                                  key={column.id} 
+                                  className={`px-4 ${cellPaddingClass} border-r-2 border-b-2 border-gray-300 dark:border-gray-600 ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
+                                  style={{ 
+                                    minWidth: '250px',
+                                    backgroundColor: cellColor || 'transparent'
+                                  }}
+                                >
+                                  <Input
+                                    type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
+                                    value={row[column.id] || ''}
+                                    onChange={(e) => handleUpdateCell(row.id, column.id, e.target.value)}
+                                    onKeyDown={(e: any) => handleKeyDown(e, row.id, column.id, row[column.id])}
+                                    className={`border-0 focus:ring-1 focus:ring-primary bg-transparent w-full px-2 ${inputHeightClass} text-sm`}
+                                    style={{ backgroundColor: 'transparent' }}
+                                  />
+                                </td>
                               )
                             })}
                             <td className="px-4 py-3 text-center border-r-2 border-b-2 border-gray-300 dark:border-gray-600" style={{ width: '100px', minWidth: '100px' }}>
@@ -810,130 +885,70 @@ export default function DatasetWorkspacePage() {
               </div>
             </div>
           )}
-          
-          {/* Fixed bottom bar with row count */}
-          {currentSheet?.type !== 'chart' && currentSheet?.type !== 'returns' && (
-            <div className="bg-white dark:bg-gray-800 border-t dark:border-gray-700 px-4 py-2 flex items-center justify-between">
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                {totalRows.toLocaleString()} {totalRows === 1 ? 'row' : 'rows'} total
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {totalRows} rows
-                </span>
-              </div>
-            </div>
-          )}
         </main>
       </div>
 
       {/* Fixed bottom bars - Google Sheets style */}
       <div 
-        className="fixed bottom-0 right-0 z-30 flex flex-col"
-        style={{ left: sidebarCollapsed ? '64px' : '256px' }}
-      >
-        {/* Horizontal scrollbar for table - ABOVE sheet tabs */}
-        <div 
-          ref={topScrollRef}
-          className="w-full overflow-x-auto overflow-y-hidden bg-gray-100 dark:bg-gray-700 border-t dark:border-gray-600"
-          style={{ height: '16px' }}
-        />
-        
-        {/* Sheet tabs bar - BELOW scrollbar */}
-        <div className="w-full bg-white dark:bg-gray-800 border-t dark:border-gray-700 overflow-x-auto whitespace-nowrap">
-          <div className="flex items-center gap-1 px-4 py-2">
-            {datasetSheets.map(sheet => (
-              <div
-                key={sheet.id}
-                className={`group inline-flex items-center gap-2 px-4 py-2 rounded-t-lg transition-colors relative ${
-                  sheet.id === activeSheetId 
-                    ? 'bg-gray-100 dark:bg-gray-700 text-primary font-medium border-t-2 border-primary' 
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 text-gray-600 dark:text-gray-400'
-                }`}
-              >
-                <button
-                  onClick={() => setActiveSheetId(sheet.id)}
-                  className="inline-flex items-center gap-2"
-                >
-                  {getSheetIcon(sheet.type)}
-                  <span className="text-sm">{sheet.name}</span>
-                </button>
-                {datasetSheets.length > 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (confirm(`Delete sheet "${sheet.name}"? This cannot be undone.`)) {
-                        handleDeleteSheet(sheet.id)
-                      }
-                    }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 hover:text-red-500"
-                    title="Delete sheet"
+            className="fixed bottom-0 right-0 z-30 flex flex-col"
+            style={{ left: sidebarCollapsed ? '64px' : '256px' }}
+          >
+            {/* Horizontal scrollbar for table - ABOVE sheet tabs */}
+            <div 
+              ref={topScrollRef}
+              className="w-full overflow-x-auto overflow-y-hidden bg-gray-100 dark:bg-gray-700 border-t dark:border-gray-600"
+              style={{ height: '16px' }}
+            />
+            
+            {/* Pagination and totals bar - BELOW scrollbar */}
+            <div className="w-full bg-white dark:bg-gray-800 border-t dark:border-gray-700">
+              <div className="flex items-center justify-between px-4 py-2">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  {totalRows.toLocaleString()} {totalRows === 1 ? 'row' : 'rows'} total
+                </div>
+                <div className="flex items-center gap-4">
+                  <select 
+                    value={rowsPerPage} 
+                    onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1) }} 
+                    className="border rounded px-2 py-1 text-sm dark:bg-gray-700 dark:border-gray-600"
+                    title="Rows per page"
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
+                    <option value={50}>50 per page</option>
+                    <option value={100}>100 per page</option>
+                    <option value={200}>200 per page</option>
+                    <option value={500}>500 per page</option>
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button size="sm" variant="outline" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}>
+                      Previous
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages}>
+                      Next
+                    </Button>
+                  </div>
+                </div>
               </div>
-            ))}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="ml-2"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => handleAddSheet('grid')}>
-                  <Grid3x3 className="h-4 w-4 mr-2" />
-                  Grid View
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddSheet('chart')}>
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Chart View
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddSheet('returns')}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Returns Analysis
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddSheet('dashboard')}>
-                  <LayoutDashboard className="h-4 w-4 mr-2" />
-                  Dashboard
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddSheet('gallery')}>
-                  <LayoutGrid className="h-4 w-4 mr-2" />
-                  Gallery View
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddSheet('form')}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Form View
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddSheet('kanban')}>
-                  <Columns className="h-4 w-4 mr-2" />
-                  Kanban View
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            </div>
           </div>
-        </div>
-      </div>
 
+      {/* Dialogs */}
       <ImportDataDialog
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
         datasetId={datasetId}
         sheetId={currentSheet?.id || ''}
-        onImportComplete={async () => {
-          const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId)
-          if (viewsData) setSupabaseViews(viewsData)
+        onImportComplete={() => {
+          fetchData()
+          setImportDialogOpen(false)
         }}
       />
 
       <ShareDialog
         open={shareDialogOpen}
         onOpenChange={setShareDialogOpen}
-        datasetName={currentDataset.name}
         datasetId={datasetId}
       />
 
@@ -942,7 +957,7 @@ export default function DatasetWorkspacePage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
               <h2 className="text-xl font-semibold">Record Details</h2>
               <button
                 onClick={() => setSelectedRow(null)}
@@ -1014,7 +1029,7 @@ export default function DatasetWorkspacePage() {
                     <div className="flex flex-col flex-1 min-h-0">
                       
                       {/* Comments List */}
-                      <div className="flex-1 overflow-y-auto px-6 space-y-4 min-h-0">
+                      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 min-h-0">
                         {comments.length === 0 ? (
                           <div className="flex flex-col items-center justify-center h-full text-center">
                             <MessageSquare className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-3" />
