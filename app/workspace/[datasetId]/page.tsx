@@ -940,8 +940,9 @@ export default function DatasetWorkspacePage() {
         onOpenChange={setImportDialogOpen}
         datasetId={datasetId}
         sheetId={currentSheet?.id || ''}
-        onImportComplete={() => {
-          fetchData()
+        onImportComplete={async () => {
+          const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId)
+          if (viewsData) setSupabaseViews(viewsData)
           setImportDialogOpen(false)
         }}
       />
