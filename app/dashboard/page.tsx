@@ -993,15 +993,69 @@ export default function Dashboard() {
         {/* Shared with Me Section */}
         {activeTab === 'shared' && (
           <section className="mt-8">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <Users className="h-5 w-5 mr-2" />
-              Shared with Me
-            </h2>
-            <div className={viewMode === 'grid'
-              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              : "space-y-2"
-            }>
-              {sharedTables.map((table) => {
+            {/* Show folders with shared datasets */}
+            {supabaseFolders.filter(folder => {
+              // Show folder if it has any shared datasets
+              return sharedTables.some(table => sharedFolderItems.get(table.id) === folder.id)
+            }).map(folder => {
+              const folderSharedTables = sharedTables.filter(table => sharedFolderItems.get(table.id) === folder.id)
+              
+              return (
+                <div key={folder.id} className="mb-8">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <Folder className="h-5 w-5 mr-2" style={{ color: folder.color }} />
+                    {folder.name}
+                    <span className="ml-2 text-sm text-gray-500">({folderSharedTables.length})</span>
+                  </h2>
+                  <div className={viewMode === 'grid'
+                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                    : "space-y-2"
+                  }>
+                    {folderSharedTables.map((table) => {
+                      const tableViews = views.filter((v) => v.tableId === table.id)
+                      const colorRulesCount = tableViews.reduce((acc, v) => acc + v.colorRules.length, 0)
+                      const filtersCount = tableViews.reduce((acc, v) => acc + v.filters.length, 0)
+
+                      return (
+                        <DatasetCard
+                          key={table.id}
+                          table={{
+                            id: table.id,
+                            name: table.name,
+                            rows: table.rows,
+                            updatedAt: table.updated_at
+                          }}
+                          colorRulesCount={colorRulesCount}
+                          filtersCount={filtersCount}
+                          viewMode={viewMode}
+                          onClick={() => window.open(`/workspace/${table.id}`, '_blank')}
+                          onRename={undefined}
+                          onDelete={undefined}
+                          onMoveToFolder={() => {
+                            setMovingSharedTableId(table.id)
+                            setSelectedSharedFolderId(sharedFolderItems.get(table.id) || null)
+                            setMoveSharedDialog(true)
+                          }}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Show uncategorized shared datasets */}
+            {sharedTables.filter(table => !sharedFolderItems.has(table.id)).length > 0 && (
+              <>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                  <Users className="h-5 w-5 mr-2" />
+                  Shared with Me
+                </h2>
+                <div className={viewMode === 'grid'
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                  : "space-y-2"
+                }>
+                  {sharedTables.filter(table => !sharedFolderItems.has(table.id)).map((table) => {
                 const tableViews = views.filter((v) => v.tableId === table.id)
                 const colorRulesCount = tableViews.reduce((acc, v) => acc + v.colorRules.length, 0)
                 const filtersCount = tableViews.reduce((acc, v) => acc + v.filters.length, 0)
@@ -1029,7 +1083,11 @@ export default function Dashboard() {
                   />
                 )
               })}
-            </div>
+                </div>
+              </>
+            )}
+
+            {/* Empty state */}
             {sharedTables.length === 0 && (
               <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                 <Users className="h-16 w-16 mx-auto mb-4 opacity-20" />
