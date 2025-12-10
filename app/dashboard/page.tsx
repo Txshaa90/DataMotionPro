@@ -132,6 +132,7 @@ export default function Dashboard() {
       try {
         // Get current user
         const { data: { user } } = await supabase.auth.getUser()
+        console.log('🔍 Current logged in user:', { id: user?.id, email: user?.email })
         const userEmail = user?.email
 
         // Fetch folders
@@ -155,13 +156,17 @@ export default function Dashboard() {
         // Fetch tables shared with user
         let sharedData: SupabaseTable[] = []
         if (userEmail) {
-          console.log('Fetching shares for email:', userEmail)
+          console.log('🔍 Fetching shares for email:', userEmail)
           const { data: sharesData, error: sharesError } = await supabase
             .from('table_shares')
             .select('table_id, permission')
             .eq('shared_with_email', userEmail)
 
-          console.log('Shares data:', sharesData, 'Error:', sharesError)
+          console.log('🔍 Shares query result:', { sharesData, sharesError })
+          
+          if (sharesError) {
+            console.error('❌ Error fetching shares:', sharesError.message, sharesError.code, sharesError.details)
+          }
 
           if (!sharesError && sharesData && sharesData.length > 0) {
             const sharedTableIds = sharesData.map((share: any) => share.table_id)

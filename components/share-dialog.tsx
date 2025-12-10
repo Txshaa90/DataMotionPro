@@ -129,6 +129,10 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
       // Success! Show success message
       alert(`Successfully shared with ${invites.length} ${invites.length === 1 ? 'person' : 'people'}!\n\nThey will receive an email notification with access instructions.`)
       setInvites([])
+      
+      // Refresh existing shares list
+      await fetchExistingShares()
+      
       onOpenChange(false)
     } catch (err: any) {
       console.error('Error sharing dataset:', err)
