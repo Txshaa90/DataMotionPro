@@ -511,9 +511,9 @@ export default function Dashboard() {
         newMap.delete(tableId)
         setSharedFolderItems(newMap)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error moving shared dataset:', error)
-      alert('Failed to move dataset')
+      alert(`Failed to move dataset: ${error.message || 'Unknown error'}`)
     }
   }
 
