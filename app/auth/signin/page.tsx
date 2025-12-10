@@ -75,7 +75,7 @@ export default function SignInPage() {
           <Database className="h-16 w-16 mx-auto mb-4 text-yellow-500" />
           <h1 className="text-2xl font-bold mb-4">Supabase Not Configured</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            ZeroStack is running in <strong>local mode</strong> using localStorage.
+            DataMotionPro is running in <strong>local mode</strong> using localStorage.
             To enable authentication and cloud sync, please configure Supabase.
           </p>
           <Link href="/dashboard">
@@ -98,7 +98,7 @@ export default function SignInPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-6">
             <Database className="h-10 w-10 text-white" />
-            <span className="text-3xl font-bold text-white">ZeroStack</span>
+            <span className="text-3xl font-bold text-white">DataMotionPro</span>
           </Link>
           <h1 className="text-2xl font-bold text-white mb-2">Welcome back</h1>
           <p className="text-green-200">Sign in to access your workspace</p>

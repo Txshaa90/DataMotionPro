@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Copy, Check, Mail, Link as LinkIcon, Users } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 interface ShareDialogProps {
   open: boolean
@@ -20,6 +21,8 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
   const [email, setEmail] = useState('')
   const [permission, setPermission] = useState<'view' | 'edit'>('view')
   const [invites, setInvites] = useState<Array<{ email: string; permission: 'view' | 'edit' }>>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const shareUrl = `${window.location.origin}/workspace/${datasetId}`
 
@@ -33,6 +36,7 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
     if (email && email.includes('@')) {
       setInvites([...invites, { email, permission }])
       setEmail('')
+      setError('')
     }
   }
 
@@ -41,10 +45,48 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
   }
 
   const handleSendInvites = async () => {
-    // TODO: Implement actual email sending via API
-    console.log('Sending invites:', invites)
-    alert(`Invites sent to ${invites.length} people!`)
-    setInvites([])
+    if (invites.length === 0) return
+    
+    setLoading(true)
+    setError('')
+    
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        setError('You must be logged in to share datasets')
+        setLoading(false)
+        return
+      }
+
+      // Create share records in the database
+      const shareRecords = invites.map(invite => ({
+        table_id: datasetId,
+        shared_with_email: invite.email,
+        permission: invite.permission,
+        shared_by: user.id,
+        created_at: new Date().toISOString()
+      }))
+
+      const { error: insertError } = await (supabase as any)
+        .from('table_shares')
+        .insert(shareRecords)
+
+      if (insertError) {
+        throw insertError
+      }
+
+      // Success! Show success message
+      alert(`Successfully shared with ${invites.length} ${invites.length === 1 ? 'person' : 'people'}!\n\nThey will receive an email notification with access instructions.`)
+      setInvites([])
+      onOpenChange(false)
+    } catch (err: any) {
+      console.error('Error sharing dataset:', err)
+      setError(err.message || 'Failed to share dataset. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -110,6 +152,12 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
               Invite People
             </Label>
             
+            {error && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+            
             <div className="flex gap-2">
               <Input
                 type="email"
@@ -118,8 +166,9 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddInvite()}
                 className="flex-1"
+                disabled={loading}
               />
-              <Select value={permission} onValueChange={(v) => setPermission(v as 'view' | 'edit')}>
+              <Select value={permission} onValueChange={(v) => setPermission(v as 'view' | 'edit')} disabled={loading}>
                 <SelectTrigger className="w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -128,7 +177,7 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
                   <SelectItem value="edit">Can edit</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={handleAddInvite} variant="outline">
+              <Button onClick={handleAddInvite} variant="outline" disabled={loading}>
                 Add
               </Button>
             </div>
@@ -168,13 +217,13 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
 
         {/* Footer Actions */}
         <div className="flex justify-between items-center pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
           {invites.length > 0 && (
-            <Button onClick={handleSendInvites} className="flex items-center gap-2">
+            <Button onClick={handleSendInvites} className="flex items-center gap-2" disabled={loading}>
               <Mail className="h-4 w-4" />
-              Send {invites.length} Invite{invites.length > 1 ? 's' : ''}
+              {loading ? 'Sending...' : `Send ${invites.length} Invite${invites.length > 1 ? 's' : ''}`}
             </Button>
           )}
         </div>

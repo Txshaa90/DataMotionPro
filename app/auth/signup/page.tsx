@@ -124,7 +124,7 @@ export default function SignUpPage() {
           <h1 className="text-2xl font-bold mb-4">Check your email</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             We've sent a confirmation link to <strong>{email}</strong>.
-            Click the link to verify your account and start using ZeroStack!
+            Click the link to verify your account and start using DataMotionPro!
           </p>
           <Link href="/auth/signin">
             <Button className="w-full">
@@ -143,7 +143,7 @@ export default function SignUpPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-6">
             <Database className="h-10 w-10 text-white" />
-            <span className="text-3xl font-bold text-white">ZeroStack</span>
+            <span className="text-3xl font-bold text-white">DataMotionPro</span>
           </Link>
           <h1 className="text-2xl font-bold text-white mb-2">Create your account</h1>
           <p className="text-green-200">Start building your database workspace</p>
