@@ -452,7 +452,7 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('shared_folders')
         .insert({
           user_id: user.id,
@@ -479,7 +479,7 @@ export default function Dashboard() {
 
       if (folderId) {
         // Add to folder
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('shared_folder_items')
           .upsert({
             folder_id: folderId,
@@ -495,7 +495,7 @@ export default function Dashboard() {
         setSharedFolderItems(newMap)
       } else {
         // Remove from folder
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('shared_folder_items')
           .delete()
           .eq('table_id', tableId)
@@ -516,7 +516,7 @@ export default function Dashboard() {
 
   const handleDeleteSharedFolder = async (folderId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('shared_folders')
         .delete()
         .eq('id', folderId)
