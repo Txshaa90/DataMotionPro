@@ -74,6 +74,12 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
         .insert(shareRecords)
 
       if (insertError) {
+        // Check if it's a duplicate share error
+        if (insertError.code === '23505' || insertError.message.includes('duplicate key')) {
+          setError('One or more users already have access to this dataset. Please remove them from the list and try again.')
+          setLoading(false)
+          return
+        }
         throw insertError
       }
 
