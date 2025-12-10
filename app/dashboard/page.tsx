@@ -116,6 +116,9 @@ export default function Dashboard() {
   const [showSharedFolderDialog, setShowSharedFolderDialog] = useState(false)
   const [newSharedFolderName, setNewSharedFolderName] = useState('')
   const [currentSharedPath, setCurrentSharedPath] = useState<'root' | string>('root')
+  const [moveSharedDialog, setMoveSharedDialog] = useState(false)
+  const [movingSharedTableId, setMovingSharedTableId] = useState<string | null>(null)
+  const [selectedSharedFolderId, setSelectedSharedFolderId] = useState<string | null>(null)
 
   const {
     tables,
@@ -1018,7 +1021,11 @@ export default function Dashboard() {
                     onClick={() => window.open(`/workspace/${table.id}`, '_blank')}
                     onRename={undefined}
                     onDelete={undefined}
-                    onMoveToFolder={undefined}
+                    onMoveToFolder={() => {
+                      setMovingSharedTableId(table.id)
+                      setSelectedSharedFolderId(sharedFolderItems.get(table.id) || null)
+                      setMoveSharedDialog(true)
+                    }}
                   />
                 )
               })}
@@ -1086,6 +1093,48 @@ export default function Dashboard() {
               </SelectContent>
             </Select>
             <Button onClick={handleMoveToFolder} className="w-full">
+              Move
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move Shared Dataset to Folder Dialog */}
+      <Dialog open={moveSharedDialog} onOpenChange={setMoveSharedDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move to Folder</DialogTitle>
+            <DialogDescription>
+              Organize this shared dataset into a folder
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Select
+              value={selectedSharedFolderId || 'none'}
+              onValueChange={(v) => setSelectedSharedFolderId(v === 'none' ? null : v)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Folder (Root)</SelectItem>
+                {sharedFolders.map((folder) => (
+                  <SelectItem key={folder.id} value={folder.id}>
+                    {folder.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button 
+              onClick={() => {
+                if (movingSharedTableId) {
+                  handleMoveSharedToFolder(movingSharedTableId, selectedSharedFolderId)
+                  setMoveSharedDialog(false)
+                  setMovingSharedTableId(null)
+                }
+              }} 
+              className="w-full"
+            >
               Move
             </Button>
           </div>
