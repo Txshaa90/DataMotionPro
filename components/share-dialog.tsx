@@ -21,10 +21,36 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
   const [email, setEmail] = useState('')
   const [permission, setPermission] = useState<'view' | 'edit'>('view')
   const [invites, setInvites] = useState<Array<{ email: string; permission: 'view' | 'edit' }>>([])
+  const [existingShares, setExistingShares] = useState<Array<{ id: string; email: string; permission: 'view' | 'edit' }>>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const shareUrl = `${window.location.origin}/workspace/${datasetId}`
+
+  // Fetch existing shares when dialog opens
+  const fetchExistingShares = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('table_shares')
+        .select('id, shared_with_email, permission')
+        .eq('table_id', datasetId)
+
+      if (!error && data) {
+        setExistingShares(data.map((share: any) => ({
+          id: share.id,
+          email: share.shared_with_email,
+          permission: share.permission
+        })))
+      }
+    } catch (err) {
+      console.error('Error fetching shares:', err)
+    }
+  }
+
+  // Fetch shares when dialog opens
+  if (open && existingShares.length === 0) {
+    fetchExistingShares()
+  }
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl)
@@ -42,6 +68,23 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
 
   const handleRemoveInvite = (index: number) => {
     setInvites(invites.filter((_, i) => i !== index))
+  }
+
+  const handleRemoveExistingShare = async (shareId: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('table_shares')
+        .delete()
+        .eq('id', shareId)
+
+      if (error) throw error
+
+      // Remove from local state
+      setExistingShares(existingShares.filter(share => share.id !== shareId))
+    } catch (err: any) {
+      console.error('Error removing share:', err)
+      setError('Failed to remove user access. Please try again.')
+    }
   }
 
   const handleSendInvites = async () => {
@@ -187,6 +230,38 @@ export function ShareDialog({ open, onOpenChange, datasetName, datasetId }: Shar
                 Add
               </Button>
             </div>
+
+            {/* Existing Shares List */}
+            {existingShares.length > 0 && (
+              <div className="space-y-2 mt-3">
+                <Label className="text-xs text-gray-500 flex items-center gap-2">
+                  <Users className="h-3 w-3" />
+                  People with Access ({existingShares.length})
+                </Label>
+                <div className="border rounded-md divide-y max-h-[150px] overflow-y-auto">
+                  {existingShares.map((share) => (
+                    <div key={share.id} className="flex items-center justify-between p-2 text-sm">
+                      <div className="flex items-center gap-2 flex-1">
+                        <Mail className="h-3 w-3 text-gray-400" />
+                        <span className="text-gray-700 dark:text-gray-300">{share.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 capitalize">{share.permission}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveExistingShare(share.id)}
+                          className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
+                          title="Remove access"
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Invited Users List */}
             {invites.length > 0 && (
