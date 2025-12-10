@@ -126,14 +126,19 @@ export default function Dashboard() {
   // Fetch data from Supabase
   useEffect(() => {
     async function fetchData() {
-      // Use the seeded user ID
-      const userId = '0aebc03e-defa-465d-ac65-b6c15806fd26'
-
       try {
         // Get current user
         const { data: { user } } = await supabase.auth.getUser()
         console.log('🔍 Current logged in user:', { id: user?.id, email: user?.email })
-        const userEmail = user?.email
+        
+        if (!user) {
+          console.log('No user logged in')
+          setLoading(false)
+          return
+        }
+        
+        const userId = user.id
+        const userEmail = user.email
 
         // Fetch folders
         const { data: foldersData, error: foldersError } = await supabase
