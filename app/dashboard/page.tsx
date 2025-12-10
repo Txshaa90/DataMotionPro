@@ -159,8 +159,8 @@ export default function Dashboard() {
             .select('table_id, permission')
             .eq('shared_with_email', userEmail)
 
-          if (!sharesError && sharesData) {
-            const sharedTableIds = sharesData.map(share => share.table_id)
+          if (!sharesError && sharesData && sharesData.length > 0) {
+            const sharedTableIds = sharesData.map((share: any) => share.table_id)
             if (sharedTableIds.length > 0) {
               const { data: sharedTablesData, error: sharedTablesError } = await supabase
                 .from('tables')
