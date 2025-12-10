@@ -324,7 +324,7 @@ export default function Dashboard() {
     try {
       if (renamingItem.type === 'folder') {
         // Update in Supabase
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('folders')
           .update({ name: renamingItem.name, updated_at: new Date().toISOString() })
           .eq('id', renamingItem.id)
@@ -340,7 +340,7 @@ export default function Dashboard() {
         updateFolder(renamingItem.id, { name: renamingItem.name })
       } else {
         // Update in Supabase
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('tables')
           .update({ name: renamingItem.name, updated_at: new Date().toISOString() })
           .eq('id', renamingItem.id)
