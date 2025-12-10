@@ -273,14 +273,15 @@ export default function Dashboard() {
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return
     
-    const userId = '0aebc03e-defa-465d-ac65-b6c15806fd26' // TODO: Get from auth context
-    
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
       // Create in Supabase
       const { data, error } = await supabase
         .from('folders')
         .insert({
-          user_id: userId,
+          user_id: user.id,
           name: newFolderName,
           color: newFolderColor
         } as any)
@@ -304,9 +305,11 @@ export default function Dashboard() {
   const handleCreateTable = async () => {
     if (!newTableName.trim()) return
     
-    const userId = '0aebc03e-defa-465d-ac65-b6c15806fd26' // TODO: Get from auth context
-    
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      const userId = user.id
       // Create in Supabase
       const { data, error } = await supabase
         .from('tables')
