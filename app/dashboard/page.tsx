@@ -69,6 +69,14 @@ type SupabaseTable = {
   updated_at: string
 }
 
+type SharedFolder = {
+  id: string
+  user_id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
 const FOLDER_COLORS = [
   { name: 'Green', value: '#10b981' },
   { name: 'Blue', value: '#3b82f6' },
@@ -102,7 +110,12 @@ export default function Dashboard() {
   const [supabaseFolders, setSupabaseFolders] = useState<SupabaseFolder[]>([])
   const [supabaseTables, setSupabaseTables] = useState<SupabaseTable[]>([])
   const [sharedTables, setSharedTables] = useState<SupabaseTable[]>([])
+  const [sharedFolders, setSharedFolders] = useState<SharedFolder[]>([])
+  const [sharedFolderItems, setSharedFolderItems] = useState<Map<string, string>>(new Map()) // tableId -> folderId
   const [loading, setLoading] = useState(true)
+  const [showSharedFolderDialog, setShowSharedFolderDialog] = useState(false)
+  const [newSharedFolderName, setNewSharedFolderName] = useState('')
+  const [currentSharedPath, setCurrentSharedPath] = useState<'root' | string>('root')
 
   const {
     tables,
@@ -190,9 +203,36 @@ export default function Dashboard() {
           console.log('No user email found - user not logged in')
         }
 
+        // Fetch shared folders (personal organization)
+        const { data: sharedFoldersData, error: sharedFoldersError } = await supabase
+          .from('shared_folders')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+
+        if (sharedFoldersError) console.error('Error fetching shared folders:', sharedFoldersError)
+
+        // Fetch shared folder items (which datasets are in which folders)
+        const { data: sharedFolderItemsData, error: sharedFolderItemsError } = await supabase
+          .from('shared_folder_items')
+          .select('table_id, folder_id')
+          .eq('user_id', userId)
+
+        if (sharedFolderItemsError) console.error('Error fetching shared folder items:', sharedFolderItemsError)
+
+        // Create map of table_id -> folder_id
+        const folderItemsMap = new Map<string, string>()
+        if (sharedFolderItemsData) {
+          sharedFolderItemsData.forEach((item: any) => {
+            folderItemsMap.set(item.table_id, item.folder_id)
+          })
+        }
+
         setSupabaseFolders(foldersData || [])
         setSupabaseTables(tablesData || [])
         setSharedTables(sharedData)
+        setSharedFolders(sharedFoldersData || [])
+        setSharedFolderItems(folderItemsMap)
         
         console.log('Final shared tables count:', sharedData.length)
         console.log('Shared tables:', sharedData)
@@ -399,6 +439,99 @@ export default function Dashboard() {
       newExpanded.add(folderId)
     }
     setExpandedFolders(newExpanded)
+  }
+
+  // Shared folder handlers
+  const handleCreateSharedFolder = async () => {
+    if (!newSharedFolderName.trim()) return
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data, error } = await supabase
+        .from('shared_folders')
+        .insert({
+          user_id: user.id,
+          name: newSharedFolderName
+        })
+        .select()
+        .single()
+      
+      if (error) throw error
+      
+      setSharedFolders([data, ...sharedFolders])
+      setNewSharedFolderName('')
+      setShowSharedFolderDialog(false)
+    } catch (error) {
+      console.error('Error creating shared folder:', error)
+      alert('Failed to create folder')
+    }
+  }
+
+  const handleMoveSharedToFolder = async (tableId: string, folderId: string | null) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      if (folderId) {
+        // Add to folder
+        const { error } = await supabase
+          .from('shared_folder_items')
+          .upsert({
+            folder_id: folderId,
+            table_id: tableId,
+            user_id: user.id
+          })
+        
+        if (error) throw error
+        
+        // Update local state
+        const newMap = new Map(sharedFolderItems)
+        newMap.set(tableId, folderId)
+        setSharedFolderItems(newMap)
+      } else {
+        // Remove from folder
+        const { error } = await supabase
+          .from('shared_folder_items')
+          .delete()
+          .eq('table_id', tableId)
+          .eq('user_id', user.id)
+        
+        if (error) throw error
+        
+        // Update local state
+        const newMap = new Map(sharedFolderItems)
+        newMap.delete(tableId)
+        setSharedFolderItems(newMap)
+      }
+    } catch (error) {
+      console.error('Error moving shared dataset:', error)
+      alert('Failed to move dataset')
+    }
+  }
+
+  const handleDeleteSharedFolder = async (folderId: string) => {
+    try {
+      const { error } = await supabase
+        .from('shared_folders')
+        .delete()
+        .eq('id', folderId)
+      
+      if (error) throw error
+      
+      setSharedFolders(sharedFolders.filter(f => f.id !== folderId))
+      
+      // Remove folder items from map
+      const newMap = new Map(sharedFolderItems)
+      sharedFolderItems.forEach((folId, tableId) => {
+        if (folId === folderId) newMap.delete(tableId)
+      })
+      setSharedFolderItems(newMap)
+    } catch (error) {
+      console.error('Error deleting shared folder:', error)
+      alert('Failed to delete folder')
+    }
   }
 
   // Supabase-aware delete handlers
