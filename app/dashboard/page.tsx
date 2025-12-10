@@ -39,6 +39,7 @@ import {
   Folder,
   LayoutGrid,
   List,
+  Users,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTableStore } from '@/store/useTableStore'
@@ -99,6 +100,7 @@ export default function Dashboard() {
   // Supabase data
   const [supabaseFolders, setSupabaseFolders] = useState<SupabaseFolder[]>([])
   const [supabaseTables, setSupabaseTables] = useState<SupabaseTable[]>([])
+  const [sharedTables, setSharedTables] = useState<SupabaseTable[]>([])
   const [loading, setLoading] = useState(true)
 
   const {
@@ -127,6 +129,10 @@ export default function Dashboard() {
       const userId = '0aebc03e-defa-465d-ac65-b6c15806fd26'
 
       try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser()
+        const userEmail = user?.email
+
         // Fetch folders
         const { data: foldersData, error: foldersError } = await supabase
           .from('folders')
@@ -136,7 +142,7 @@ export default function Dashboard() {
 
         if (foldersError) throw foldersError
 
-        // Fetch tables
+        // Fetch tables owned by user
         const { data: tablesData, error: tablesError } = await supabase
           .from('tables')
           .select('*')
@@ -145,8 +151,32 @@ export default function Dashboard() {
 
         if (tablesError) throw tablesError
 
+        // Fetch tables shared with user
+        let sharedData: SupabaseTable[] = []
+        if (userEmail) {
+          const { data: sharesData, error: sharesError } = await supabase
+            .from('table_shares')
+            .select('table_id, permission')
+            .eq('shared_with_email', userEmail)
+
+          if (!sharesError && sharesData) {
+            const sharedTableIds = sharesData.map(share => share.table_id)
+            if (sharedTableIds.length > 0) {
+              const { data: sharedTablesData, error: sharedTablesError } = await supabase
+                .from('tables')
+                .select('*')
+                .in('id', sharedTableIds)
+
+              if (!sharedTablesError) {
+                sharedData = sharedTablesData || []
+              }
+            }
+          }
+        }
+
         setSupabaseFolders(foldersData || [])
         setSupabaseTables(tablesData || [])
+        setSharedTables(sharedData)
         
         // Auto-expand all folders
         if (foldersData && foldersData.length > 0) {
@@ -288,15 +318,50 @@ export default function Dashboard() {
     }
   }
 
-  const handleRename = () => {
+  const handleRename = async () => {
     if (!renamingItem) return
-    if (renamingItem.type === 'folder') {
-      updateFolder(renamingItem.id, { name: renamingItem.name })
-    } else {
-      updateTable(renamingItem.id, { name: renamingItem.name })
+    
+    try {
+      if (renamingItem.type === 'folder') {
+        // Update in Supabase
+        const { error } = await supabase
+          .from('folders')
+          .update({ name: renamingItem.name, updated_at: new Date().toISOString() })
+          .eq('id', renamingItem.id)
+        
+        if (error) throw error
+        
+        // Update local state
+        setSupabaseFolders(supabaseFolders.map(f => 
+          f.id === renamingItem.id ? { ...f, name: renamingItem.name } : f
+        ))
+        
+        // Update local store
+        updateFolder(renamingItem.id, { name: renamingItem.name })
+      } else {
+        // Update in Supabase
+        const { error } = await supabase
+          .from('tables')
+          .update({ name: renamingItem.name, updated_at: new Date().toISOString() })
+          .eq('id', renamingItem.id)
+        
+        if (error) throw error
+        
+        // Update local state
+        setSupabaseTables(supabaseTables.map(t => 
+          t.id === renamingItem.id ? { ...t, name: renamingItem.name } : t
+        ))
+        
+        // Update local store
+        updateTable(renamingItem.id, { name: renamingItem.name })
+      }
+      
+      setRenameDialogOpen(false)
+      setRenamingItem(null)
+    } catch (error) {
+      console.error('Error renaming:', error)
+      alert('Failed to rename. Please try again.')
     }
-    setRenameDialogOpen(false)
-    setRenamingItem(null)
   }
 
   const handleMoveToFolder = () => {
@@ -722,6 +787,40 @@ export default function Dashboard() {
             </>
           )}
         </section>
+
+        {/* Shared with Me Section */}
+        {currentPath === 'root' && sharedTables.length > 0 && (
+          <section className="mt-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+              <Users className="h-5 w-5 mr-2" />
+              Shared with Me
+            </h2>
+            <div className={viewMode === 'grid'
+              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              : "space-y-2"
+            }>
+              {sharedTables.map((table) => {
+                const tableViews = views.filter((v) => v.tableId === table.id)
+                const colorRulesCount = tableViews.reduce((acc, v) => acc + v.colorRules.length, 0)
+                const filtersCount = tableViews.reduce((acc, v) => acc + v.filters.length, 0)
+
+                return (
+                  <DatasetCard
+                    key={table.id}
+                    table={table}
+                    colorRulesCount={colorRulesCount}
+                    filtersCount={filtersCount}
+                    viewMode={viewMode}
+                    onClick={() => window.open(`/workspace/${table.id}`, '_blank')}
+                    onRename={undefined}
+                    onDelete={undefined}
+                    onMoveToFolder={undefined}
+                  />
+                )
+              })}
+            </div>
+          </section>
+        )}
       </main>
 
       {/* Rename Dialog */}
