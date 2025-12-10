@@ -1118,7 +1118,7 @@ export default function Dashboard() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No Folder (Root)</SelectItem>
-                {sharedFolders.map((folder) => (
+                {supabaseFolders.map((folder) => (
                   <SelectItem key={folder.id} value={folder.id}>
                     {folder.name}
                   </SelectItem>
