@@ -161,7 +161,7 @@ export default function PricingPage() {
                 { name: "White labelling", included: true },
                 { name: "Dedicated support", included: true },
               ]}
-              buttonText="Schedule a Call"
+              buttonText="Contact Sales"
               buttonLink="/contact"
             />
           </div>

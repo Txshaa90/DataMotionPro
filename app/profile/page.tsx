@@ -18,7 +18,9 @@ import {
   Trash2,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  Camera,
+  DollarSign
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -39,6 +41,12 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [subscription, setSubscription] = useState<any>(null)
+  const [loadingSubscription, setLoadingSubscription] = useState(false)
+  const [profilePicture, setProfilePicture] = useState<string>('')
+  const [uploadingPicture, setUploadingPicture] = useState(false)
+  const [credits, setCredits] = useState(0)
 
   useEffect(() => {
     if (!user) {
@@ -48,11 +56,19 @@ export default function ProfilePage() {
     
     setEmail(user.email || '')
     setName(user.user_metadata?.name || '')
+    setProfilePicture(user.user_metadata?.avatar_url || '')
     
     // Load theme from localStorage
     const savedTheme = localStorage.getItem('theme') as Theme
     if (savedTheme) {
       setTheme(savedTheme)
+    }
+
+    // Check for tab query parameter
+    const urlParams = new URLSearchParams(window.location.search)
+    const tab = urlParams.get('tab')
+    if (tab && ['account', 'appearance', 'upgrade', 'contact', 'trash'].includes(tab)) {
+      setActiveTab(tab as 'account' | 'appearance' | 'upgrade' | 'contact' | 'trash')
     }
   }, [user, router])
 
@@ -135,9 +151,112 @@ export default function ProfilePage() {
   }
 
   const handleDeleteAccount = async () => {
-    // TODO: Implement account deletion
-    alert('Account deletion will be implemented soon')
+    // This would typically call an API endpoint to delete the account
+    alert('Account deletion is not yet implemented')
     setShowDeleteConfirm(false)
+  }
+
+  const handleCancelSubscription = async () => {
+    if (!user) return
+    
+    setLoadingSubscription(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch('/api/subscription/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      })
+
+      const data = await response.json()
+
+      if (data.error) {
+        setError(data.error)
+      } else {
+        setSuccess('Subscription will be cancelled at the end of the billing period')
+        setSubscription({ ...subscription, cancel_at_period_end: true })
+      }
+    } catch (err: any) {
+      setError('Failed to cancel subscription')
+    } finally {
+      setLoadingSubscription(false)
+      setShowCancelConfirm(false)
+    }
+  }
+
+  const handleReactivateSubscription = async () => {
+    if (!user) return
+    
+    setLoadingSubscription(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch('/api/subscription/reactivate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      })
+
+      const data = await response.json()
+
+      if (data.error) {
+        setError(data.error)
+      } else {
+        setSuccess('Subscription has been reactivated')
+        setSubscription({ ...subscription, cancel_at_period_end: false })
+      }
+    } catch (err: any) {
+      setError('Failed to reactivate subscription')
+    } finally {
+      setLoadingSubscription(false)
+    }
+  }
+
+  const handleProfilePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image size must be less than 5MB')
+      return
+    }
+
+    setUploadingPicture(true)
+    setError('')
+
+    try {
+      // Convert to base64 for preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setProfilePicture(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+
+      // Here you would upload to Supabase Storage
+      // For now, we'll just store the base64 in user metadata
+      await updateProfile({
+        data: { 
+          name,
+          avatar_url: reader.result as string 
+        },
+      })
+
+      setSuccess('Profile picture updated successfully!')
+    } catch (err: any) {
+      setError('Failed to upload profile picture')
+    } finally {
+      setUploadingPicture(false)
+    }
   }
 
   if (!isConfigured) {
@@ -261,9 +380,66 @@ export default function ProfilePage() {
             {/* Account Tab */}
             {activeTab === 'account' && (
               <div className="space-y-6">
-                {/* Profile Information */}
+                {/* Account Overview */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                  <h2 className="text-xl font-semibold mb-6">Profile Information</h2>
+                  <h2 className="text-xl font-semibold mb-6">Account Overview</h2>
+                  
+                  <div className="flex items-start space-x-6 mb-6">
+                    {/* Profile Picture */}
+                    <div className="relative">
+                      <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                        {profilePicture || user?.user_metadata?.avatar_url ? (
+                          <img 
+                            src={profilePicture || user?.user_metadata?.avatar_url} 
+                            alt="Profile" 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User className="h-12 w-12 text-gray-400" />
+                        )}
+                      </div>
+                      <label className="absolute bottom-0 right-0 bg-green-600 hover:bg-green-700 text-white rounded-full p-2 cursor-pointer shadow-lg">
+                        <Camera className="h-4 w-4" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProfilePictureUpload}
+                          className="hidden"
+                          disabled={uploadingPicture}
+                        />
+                      </label>
+                    </div>
+
+                    {/* User Info */}
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-bold mb-1">{name || 'User'}</h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-4">{email}</p>
+                      
+                      {/* Credits Display */}
+                      <div className="inline-flex items-center px-4 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                        <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400 mr-2" />
+                        <span className="text-sm">
+                          You have <strong className="text-green-600 dark:text-green-400">₱{credits.toFixed(2)}</strong> in credit
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-gray-600 dark:text-gray-400 grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-500">Account created</p>
+                      <p className="font-medium">{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-500">Last sign in</p>
+                      <p className="font-medium">{user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Edit Profile Information */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <h2 className="text-xl font-semibold mb-6">Edit Profile</h2>
 
                   <form onSubmit={handleUpdateProfile} className="space-y-4">
                     <div>
@@ -290,11 +466,6 @@ export default function ProfilePage() {
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         Email cannot be changed
                       </p>
-                    </div>
-
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      <p><strong>Account created:</strong> {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</p>
-                      <p><strong>Last sign in:</strong> {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'N/A'}</p>
                     </div>
 
                     <Button type="submit" disabled={loading}>
@@ -437,6 +608,91 @@ export default function ProfilePage() {
                       <CheckCircle className="h-8 w-8 text-green-500" />
                     </div>
                   </div>
+
+                  {/* Active Subscription Management (shown if user has paid plan) */}
+                  {subscription && subscription.plan !== 'free' && (
+                    <div className="p-6 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold capitalize">{subscription.plan} Plan</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {subscription.cancel_at_period_end ? (
+                              <span className="text-yellow-600 dark:text-yellow-400">
+                                Cancels on {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'N/A'}
+                              </span>
+                            ) : (
+                              <span>
+                                Renews on {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'N/A'}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold">
+                            ₱{subscription.plan === 'plus' ? '1,200' : '2,400'}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">per month</p>
+                        </div>
+                      </div>
+
+                      {subscription.cancel_at_period_end ? (
+                        <div className="space-y-3">
+                          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                              Your subscription is scheduled to cancel at the end of the billing period. You'll continue to have access until then.
+                            </p>
+                          </div>
+                          <Button
+                            onClick={handleReactivateSubscription}
+                            disabled={loadingSubscription}
+                            className="w-full"
+                          >
+                            {loadingSubscription ? 'Processing...' : 'Reactivate Subscription'}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => setShowCancelConfirm(true)}
+                          disabled={loadingSubscription}
+                          variant="outline"
+                          className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          Cancel Subscription
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Cancel Confirmation Dialog */}
+                  {showCancelConfirm && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+                        <div className="flex items-center mb-4">
+                          <AlertTriangle className="h-6 w-6 text-yellow-500 mr-2" />
+                          <h3 className="text-lg font-semibold">Cancel Subscription?</h3>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-6">
+                          Your subscription will remain active until the end of your billing period. After that, you'll be downgraded to the Free plan.
+                        </p>
+                        <div className="flex space-x-3">
+                          <Button
+                            onClick={() => setShowCancelConfirm(false)}
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            Keep Subscription
+                          </Button>
+                          <Button
+                            onClick={handleCancelSubscription}
+                            disabled={loadingSubscription}
+                            className="flex-1 bg-red-600 hover:bg-red-700"
+                          >
+                            {loadingSubscription ? 'Cancelling...' : 'Yes, Cancel'}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Available Plans */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">

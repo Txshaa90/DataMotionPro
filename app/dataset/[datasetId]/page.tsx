@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Plus, Trash2, Search, Filter, SortAsc, Eye, Settings } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Search, Filter, SortAsc, Eye, Settings, Maximize2, X, MessageSquare, History } from 'lucide-react'
 import Link from 'next/link'
 
 interface Row {
@@ -44,6 +44,10 @@ export default function DatasetPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(100)
   const [showAllRows, setShowAllRows] = useState(false)
+  const [selectedRow, setSelectedRow] = useState<Row | null>(null)
+  const [recordViewTab, setRecordViewTab] = useState<'comments' | 'history'>('comments')
+  const [comments, setComments] = useState<any[]>([])
+  const [newComment, setNewComment] = useState('')
 
   const currentView = views.find(v => v.id === activeViewId) || views[0]
   const visibleColumns = dataset?.columns?.filter((col: any) => 
@@ -284,14 +288,25 @@ export default function DatasetPage() {
                       </td>
                     ))}
                     <td className="px-4 py-2 text-center border-b border-gray-200 dark:border-gray-700" style={{ width: '100px' }}>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleDeleteRow(row.id)} 
-                        className="h-8 w-8 text-gray-400 hover:text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => setSelectedRow(row)} 
+                          className="h-8 w-8 text-gray-400 hover:text-blue-600"
+                          title="View full record"
+                        >
+                          <Maximize2 className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDeleteRow(row.id)} 
+                          className="h-8 w-8 text-gray-400 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -344,6 +359,176 @@ export default function DatasetPage() {
           )}
         </div>
       </div>
+
+      {/* Full-Screen Record View Modal */}
+      {selectedRow && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold">Record Details</h2>
+              <button
+                onClick={() => setSelectedRow(null)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200 dark:border-gray-700 px-6">
+              <button
+                onClick={() => setRecordViewTab('comments')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  recordViewTab === 'comments'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+                }`}
+              >
+                <MessageSquare className="h-4 w-4 inline mr-2" />
+                Comments
+              </button>
+              <button
+                onClick={() => setRecordViewTab('history')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  recordViewTab === 'history'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+                }`}
+              >
+                <History className="h-4 w-4 inline mr-2" />
+                Revision History
+              </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-6">
+                {/* Left: Record Data */}
+                <div className="p-6 border-r border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold mb-4">Record Data</h3>
+                  <div className="space-y-4">
+                    {visibleColumns.map((column: any) => (
+                      <div key={column.id}>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          {column.name}
+                        </label>
+                        <Input
+                          type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
+                          value={selectedRow[column.id] || ''}
+                          onChange={(e) => {
+                            const updatedRow = { ...selectedRow, [column.id]: e.target.value }
+                            setSelectedRow(updatedRow)
+                            handleUpdateCell(selectedRow.id, column.id, e.target.value)
+                          }}
+                          className="w-full"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right: Comments or History */}
+                <div className="p-6">
+                  {recordViewTab === 'comments' ? (
+                    <div className="flex flex-col h-full">
+                      <h3 className="text-lg font-semibold mb-4">Comments</h3>
+                      
+                      {/* Comments List */}
+                      <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+                        {comments.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-full text-center">
+                            <MessageSquare className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-3" />
+                            <p className="text-gray-500 dark:text-gray-400">No comments yet</p>
+                            <p className="text-sm text-gray-400 dark:text-gray-500">Start commenting!</p>
+                          </div>
+                        ) : (
+                          comments.map((comment, idx) => (
+                            <div key={idx} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-medium">
+                                    {comment.author?.[0]?.toUpperCase() || 'U'}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium">{comment.author || 'User'}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      {new Date(comment.created_at).toLocaleString()}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">{comment.text}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Comment Input */}
+                      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Add a comment..."
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && newComment.trim()) {
+                                setComments([...comments, {
+                                  author: 'Current User',
+                                  text: newComment,
+                                  created_at: new Date().toISOString()
+                                }])
+                                setNewComment('')
+                              }
+                            }}
+                            className="flex-1"
+                          />
+                          <Button
+                            onClick={() => {
+                              if (newComment.trim()) {
+                                setComments([...comments, {
+                                  author: 'Current User',
+                                  text: newComment,
+                                  created_at: new Date().toISOString()
+                                }])
+                                setNewComment('')
+                              }
+                            }}
+                            disabled={!newComment.trim()}
+                          >
+                            Send
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Revision History</h3>
+                      <div className="space-y-4">
+                        {/* Sample revision history */}
+                        <div className="border-l-2 border-blue-500 pl-4 pb-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-2 h-2 rounded-full bg-blue-500 -ml-[25px]"></div>
+                            <p className="text-sm font-medium">Record created</p>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date().toLocaleString()} by Current User
+                          </p>
+                        </div>
+                        
+                        <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-8">
+                          <History className="h-12 w-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+                          <p>No revision history yet</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

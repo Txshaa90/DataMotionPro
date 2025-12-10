@@ -21,7 +21,10 @@ import {
   Trash2,
   Upload,
   BarChart3,
-  X
+  X,
+  Maximize2,
+  MessageSquare,
+  History
 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -67,6 +70,10 @@ export default function DatasetWorkspacePage() {
   const [rowHeight, setRowHeight] = useState<'compact' | 'comfortable'>('comfortable')
   const [cellColors, setCellColors] = useState<Record<string, string>>({}) // { "rowId-columnId": "color" }
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowId: string; columnId: string } | null>(null)
+  const [selectedRow, setSelectedRow] = useState<any | null>(null)
+  const [recordViewTab, setRecordViewTab] = useState<'comments' | 'history'>('comments')
+  const [comments, setComments] = useState<any[]>([])
+  const [newComment, setNewComment] = useState('')
   
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const topScrollRef = useRef<HTMLDivElement>(null)
@@ -662,8 +669,19 @@ export default function DatasetWorkspacePage() {
                       {Object.entries(displayRowsWithColor).map(([group, { rows }]) =>
                         rows.map((row: any, index: number) => (
                           <tr key={row.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${rowPaddingClass}`} style={{ backgroundColor: row.rowColor }}>
-                            <td className={`px-4 ${cellPaddingClass} text-center text-sm text-gray-500 dark:text-gray-400 font-medium sticky left-0 z-10 bg-white dark:bg-gray-800 border-r-2 border-b-2 border-gray-300 dark:border-gray-600`} style={{ width: '60px', minWidth: '60px' }}>
-                              {(currentPage - 1) * rowsPerPage + index + 1}
+                            <td className={`px-2 ${cellPaddingClass} text-center text-sm text-gray-500 dark:text-gray-400 font-medium sticky left-0 z-10 bg-white dark:bg-gray-800 border-r-2 border-b-2 border-gray-300 dark:border-gray-600`} style={{ width: '80px', minWidth: '80px' }}>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={() => setSelectedRow(row)} 
+                                  className="h-6 w-6 text-gray-400 hover:text-blue-600"
+                                  title="View full record"
+                                >
+                                  <Maximize2 className="h-3 w-3" />
+                                </Button>
+                                <span>{(currentPage - 1) * rowsPerPage + index + 1}</span>
+                              </div>
                             </td>
                             {finalVisibleColumns.map((column: any) => (
                               <td key={column.id} className={`px-4 ${cellPaddingClass} border-r-2 border-b-2 border-gray-300 dark:border-gray-600`} style={{ minWidth: '250px' }}>
@@ -676,7 +694,12 @@ export default function DatasetWorkspacePage() {
                               </td>
                             ))}
                             <td className="px-4 py-3 text-center border-r-2 border-b-2 border-gray-300 dark:border-gray-600" style={{ width: '100px', minWidth: '100px' }}>
-                              <Button variant="ghost" size="icon" onClick={() => handleDeleteRow(row.id)} className="text-gray-400 hover:text-red-600">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleDeleteRow(row.id)} 
+                                className="text-gray-400 hover:text-red-600"
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </td>
@@ -838,6 +861,179 @@ export default function DatasetWorkspacePage() {
         datasetName={currentDataset.name}
         datasetId={datasetId}
       />
+
+      {/* Full-Screen Record View Modal */}
+      {selectedRow && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold">Record Details</h2>
+              <button
+                onClick={() => setSelectedRow(null)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 overflow-hidden min-h-0">
+              <div className="grid grid-cols-2 h-full">
+                {/* Left: Record Data */}
+                <div className="border-r border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-hidden">
+                  <h3 className="text-lg font-semibold p-6 pb-4 flex-shrink-0">Record Data</h3>
+                  <div className="flex-1 overflow-y-auto px-6 pb-6">
+                    <div className="space-y-4">
+                      {visibleColumns.map((column: any) => (
+                        <div key={column.id}>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {column.name}
+                          </label>
+                          <Input
+                            type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
+                            value={selectedRow[column.id] || ''}
+                            onChange={(e) => {
+                              const updatedRow = { ...selectedRow, [column.id]: e.target.value }
+                              setSelectedRow(updatedRow)
+                              handleUpdateCell(selectedRow.id, column.id, e.target.value)
+                            }}
+                            className="w-full"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Comments or History */}
+                <div className="flex flex-col h-full">
+                  {/* Tabs */}
+                  <div className="flex border-b border-gray-200 dark:border-gray-700 px-6 pt-6 flex-shrink-0">
+                    <button
+                      onClick={() => setRecordViewTab('comments')}
+                      className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                        recordViewTab === 'comments'
+                          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                          : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+                      }`}
+                    >
+                      <MessageSquare className="h-4 w-4 inline mr-2" />
+                      Comments
+                    </button>
+                    <button
+                      onClick={() => setRecordViewTab('history')}
+                      className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                        recordViewTab === 'history'
+                          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                          : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+                      }`}
+                    >
+                      <History className="h-4 w-4 inline mr-2" />
+                      Revision History
+                    </button>
+                  </div>
+
+                  {recordViewTab === 'comments' ? (
+                    <div className="flex flex-col flex-1 min-h-0">
+                      
+                      {/* Comments List */}
+                      <div className="flex-1 overflow-y-auto px-6 space-y-4 min-h-0">
+                        {comments.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-full text-center">
+                            <MessageSquare className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-3" />
+                            <p className="text-gray-500 dark:text-gray-400">No comments yet</p>
+                            <p className="text-sm text-gray-400 dark:text-gray-500">Start commenting!</p>
+                          </div>
+                        ) : (
+                          comments.map((comment, idx) => (
+                            <div key={idx} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-medium">
+                                    {comment.author?.[0]?.toUpperCase() || 'U'}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium">{comment.author || 'User'}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      {new Date(comment.created_at).toLocaleString()}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">{comment.text}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Comment Input */}
+                      <div className="border-t border-gray-200 dark:border-gray-700 p-6 pt-4 flex-shrink-0">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Add a comment..."
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && newComment.trim()) {
+                                setComments([...comments, {
+                                  author: 'Current User',
+                                  text: newComment,
+                                  created_at: new Date().toISOString()
+                                }])
+                                setNewComment('')
+                              }
+                            }}
+                            className="flex-1"
+                          />
+                          <Button
+                            onClick={() => {
+                              if (newComment.trim()) {
+                                setComments([...comments, {
+                                  author: 'Current User',
+                                  text: newComment,
+                                  created_at: new Date().toISOString()
+                                }])
+                                setNewComment('')
+                              }
+                            }}
+                            disabled={!newComment.trim()}
+                          >
+                            Send
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col flex-1 min-h-0">
+                      <div className="flex-1 overflow-y-auto px-6 py-6 min-h-0">
+                        <div className="space-y-4">
+                        {/* Sample revision history */}
+                        <div className="border-l-2 border-blue-500 pl-4 pb-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-2 h-2 rounded-full bg-blue-500 -ml-[25px]"></div>
+                            <p className="text-sm font-medium">Record created</p>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date().toLocaleString()} by Current User
+                          </p>
+                        </div>
+                        
+                        <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-8">
+                          <History className="h-12 w-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+                          <p>No revision history yet</p>
+                        </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

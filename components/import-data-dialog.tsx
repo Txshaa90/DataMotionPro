@@ -220,8 +220,12 @@ export function ImportDataDialog({
             // Add unique IDs and process dates
             const rows = jsonData.map((row: any, rowIndex: number) => {
               const processedRow: any = { id: crypto.randomUUID() }
+              const cellColors: any = {} // Store cell colors
               
-              Object.entries(row).forEach(([key, value]) => {
+              // Actual row index in Excel (accounting for header row)
+              const excelRowIndex = rowIndex + 1
+              
+              Object.entries(row).forEach(([key, value], colIndex) => {
                 const keyLower = key.toLowerCase()
                 
                 // Force ASIN columns to be text (prevent scientific notation)
@@ -238,11 +242,42 @@ export function ImportDataDialog({
                 } else {
                   processedRow[key] = value
                 }
+                
+                // Extract cell background color
+                const headerIndex = headers.indexOf(key)
+                if (headerIndex !== -1) {
+                  const cellAddress = XLSX.utils.encode_cell({ r: excelRowIndex, c: headerIndex })
+                  const cell = worksheet[cellAddress]
+                  
+                  if (cell && cell.s && cell.s.fgColor) {
+                    // Get the fill color (fgColor = foreground color for fill)
+                    const color = cell.s.fgColor
+                    let hexColor = ''
+                    
+                    if (color.rgb) {
+                      // RGB format (e.g., "FFFF0000" for red)
+                      hexColor = `#${color.rgb.substring(2)}` // Remove alpha channel
+                    } else if (color.theme !== undefined) {
+                      // Theme color - map to approximate hex values
+                      const themeColors: { [key: number]: string } = {
+                        0: '#000000', 1: '#FFFFFF', 2: '#E7E6E6', 3: '#44546A',
+                        4: '#4472C4', 5: '#ED7D31', 6: '#A5A5A5', 7: '#FFC000',
+                        8: '#5B9BD5', 9: '#70AD47'
+                      }
+                      hexColor = themeColors[color.theme] || '#FFFFFF'
+                    }
+                    
+                    if (hexColor && hexColor !== '#FFFFFF') {
+                      cellColors[key] = hexColor
+                    }
+                  }
+                }
               })
               
-              // Extract cell styles for conditional formatting (if available)
-              // Note: SheetJS community edition has limited style support
-              // Full style extraction requires the pro version
+              // Store cell colors if any were found
+              if (Object.keys(cellColors).length > 0) {
+                processedRow._cellColors = cellColors
+              }
               
               return processedRow
             })
