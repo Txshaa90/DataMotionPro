@@ -183,6 +183,9 @@ export default function Dashboard() {
         setSupabaseTables(tablesData || [])
         setSharedTables(sharedData)
         
+        console.log('Final shared tables count:', sharedData.length)
+        console.log('Shared tables:', sharedData)
+        
         // Auto-expand all folders
         if (foldersData && foldersData.length > 0) {
           const allFolderIds = new Set(foldersData.map((f: SupabaseFolder) => f.id))
