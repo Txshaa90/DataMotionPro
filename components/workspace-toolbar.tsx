@@ -27,6 +27,7 @@ import {
   Trash2,
   MoreVertical,
   Search as SearchIcon,
+  Sparkles,
 } from 'lucide-react'
 
 interface WorkspaceToolbarProps {
@@ -579,6 +580,130 @@ export function WorkspaceToolbar({
                 >
                   <Plus className="h-3 w-3 mr-1" />
                   Add Color Filter
+                </Button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Conditional Formatting Rules */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Conditional Formatting
+              {filters.filter(f => f.columnId === '__conditional_format__').length > 0 && (
+                <span className="ml-1 text-xs text-primary">
+                  ({filters.filter(f => f.columnId === '__conditional_format__').length})
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-96" align="start">
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">Conditional Formatting Rules</h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Apply colors to cells based on their values
+              </p>
+              
+              {/* Existing Rules */}
+              {colorRules.map((rule, index) => (
+                <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div
+                    className="w-6 h-6 rounded border-2 border-gray-300"
+                    style={{ backgroundColor: rule.color }}
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      {columns.find(c => c.id === rule.columnId)?.name || rule.columnId}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      equals "{rule.value}"
+                    </p>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    onClick={() => {
+                      const newRules = colorRules.filter((_, i) => i !== index)
+                      onColorRulesChange(newRules)
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+
+              {colorRules.length === 0 && (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No rules applied</p>
+                </div>
+              )}
+
+              {/* Add New Rule */}
+              <div className="space-y-3 pt-3 border-t">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Field</label>
+                    <Select 
+                      value={newColorRule.columnId} 
+                      onValueChange={(v) => setNewColorRule({...newColorRule, columnId: v})}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="placeholder" disabled>Select field</SelectItem>
+                        {columns.filter(col => col.id && col.id !== '').map(col => (
+                          <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Value</label>
+                    <Input
+                      placeholder="Value"
+                      value={newColorRule.value}
+                      onChange={(e) => setNewColorRule({...newColorRule, value: e.target.value})}
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Color</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={newColorRule.color}
+                      onChange={(e) => setNewColorRule({...newColorRule, color: e.target.value})}
+                      className="h-9 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
+                      title="Pick a color"
+                    />
+                    <Input
+                      placeholder="#10b981"
+                      value={newColorRule.color}
+                      onChange={(e) => setNewColorRule({...newColorRule, color: e.target.value})}
+                      className="h-9 flex-1"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  size="sm"
+                  disabled={newColorRule.columnId === 'placeholder' || !newColorRule.value}
+                  onClick={() => {
+                    if (newColorRule.columnId !== 'placeholder' && newColorRule.value) {
+                      onColorRulesChange([...colorRules, newColorRule])
+                      setNewColorRule({ columnId: 'placeholder', value: '', color: '#10b981' })
+                    }
+                  }}
+                  className="w-full"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Rule
                 </Button>
               </div>
             </div>

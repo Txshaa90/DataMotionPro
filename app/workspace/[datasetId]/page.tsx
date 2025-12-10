@@ -6,6 +6,12 @@ import { useTableStore } from '@/store/useTableStore'
 import { useViewStore } from '@/store/useViewStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { supabase } from '@/lib/supabase'
 import {
   Database,
@@ -24,7 +30,9 @@ import {
   X,
   Maximize2,
   MessageSquare,
-  History
+  History,
+  ChevronDown,
+  ClipboardPaste
 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -36,12 +44,6 @@ import { ShareDialog } from '@/components/share-dialog'
 import ChartView from '@/components/chart-view'
 import ReturnsAnalysis from '@/components/returns-analysis'
 import DashboardView from '@/components/dashboard-view'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 
 export default function DatasetWorkspacePage() {
   const params = useParams<{ datasetId: string }>()
@@ -63,9 +65,6 @@ export default function DatasetWorkspacePage() {
   const [localFilters, setLocalFilters] = useState<any[]>([])
   const [localSorts, setLocalSorts] = useState<any[]>([])
   const [localColorRules, setLocalColorRules] = useState<any[]>([])
-  const [currentPage, setCurrentPage] = useState(1)
-  const [rowsPerPage, setRowsPerPage] = useState(100)
-  const [showAllRows, setShowAllRows] = useState(false)
   const [globalSearch, setGlobalSearch] = useState('')
   const [rowHeight, setRowHeight] = useState<'compact' | 'comfortable'>('comfortable')
   const [cellColors, setCellColors] = useState<Record<string, string>>({}) // { "rowId-columnId": "color" }
@@ -74,6 +73,8 @@ export default function DatasetWorkspacePage() {
   const [recordViewTab, setRecordViewTab] = useState<'comments' | 'history'>('comments')
   const [comments, setComments] = useState<any[]>([])
   const [newComment, setNewComment] = useState('')
+  const [copiedCell, setCopiedCell] = useState<{ rowId: string; columnId: string; value: any; color?: string } | null>(null)
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
   
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const topScrollRef = useRef<HTMLDivElement>(null)
@@ -230,6 +231,45 @@ export default function DatasetWorkspacePage() {
     }
   }
 
+  const handlePasteFromClipboard = async () => {
+    if (!currentDataset || !currentSheet) return
+    
+    try {
+      const text = await navigator.clipboard.readText()
+      
+      // Parse tab-separated or comma-separated values (from Excel/Sheets)
+      const lines = text.trim().split('\n')
+      const newRows: any[] = []
+      
+      for (const line of lines) {
+        // Try tab-separated first (Excel default), then comma-separated
+        const values = line.includes('\t') ? line.split('\t') : line.split(',')
+        const newRow: any = { id: crypto.randomUUID() }
+        
+        // Map values to columns
+        currentDataset.columns.forEach((col: any, index: number) => {
+          newRow[col.id] = values[index]?.trim() || ''
+        })
+        
+        newRows.push(newRow)
+      }
+      
+      if (newRows.length === 0) {
+        alert('No data found in clipboard')
+        return
+      }
+      
+      const updatedRows = [...(currentSheet.rows || []), ...newRows]
+      await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
+      updateSupabaseView(currentSheet.id, { rows: updatedRows })
+      
+      alert(`Successfully added ${newRows.length} row(s) from clipboard!`)
+    } catch (error) {
+      console.error('Error pasting from clipboard:', error)
+      alert('Failed to paste from clipboard. Make sure you have copied data from Excel or a spreadsheet.')
+    }
+  }
+
   const handleDeleteRow = async (rowId: string) => {
     if (!currentSheet) return
     const updatedRows = (currentSheet.rows || []).filter((r: any) => r.id !== rowId)
@@ -291,6 +331,39 @@ export default function DatasetWorkspacePage() {
       updateSupabaseView(currentSheet.id, { rows: updatedRows })
     } catch (error) {
       console.error('Error updating cell:', error)
+    }
+  }
+
+  const handleCopyCell = (rowId: string, columnId: string, value: any) => {
+    const cellKey = `${rowId}-${columnId}`
+    const color = cellColors[cellKey]
+    setCopiedCell({ rowId, columnId, value, color })
+    
+    // Also copy to system clipboard
+    navigator.clipboard.writeText(value || '')
+  }
+
+  const handlePasteCell = async (targetRowId: string, targetColumnId: string) => {
+    if (!copiedCell) return
+    
+    // Update cell value
+    await handleUpdateCell(targetRowId, targetColumnId, copiedCell.value)
+    
+    // Copy cell color if exists
+    if (copiedCell.color) {
+      const targetCellKey = `${targetRowId}-${targetColumnId}`
+      setCellColors(prev => ({ ...prev, [targetCellKey]: copiedCell.color! }))
+    }
+  }
+
+  // Keyboard shortcuts for copy/paste
+  const handleKeyDown = (e: KeyboardEvent, rowId: string, columnId: string, value: any) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      e.preventDefault()
+      handleCopyCell(rowId, columnId, value)
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      e.preventDefault()
+      handlePasteCell(rowId, columnId)
     }
   }
 
@@ -530,15 +603,11 @@ export default function DatasetWorkspacePage() {
   const displayRowsWithColor = Object.fromEntries(
     Object.entries(rowsWithColor).map(([group, rows]) => {
       const rowsArray = rows as any[]
-      if (showAllRows) return [group, { rows: rowsArray, total: rowsArray.length }]
-      const startIndex = (currentPage - 1) * rowsPerPage
-      const paginatedRows = rowsArray.slice(startIndex, startIndex + rowsPerPage)
-      return [group, { rows: paginatedRows, total: rowsArray.length }]
+      return [group, { rows: rowsArray, total: rowsArray.length }]
     })
   )
 
   const totalRows = Object.values(rowsWithColor).reduce((sum, rows) => sum + (rows as any[]).length, 0)
-  const totalPages = Math.ceil(totalRows / rowsPerPage)
   const rowPaddingClass = rowHeight === 'compact' ? 'py-1 text-xs' : 'py-3 text-sm'
   const cellPaddingClass = rowHeight === 'compact' ? 'py-1' : 'py-3'
   const inputHeightClass = rowHeight === 'compact' ? 'h-7' : 'h-8'
@@ -562,10 +631,25 @@ export default function DatasetWorkspacePage() {
                   <Upload className="h-4 w-4 mr-1" />
                   Import
                 </Button>
-                <Button size="sm" onClick={handleAddRow}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Row
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Row
+                      <ChevronDown className="h-3 w-3 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={handleAddRow}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Single Row
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handlePasteFromClipboard}>
+                      <ClipboardPaste className="h-4 w-4 mr-2" />
+                      Paste from Clipboard
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
@@ -680,19 +764,34 @@ export default function DatasetWorkspacePage() {
                                 >
                                   <Maximize2 className="h-3 w-3" />
                                 </Button>
-                                <span>{(currentPage - 1) * rowsPerPage + index + 1}</span>
+                                <span>{index + 1}</span>
                               </div>
                             </td>
-                            {finalVisibleColumns.map((column: any) => (
-                              <td key={column.id} className={`px-4 ${cellPaddingClass} border-r-2 border-b-2 border-gray-300 dark:border-gray-600`} style={{ minWidth: '250px' }}>
+                            {finalVisibleColumns.map((column: any) => {
+                              // Get cell color from imported Excel data
+                              const cellColor = row._cellColors?.[column.id] || cellColors[`${row.id}-${column.id}`]
+                              const isCopied = copiedCell?.rowId === row.id && copiedCell?.columnId === column.id
+                              
+                              return (
+                              <td 
+                                key={column.id} 
+                                className={`px-4 ${cellPaddingClass} border-r-2 border-b-2 border-gray-300 dark:border-gray-600 ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
+                                style={{ 
+                                  minWidth: '250px',
+                                  backgroundColor: cellColor || 'transparent'
+                                }}
+                              >
                                 <Input
                                   type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
                                   value={row[column.id] || ''}
                                   onChange={(e) => handleUpdateCell(row.id, column.id, e.target.value)}
+                                  onKeyDown={(e: any) => handleKeyDown(e, row.id, column.id, row[column.id])}
                                   className={`border-0 focus:ring-1 focus:ring-primary bg-transparent w-full px-2 ${inputHeightClass} text-sm`}
+                                  style={{ backgroundColor: 'transparent' }}
                                 />
                               </td>
-                            ))}
+                              )
+                            })}
                             <td className="px-4 py-3 text-center border-r-2 border-b-2 border-gray-300 dark:border-gray-600" style={{ width: '100px', minWidth: '100px' }}>
                               <Button 
                                 variant="ghost" 
@@ -719,33 +818,9 @@ export default function DatasetWorkspacePage() {
                 {totalRows.toLocaleString()} {totalRows === 1 ? 'row' : 'rows'} total
               </div>
               <div className="flex items-center gap-2">
-                {!showAllRows && totalPages > 1 && (
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-4">
-                      <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <input type="checkbox" checked={showAllRows} onChange={(e) => { setShowAllRows(e.target.checked); if (!e.target.checked) setCurrentPage(1) }} className="rounded" />
-                        Show all rows
-                      </label>
-                      <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1) }} className="border rounded px-2 py-1 text-sm">
-                        <option value={50}>50 per page</option>
-                        <option value={100}>100 per page</option>
-                        <option value={200}>200 per page</option>
-                        <option value={500}>500 per page</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        Page {currentPage} of {totalPages} ({totalRows} rows)
-                      </span>
-                      <Button size="sm" variant="outline" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}>
-                        Previous
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages}>
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {totalRows} rows
+                </span>
               </div>
             </div>
           )}
@@ -777,7 +852,7 @@ export default function DatasetWorkspacePage() {
                 }`}
               >
                 <button
-                  onClick={() => { setActiveSheetId(sheet.id); setCurrentPage(1) }}
+                  onClick={() => setActiveSheetId(sheet.id)}
                   className="inline-flex items-center gap-2"
                 >
                   {getSheetIcon(sheet.type)}

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { FileUp, FileSpreadsheet, FileJson, ChevronRight, Upload, FileType, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 interface ImportDataDialogProps {
   open: boolean
@@ -163,6 +164,95 @@ export function ImportDataDialog({
     }
   }
 
+  const parseExcelWithExcelJS = async (file: File, sheetNames?: string[]): Promise<{ [sheetName: string]: any[] }> => {
+    const arrayBuffer = await file.arrayBuffer()
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(arrayBuffer)
+    
+    const result: { [sheetName: string]: any[] } = {}
+    const sheetsToImport = sheetNames || workbook.worksheets.map(ws => ws.name)
+    
+    for (const sheetName of sheetsToImport) {
+      const worksheet = workbook.getWorksheet(sheetName)
+      if (!worksheet) continue
+      
+      const rows: any[] = []
+      const headers: string[] = []
+      
+      // Get headers from first row
+      const headerRow = worksheet.getRow(1)
+      headerRow.eachCell((cell, colNumber) => {
+        headers[colNumber - 1] = String(cell.value || `Column${colNumber}`)
+      })
+      
+      // Process data rows
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return // Skip header row
+        
+        const rowData: any = { id: crypto.randomUUID() }
+        const cellColors: any = {}
+        
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          const header = headers[colNumber - 1]
+          if (!header) return
+          
+          let value = cell.value
+          
+          // Handle date values
+          if (value instanceof Date) {
+            value = value.toISOString().split('T')[0] // YYYY-MM-DD
+          }
+          // Handle formula results
+          else if (value && typeof value === 'object' && 'result' in value) {
+            value = (value as any).result
+          }
+          // Handle rich text
+          else if (value && typeof value === 'object' && 'richText' in value) {
+            value = (value as any).richText.map((t: any) => t.text).join('')
+          }
+          
+          rowData[header] = value
+          
+          // Extract cell background color
+          if (cell.fill && cell.fill.type === 'pattern') {
+            const patternFill = cell.fill as ExcelJS.FillPattern
+            if (patternFill.fgColor) {
+              let hexColor = ''
+              
+              if ('argb' in patternFill.fgColor && patternFill.fgColor.argb) {
+                // ARGB format (e.g., "FFFF0000")
+                hexColor = `#${patternFill.fgColor.argb.substring(2)}`
+              } else if ('theme' in patternFill.fgColor) {
+                // Theme colors - map to approximate values
+                const themeColors: { [key: number]: string } = {
+                  0: '#000000', 1: '#FFFFFF', 2: '#E7E6E6', 3: '#44546A',
+                  4: '#4472C4', 5: '#ED7D31', 6: '#A5A5A5', 7: '#FFC000',
+                  8: '#5B9BD5', 9: '#70AD47'
+                }
+                hexColor = themeColors[patternFill.fgColor.theme || 0] || '#FFFFFF'
+              }
+              
+              if (hexColor && hexColor !== '#FFFFFF' && hexColor !== '#ffffff') {
+                cellColors[header] = hexColor
+              }
+            }
+          }
+        })
+        
+        // Store cell colors if any were found
+        if (Object.keys(cellColors).length > 0) {
+          rowData._cellColors = cellColors
+        }
+        
+        rows.push(rowData)
+      })
+      
+      result[sheetName] = rows
+    }
+    
+    return result
+  }
+
   const parseExcel = async (file: File, sheetNames?: string[]): Promise<{ [sheetName: string]: any[] }> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
@@ -239,6 +329,11 @@ export function ImportDataDialog({
                   const excelEpoch = new Date(1899, 11, 30)
                   const jsDate = new Date(excelEpoch.getTime() + value * 86400000)
                   processedRow[key] = jsDate.toISOString().split('T')[0] // Format as YYYY-MM-DD
+                }
+                // If value is already a Date object or ISO string, format it
+                else if (value instanceof Date || (typeof value === 'string' && value.includes('T') && keyLower.includes('date'))) {
+                  const date = value instanceof Date ? value : new Date(value)
+                  processedRow[key] = date.toISOString().split('T')[0] // Format as YYYY-MM-DD
                 } else {
                   processedRow[key] = value
                 }
@@ -249,25 +344,50 @@ export function ImportDataDialog({
                   const cellAddress = XLSX.utils.encode_cell({ r: excelRowIndex, c: headerIndex })
                   const cell = worksheet[cellAddress]
                   
-                  if (cell && cell.s && cell.s.fgColor) {
-                    // Get the fill color (fgColor = foreground color for fill)
-                    const color = cell.s.fgColor
+                  if (cell && cell.s) {
                     let hexColor = ''
                     
-                    if (color.rgb) {
-                      // RGB format (e.g., "FFFF0000" for red)
-                      hexColor = `#${color.rgb.substring(2)}` // Remove alpha channel
-                    } else if (color.theme !== undefined) {
-                      // Theme color - map to approximate hex values
-                      const themeColors: { [key: number]: string } = {
-                        0: '#000000', 1: '#FFFFFF', 2: '#E7E6E6', 3: '#44546A',
-                        4: '#4472C4', 5: '#ED7D31', 6: '#A5A5A5', 7: '#FFC000',
-                        8: '#5B9BD5', 9: '#70AD47'
+                    // Try to get fill color from various sources
+                    const fill = cell.s.fill || cell.s.fgColor
+                    
+                    if (fill) {
+                      // Check for patternFill (most common)
+                      if (fill.fgColor) {
+                        const color = fill.fgColor
+                        if (color.rgb) {
+                          // RGB format (e.g., "FFFF0000" for red)
+                          hexColor = `#${color.rgb.substring(2)}` // Remove alpha channel
+                        } else if (color.theme !== undefined) {
+                          // Theme color - map to approximate hex values
+                          const themeColors: { [key: number]: string } = {
+                            0: '#000000', 1: '#FFFFFF', 2: '#E7E6E6', 3: '#44546A',
+                            4: '#4472C4', 5: '#ED7D31', 6: '#A5A5A5', 7: '#FFC000',
+                            8: '#5B9BD5', 9: '#70AD47'
+                          }
+                          hexColor = themeColors[color.theme] || '#FFFFFF'
+                        }
                       }
-                      hexColor = themeColors[color.theme] || '#FFFFFF'
+                      // Check for bgColor as fallback
+                      else if (fill.bgColor && fill.bgColor.rgb) {
+                        hexColor = `#${fill.bgColor.rgb.substring(2)}`
+                      }
+                    }
+                    // Direct fgColor (older format)
+                    else if (cell.s.fgColor) {
+                      const color = cell.s.fgColor
+                      if (color.rgb) {
+                        hexColor = `#${color.rgb.substring(2)}`
+                      } else if (color.theme !== undefined) {
+                        const themeColors: { [key: number]: string } = {
+                          0: '#000000', 1: '#FFFFFF', 2: '#E7E6E6', 3: '#44546A',
+                          4: '#4472C4', 5: '#ED7D31', 6: '#A5A5A5', 7: '#FFC000',
+                          8: '#5B9BD5', 9: '#70AD47'
+                        }
+                        hexColor = themeColors[color.theme] || '#FFFFFF'
+                      }
                     }
                     
-                    if (hexColor && hexColor !== '#FFFFFF') {
+                    if (hexColor && hexColor !== '#FFFFFF' && hexColor !== '#ffffff') {
                       cellColors[key] = hexColor
                     }
                   }
@@ -306,15 +426,15 @@ export function ImportDataDialog({
       const userId = '0aebc03e-defa-465d-ac65-b6c15806fd26' // TODO: Get from auth context
 
       if (selectedSource === 'excel' && selectedExcelSheets.length > 0) {
-        // Multi-sheet Excel import
-        const sheetsData = await parseExcel(file, selectedExcelSheets)
+        // Multi-sheet Excel import using ExcelJS
+        const sheetsData = await parseExcelWithExcelJS(file, selectedExcelSheets)
         
         // Extract columns from ALL sheets to get complete column list
         const allColumnKeys = new Set<string>()
         Object.values(sheetsData).forEach(sheetRows => {
           if (sheetRows && sheetRows.length > 0) {
             const sampleRow = sheetRows[0]
-            Object.keys(sampleRow).filter(key => key !== 'id').forEach(key => allColumnKeys.add(key))
+            Object.keys(sampleRow).filter(key => key !== 'id' && key !== '_cellColors').forEach(key => allColumnKeys.add(key))
           }
         })
         
@@ -379,8 +499,8 @@ export function ImportDataDialog({
           // Update progress
           setImportProgress({ current: i + 1, total: totalSheets, sheetName, rowCount: rows.length })
           
-          // Get all column IDs from the rows
-          const columnIds = rows.length > 0 ? Object.keys(rows[0]).filter(key => key !== 'id') : []
+          // Get all column IDs from the rows (exclude id and _cellColors)
+          const columnIds = rows.length > 0 ? Object.keys(rows[0]).filter(key => key !== 'id' && key !== '_cellColors') : []
           
           console.log(`📋 Columns for "${sheetName}":`, columnIds)
           console.log(`📊 Sample row:`, rows[0])
