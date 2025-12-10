@@ -480,11 +480,20 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      // First, delete any existing entry for this table
+      const { error: deleteError } = await (supabase as any)
+        .from('shared_folder_items')
+        .delete()
+        .eq('table_id', tableId)
+        .eq('user_id', user.id)
+      
+      if (deleteError) console.error('Error deleting old entry:', deleteError)
+
       if (folderId) {
-        // Add to folder
+        // Add to new folder
         const { error } = await (supabase as any)
           .from('shared_folder_items')
-          .upsert({
+          .insert({
             folder_id: folderId,
             table_id: tableId,
             user_id: user.id
@@ -497,16 +506,7 @@ export default function Dashboard() {
         newMap.set(tableId, folderId)
         setSharedFolderItems(newMap)
       } else {
-        // Remove from folder
-        const { error } = await (supabase as any)
-          .from('shared_folder_items')
-          .delete()
-          .eq('table_id', tableId)
-          .eq('user_id', user.id)
-        
-        if (error) throw error
-        
-        // Update local state
+        // Just remove from folder (already deleted above)
         const newMap = new Map(sharedFolderItems)
         newMap.delete(tableId)
         setSharedFolderItems(newMap)
