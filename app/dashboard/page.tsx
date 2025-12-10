@@ -96,6 +96,7 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null)
   const [currentPath, setCurrentPath] = useState<'root' | string>('root') // 'root' or folderId
+  const [activeTab, setActiveTab] = useState<'my-workspace' | 'shared'>('my-workspace')
   
   // Supabase data
   const [supabaseFolders, setSupabaseFolders] = useState<SupabaseFolder[]>([])
@@ -514,18 +515,60 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Navigation Tabs */}
+        <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+          <nav className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('my-workspace')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'my-workspace'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                My Workspace
+                <span className="ml-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full text-xs">
+                  {displayTables.length + displayFolders.length}
+                </span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('shared')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'shared'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Shared with Me
+                <span className="ml-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full text-xs">
+                  {sharedTables.length}
+                </span>
+              </div>
+            </button>
+          </nav>
+        </div>
+
         {/* Page Title and Actions */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              {currentPath === 'root' 
-                ? 'My Workspace' 
-                : supabaseFolders.find(f => f.id === currentPath)?.name || 'Folder'}
+              {activeTab === 'shared' 
+                ? 'Shared with Me'
+                : currentPath === 'root' 
+                  ? 'My Workspace' 
+                  : supabaseFolders.find(f => f.id === currentPath)?.name || 'Folder'}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {currentPath === 'root'
-                ? `${displayTables.length} ${displayTables.length === 1 ? 'dataset' : 'datasets'} · ${displayFolders.length} ${displayFolders.length === 1 ? 'folder' : 'folders'}`
-                : `${getFolderTablesHelper(currentPath).length} ${getFolderTablesHelper(currentPath).length === 1 ? 'dataset' : 'datasets'}`
+              {activeTab === 'shared'
+                ? `${sharedTables.length} ${sharedTables.length === 1 ? 'dataset' : 'datasets'} shared with you`
+                : currentPath === 'root'
+                  ? `${displayTables.length} ${displayTables.length === 1 ? 'dataset' : 'datasets'} · ${displayFolders.length} ${displayFolders.length === 1 ? 'folder' : 'folders'}`
+                  : `${getFolderTablesHelper(currentPath).length} ${getFolderTablesHelper(currentPath).length === 1 ? 'dataset' : 'datasets'}`
               }
             </p>
           </div>
@@ -653,8 +696,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Folders Section - Only show at root */}
-        {currentPath === 'root' && filteredFolders.length > 0 && (
+        {/* Folders Section - Only show at root in My Workspace */}
+        {activeTab === 'my-workspace' && currentPath === 'root' && filteredFolders.length > 0 && (
           <section>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
               <FolderPlus className="h-5 w-5 mr-2" />
@@ -696,9 +739,10 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* Datasets Section - Show folder contents OR uncategorized datasets */}
-        <section>
-          {currentPath !== 'root' ? (
+        {/* Datasets Section - Show folder contents OR uncategorized datasets (My Workspace only) */}
+        {activeTab === 'my-workspace' && (
+          <section>
+            {currentPath !== 'root' ? (
             // Inside a folder - show folder's datasets
             <>
               <div className={viewMode === 'grid'
@@ -794,10 +838,11 @@ export default function Dashboard() {
               )}
             </>
           )}
-        </section>
+          </section>
+        )}
 
         {/* Shared with Me Section */}
-        {currentPath === 'root' && sharedTables.length > 0 && (
+        {activeTab === 'shared' && (
           <section className="mt-8">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
               <Users className="h-5 w-5 mr-2" />
@@ -832,6 +877,17 @@ export default function Dashboard() {
                 )
               })}
             </div>
+            {sharedTables.length === 0 && (
+              <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <Users className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                <p className="text-gray-500 dark:text-gray-400 mb-2">
+                  No datasets shared with you yet
+                </p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">
+                  When someone shares a dataset with your email, it will appear here
+                </p>
+              </div>
+            )}
           </section>
         )}
       </main>
