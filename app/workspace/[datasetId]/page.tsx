@@ -950,6 +950,7 @@ export default function DatasetWorkspacePage() {
       <ShareDialog
         open={shareDialogOpen}
         onOpenChange={setShareDialogOpen}
+        datasetName={currentDataset?.name || ''}
         datasetId={datasetId}
       />
 
