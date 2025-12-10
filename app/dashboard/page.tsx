@@ -807,7 +807,12 @@ export default function Dashboard() {
                 return (
                   <DatasetCard
                     key={table.id}
-                    table={table}
+                    table={{
+                      id: table.id,
+                      name: table.name,
+                      rows: table.rows,
+                      updatedAt: table.updated_at
+                    }}
                     colorRulesCount={colorRulesCount}
                     filtersCount={filtersCount}
                     viewMode={viewMode}
