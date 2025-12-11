@@ -943,7 +943,7 @@ export default function DatasetWorkspacePage() {
                                   } ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
                                   style={{ 
                                     minWidth: '250px',
-                                    backgroundColor: colIndex === 0 ? (cellColor || 'inherit') : (cellColor || 'transparent')
+                                    ...(cellColor && { backgroundColor: cellColor })
                                   }}
                                 >
                                   <Input
