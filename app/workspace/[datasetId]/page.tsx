@@ -862,10 +862,10 @@ export default function DatasetWorkspacePage() {
             </div>
           ) : (
             <div className="flex-1 overflow-hidden flex flex-col">
-              {/* Table container with scroll - visible vertical scrollbar, hidden horizontal */}
+              {/* Table container with scroll - both vertical and horizontal */}
               <div 
                 ref={tableContainerRef} 
-                className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar-track]:bg-gray-100 dark:[&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-md dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb:hover]:bg-gray-400 dark:[&::-webkit-scrollbar-thumb:hover]:bg-gray-500" 
+                className="flex-1 overflow-auto [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-gray-100 dark:[&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-md dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb:hover]:bg-gray-400 dark:[&::-webkit-scrollbar-thumb:hover]:bg-gray-500" 
                 style={{ scrollbarWidth: 'thin' }}
               >
                 <table className="border-separate border-spacing-0 w-full border-2 border-gray-300 dark:border-gray-600" style={{ minWidth: '100%' }}>
@@ -881,7 +881,7 @@ export default function DatasetWorkspacePage() {
                             onDrop={(e) => handleColumnDrop(e, column.id)}
                             onDragEnd={handleColumnDragEnd}
                             className={`px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap bg-white dark:bg-gray-800 group border-r-2 border-gray-300 dark:border-gray-600 cursor-move ${
-                              index === 0 ? 'sticky left-[60px] z-20' : ''
+                              index === 0 ? 'sticky left-[60px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
                             } ${
                               draggedColumn === column.id ? 'opacity-50' : ''
                             } ${
@@ -939,7 +939,7 @@ export default function DatasetWorkspacePage() {
                                 <td 
                                   key={column.id} 
                                   className={`px-4 ${cellPaddingClass} border-r-2 border-b-2 border-gray-300 dark:border-gray-600 ${
-                                    colIndex === 0 ? 'sticky left-[60px] z-10 bg-white dark:bg-gray-800' : ''
+                                    colIndex === 0 ? 'sticky left-[60px] z-10 bg-white dark:bg-gray-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
                                   } ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
                                   style={{ 
                                     minWidth: '250px',
