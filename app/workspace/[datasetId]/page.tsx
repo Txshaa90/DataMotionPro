@@ -746,7 +746,7 @@ export default function DatasetWorkspacePage() {
           onAddSheet={handleAddSheet}
           onShare={() => setShareDialogOpen(true)}
           sheets={datasetSheets}
-          activeSheetId={activeSheetId}
+          activeSheetId={activeSheetId || undefined}
           onSheetSelect={setActiveSheetId}
           onSheetRename={handleRenameSheet}
         />
