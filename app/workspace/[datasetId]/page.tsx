@@ -102,6 +102,10 @@ export default function DatasetWorkspacePage() {
           .select('*')
           .eq('id', datasetId)
           .single()
+        
+        console.log('🔍 Workspace - Dataset fetch:', { datasetData, datasetError })
+        console.log('🔍 Workspace - Rows count:', datasetData?.rows?.length || 0)
+        
         if (datasetError) throw datasetError
 
         const { data: viewsData, error: viewsError } = await (supabase as any)
@@ -570,8 +574,9 @@ export default function DatasetWorkspacePage() {
   const filteredRows = getFilteredRows()
   const sortedRows = [...filteredRows].sort((a: any, b: any) => {
     for (const sort of activeSorts) {
-      const aVal = a[sort.columnId] || ''
-      const bVal = b[sort.columnId] || ''
+      const fieldId = sort.columnId || sort.field // Support both columnId and field
+      const aVal = a[fieldId] || ''
+      const bVal = b[fieldId] || ''
       let comparison = typeof aVal === 'number' && typeof bVal === 'number' ? aVal - bVal : String(aVal).localeCompare(String(bVal))
       if (comparison !== 0) return sort.direction === 'asc' ? comparison : -comparison
     }
