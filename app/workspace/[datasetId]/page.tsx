@@ -12,6 +12,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import {
   Database,
@@ -33,7 +42,9 @@ import {
   History,
   ChevronDown,
   ClipboardPaste,
-  Check
+  Check,
+  Palette,
+  Calendar
 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -80,6 +91,10 @@ export default function DatasetWorkspacePage() {
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
+  const [manualCellColorDialog, setManualCellColorDialog] = useState<{ open: boolean; rowId?: string; columnId?: string }>({ open: false })
+  const [manualCellColorValue, setManualCellColorValue] = useState('')
+  const [manualCellColorColor, setManualCellColorColor] = useState('#10b981')
+  const [dateRangeFilter, setDateRangeFilter] = useState<{ startDate: string; endDate: string; columnId: string } | null>(null)
   
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const topScrollRef = useRef<HTMLDivElement>(null)
@@ -376,6 +391,29 @@ export default function DatasetWorkspacePage() {
     }
   }
 
+  const handleOpenManualCellColorDialog = (rowId: string, columnId: string) => {
+    const cellKey = `${rowId}-${columnId}`
+    const existingColor = cellColors[cellKey] || '#10b981'
+    setManualCellColorValue('')
+    setManualCellColorColor(existingColor)
+    setManualCellColorDialog({ open: true, rowId, columnId })
+  }
+
+  const handleApplyManualCellColor = () => {
+    if (!manualCellColorDialog.rowId || !manualCellColorDialog.columnId) return
+    
+    const cellKey = `${manualCellColorDialog.rowId}-${manualCellColorDialog.columnId}`
+    setCellColors(prev => ({ ...prev, [cellKey]: manualCellColorColor }))
+    
+    // If value is provided, update the cell value as well
+    if (manualCellColorValue.trim()) {
+      handleUpdateCell(manualCellColorDialog.rowId, manualCellColorDialog.columnId, manualCellColorValue)
+    }
+    
+    setManualCellColorDialog({ open: false })
+    setManualCellColorValue('')
+  }
+
   const handleAddSheet = async (viewType: 'grid' | 'gallery' | 'form' | 'kanban' | 'calendar' | 'chart' | 'returns' | 'dashboard' = 'grid') => {
     if (!currentDataset) return
     const newSheet = {
@@ -628,6 +666,21 @@ export default function DatasetWorkspacePage() {
       })
       console.log(`Filter applied: ${beforeCount} → ${rows.length} rows`)
     }
+    
+    // Apply date range filter
+    if (dateRangeFilter) {
+      rows = rows.filter((row: any) => {
+        const dateValue = row[dateRangeFilter.columnId]
+        if (!dateValue) return false
+        
+        const rowDate = new Date(dateValue)
+        const startDate = new Date(dateRangeFilter.startDate)
+        const endDate = new Date(dateRangeFilter.endDate)
+        
+        return rowDate >= startDate && rowDate <= endDate
+      })
+    }
+    
     return rows
   }
 
@@ -692,6 +745,10 @@ export default function DatasetWorkspacePage() {
           datasetName={currentDataset.name}
           onAddSheet={handleAddSheet}
           onShare={() => setShareDialogOpen(true)}
+          sheets={datasetSheets}
+          activeSheetId={activeSheetId}
+          onSheetSelect={setActiveSheetId}
+          onSheetRename={handleRenameSheet}
         />
 
         <main className="flex-1 flex flex-col overflow-hidden pb-14" style={{ maxWidth: '100%' }}>
@@ -729,6 +786,10 @@ export default function DatasetWorkspacePage() {
                 <Button size="sm" variant="outline" onClick={() => setImportDialogOpen(true)}>
                   <Upload className="h-4 w-4 mr-1" />
                   Import
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleOpenManualCellColorDialog('', '')} title="Set color for selected cells">
+                  <Palette className="h-4 w-4 mr-1" />
+                  Set Cell Color
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -818,6 +879,8 @@ export default function DatasetWorkspacePage() {
               } : undefined}
               onViewDuplicate={currentSheet ? () => handleDuplicateSheet(currentSheet.id) : undefined}
               onViewDelete={currentSheet ? () => handleDeleteSheet(currentSheet.id) : undefined}
+              dateRangeFilter={dateRangeFilter}
+              onDateRangeFilterChange={setDateRangeFilter}
             />
           )}
 
@@ -1043,6 +1106,54 @@ export default function DatasetWorkspacePage() {
         datasetName={currentDataset?.name || ''}
         datasetId={datasetId}
       />
+
+      {/* Manual Cell Color Dialog */}
+      <Dialog open={manualCellColorDialog.open} onOpenChange={(open) => setManualCellColorDialog({ open })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Cell Color</DialogTitle>
+            <DialogDescription>
+              Add a color to this cell. This will override any conditional formatting rules.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="cell-value">Cell Value (Optional)</Label>
+              <Input
+                id="cell-value"
+                placeholder="Enter value for this cell"
+                value={manualCellColorValue}
+                onChange={(e) => setManualCellColorValue(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cell-color">Cell Color</Label>
+              <div className="flex gap-2">
+                <input
+                  type="color"
+                  id="cell-color"
+                  value={manualCellColorColor}
+                  onChange={(e) => setManualCellColorColor(e.target.value)}
+                  className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
+                />
+                <Input
+                  placeholder="#10b981"
+                  value={manualCellColorColor}
+                  onChange={(e) => setManualCellColorColor(e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualCellColorDialog({ open: false })}>Cancel</Button>
+            <Button onClick={handleApplyManualCellColor}>
+              <Palette className="h-4 w-4 mr-2" />
+              Apply Color
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Full-Screen Record View Modal */}
       {selectedRow && (

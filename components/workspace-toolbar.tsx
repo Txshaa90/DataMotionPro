@@ -28,6 +28,7 @@ import {
   MoreVertical,
   Search as SearchIcon,
   Sparkles,
+  Calendar,
 } from 'lucide-react'
 
 interface WorkspaceToolbarProps {
@@ -49,6 +50,8 @@ interface WorkspaceToolbarProps {
   onViewRename?: () => void
   onViewDuplicate?: () => void
   onViewDelete?: () => void
+  dateRangeFilter?: { startDate: string; endDate: string; columnId: string } | null
+  onDateRangeFilterChange?: (filter: { startDate: string; endDate: string; columnId: string } | null) => void
 }
 
 export function WorkspaceToolbar({
@@ -70,6 +73,8 @@ export function WorkspaceToolbar({
   onViewRename,
   onViewDuplicate,
   onViewDelete,
+  dateRangeFilter,
+  onDateRangeFilterChange,
 }: WorkspaceToolbarProps) {
   const [newFilter, setNewFilter] = useState({ columnId: 'placeholder', operator: 'is', value: '' })
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false)
@@ -77,6 +82,7 @@ export function WorkspaceToolbar({
   const [newColorRule, setNewColorRule] = useState({ columnId: 'placeholder', value: '', color: '#10b981' })
   const [newCellColorFilter, setNewCellColorFilter] = useState({ color: '#10b981', operator: 'is' })
   const [showSearchInput, setShowSearchInput] = useState(false)
+  const [newDateRange, setNewDateRange] = useState({ columnId: 'placeholder', startDate: '', endDate: '' })
 
   const currentRowHeight = rowHeight || 'comfortable'
 
@@ -580,6 +586,112 @@ export function WorkspaceToolbar({
                 >
                   <Plus className="h-3 w-3 mr-1" />
                   Add Color Filter
+                </Button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Date Range Filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8">
+              <Calendar className="h-4 w-4 mr-2" />
+              Date Range
+              {dateRangeFilter && (
+                <span className="ml-1 text-xs text-primary">(1)</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="start">
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">Filter by Date Range</h4>
+              
+              {/* Current Date Range Filter */}
+              {dateRangeFilter && (
+                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">
+                      {columns.find(c => c.id === dateRangeFilter.columnId)?.name || 'Date Column'}
+                    </span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      onClick={() => onDateRangeFilterChange?.(null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-300">
+                    {dateRangeFilter.startDate} to {dateRangeFilter.endDate}
+                  </p>
+                </div>
+              )}
+
+              {!dateRangeFilter && (
+                <p className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
+                  No date range filter applied
+                </p>
+              )}
+
+              {/* Add New Date Range Filter */}
+              <div className="space-y-3 pt-3 border-t">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Date Column</label>
+                  <Select
+                    value={newDateRange.columnId}
+                    onValueChange={(v) => setNewDateRange({...newDateRange, columnId: v})}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select date column" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="placeholder" disabled>Select column</SelectItem>
+                      {columns.filter(col => col.type === 'date' || col.id.toLowerCase().includes('date')).map(col => (
+                        <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Start Date</label>
+                  <Input
+                    type="date"
+                    value={newDateRange.startDate}
+                    onChange={(e) => setNewDateRange({...newDateRange, startDate: e.target.value})}
+                    className="h-9"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">End Date</label>
+                  <Input
+                    type="date"
+                    value={newDateRange.endDate}
+                    onChange={(e) => setNewDateRange({...newDateRange, endDate: e.target.value})}
+                    className="h-9"
+                  />
+                </div>
+
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (newDateRange.columnId !== 'placeholder' && newDateRange.startDate && newDateRange.endDate) {
+                      onDateRangeFilterChange?.({
+                        columnId: newDateRange.columnId,
+                        startDate: newDateRange.startDate,
+                        endDate: newDateRange.endDate
+                      })
+                      setNewDateRange({ columnId: 'placeholder', startDate: '', endDate: '' })
+                    }
+                  }}
+                  className="w-full"
+                  disabled={newDateRange.columnId === 'placeholder' || !newDateRange.startDate || !newDateRange.endDate}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Apply Date Range
                 </Button>
               </div>
             </div>
