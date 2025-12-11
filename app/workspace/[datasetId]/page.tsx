@@ -78,6 +78,8 @@ export default function DatasetWorkspacePage() {
   const [newComment, setNewComment] = useState('')
   const [copiedCell, setCopiedCell] = useState<{ rowId: string; columnId: string; value: any; color?: string } | null>(null)
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null)
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
   
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const topScrollRef = useRef<HTMLDivElement>(null)
@@ -477,6 +479,53 @@ export default function DatasetWorkspacePage() {
     await updateView({ color_rules: colorRules })
   }
 
+  const handleColumnDragStart = (columnId: string) => {
+    setDraggedColumn(columnId)
+  }
+
+  const handleColumnDragOver = (e: React.DragEvent, columnId: string) => {
+    e.preventDefault()
+    setDragOverColumn(columnId)
+  }
+
+  const handleColumnDrop = async (targetColumnId: string) => {
+    if (!draggedColumn || draggedColumn === targetColumnId) {
+      setDraggedColumn(null)
+      setDragOverColumn(null)
+      return
+    }
+
+    const currentColumns = [...activeVisibleColumns]
+    const draggedIndex = currentColumns.indexOf(draggedColumn)
+    const targetIndex = currentColumns.indexOf(targetColumnId)
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedColumn(null)
+      setDragOverColumn(null)
+      return
+    }
+
+    // Reorder columns
+    currentColumns.splice(draggedIndex, 1)
+    currentColumns.splice(targetIndex, 0, draggedColumn)
+
+    setLocalVisibleColumns(currentColumns)
+    await updateView({ visible_columns: currentColumns })
+    
+    setDraggedColumn(null)
+    setDragOverColumn(null)
+  }
+
+  // Convert index to column letter (A, B, C, ... Z, AA, AB, etc.)
+  const getColumnLetter = (index: number): string => {
+    let letter = ''
+    while (index >= 0) {
+      letter = String.fromCharCode((index % 26) + 65) + letter
+      index = Math.floor(index / 26) - 1
+    }
+    return letter
+  }
+
   const activeVisibleColumns = localVisibleColumns.length > 0 ? localVisibleColumns : (currentSheet?.visible_columns || currentDataset.columns.map((c: any) => c.id))
   const activeGroupBy = localGroupBy || currentSheet?.group_by || null
   const activeFilters = localFilters.length > 0 ? localFilters : (currentSheet?.filters || [])
@@ -810,10 +859,33 @@ export default function DatasetWorkspacePage() {
               >
                 <table className="border-separate border-spacing-0 w-full border-2 border-gray-300 dark:border-gray-600" style={{ minWidth: '100%' }}>
                     <thead className="bg-white dark:bg-gray-800">
-                      <tr className="sticky top-0 z-20 bg-white dark:bg-gray-800 shadow-sm border-b-2 border-gray-300 dark:border-gray-600">
+                      {/* Column Letters Row */}
+                      <tr className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-700 border-b border-gray-300 dark:border-gray-600">
+                        <th className="px-2 py-1 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 sticky left-0 z-30 bg-gray-50 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600" style={{ width: '60px', minWidth: '60px' }}></th>
+                        {finalVisibleColumns.map((column: any, index: number) => (
+                          <th key={`letter-${column.id}`} className="px-2 py-1 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600" style={{ minWidth: '250px' }}>
+                            {getColumnLetter(index)}
+                          </th>
+                        ))}
+                        <th className="px-2 py-1 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600" style={{ width: '100px', minWidth: '100px' }}></th>
+                      </tr>
+                      {/* Column Names Row */}
+                      <tr className="sticky z-20 bg-white dark:bg-gray-800 shadow-sm border-b-2 border-gray-300 dark:border-gray-600" style={{ top: '28px' }}>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-0 z-30 bg-white dark:bg-gray-800 border-r-2 border-gray-300 dark:border-gray-600" style={{ width: '60px', minWidth: '60px' }}>#</th>
                         {finalVisibleColumns.map((column: any) => (
-                          <th key={column.id} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap bg-white dark:bg-gray-800 group border-r-2 border-gray-300 dark:border-gray-600" style={{ minWidth: '250px' }}>
+                          <th 
+                            key={column.id} 
+                            draggable
+                            onDragStart={() => handleColumnDragStart(column.id)}
+                            onDragOver={(e) => handleColumnDragOver(e, column.id)}
+                            onDrop={() => handleColumnDrop(column.id)}
+                            className={`px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap bg-white dark:bg-gray-800 group border-r-2 border-gray-300 dark:border-gray-600 cursor-move ${
+                              draggedColumn === column.id ? 'opacity-50' : ''
+                            } ${
+                              dragOverColumn === column.id && draggedColumn !== column.id ? 'border-l-4 border-l-blue-500' : ''
+                            }`} 
+                            style={{ minWidth: '250px' }}
+                          >
                             <div className="flex items-center justify-between gap-2">
                               <span>{column.name}</span>
                               <Button 
