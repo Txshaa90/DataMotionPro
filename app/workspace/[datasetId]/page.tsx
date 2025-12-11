@@ -485,10 +485,16 @@ export default function DatasetWorkspacePage() {
 
   const handleColumnDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault()
-    setDragOverColumn(columnId)
+    e.stopPropagation()
+    if (draggedColumn && draggedColumn !== columnId) {
+      setDragOverColumn(columnId)
+    }
   }
 
-  const handleColumnDrop = async (targetColumnId: string) => {
+  const handleColumnDrop = async (e: React.DragEvent, targetColumnId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
     if (!draggedColumn || draggedColumn === targetColumnId) {
       setDraggedColumn(null)
       setDragOverColumn(null)
@@ -512,6 +518,11 @@ export default function DatasetWorkspacePage() {
     setLocalVisibleColumns(currentColumns)
     await updateView({ visible_columns: currentColumns })
     
+    setDraggedColumn(null)
+    setDragOverColumn(null)
+  }
+
+  const handleColumnDragEnd = () => {
     setDraggedColumn(null)
     setDragOverColumn(null)
   }
@@ -867,7 +878,8 @@ export default function DatasetWorkspacePage() {
                             draggable
                             onDragStart={() => handleColumnDragStart(column.id)}
                             onDragOver={(e) => handleColumnDragOver(e, column.id)}
-                            onDrop={() => handleColumnDrop(column.id)}
+                            onDrop={(e) => handleColumnDrop(e, column.id)}
+                            onDragEnd={handleColumnDragEnd}
                             className={`px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap bg-white dark:bg-gray-800 group border-r-2 border-gray-300 dark:border-gray-600 cursor-move ${
                               draggedColumn === column.id ? 'opacity-50' : ''
                             } ${
