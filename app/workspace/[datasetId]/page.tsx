@@ -868,10 +868,10 @@ export default function DatasetWorkspacePage() {
                 className="flex-1 overflow-auto [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-gray-100 dark:[&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-md dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb:hover]:bg-gray-400 dark:[&::-webkit-scrollbar-thumb:hover]:bg-gray-500" 
                 style={{ scrollbarWidth: 'thin' }}
               >
-                <table className="border-separate border-spacing-0 w-full border-2 border-gray-300 dark:border-gray-600" style={{ minWidth: '100%' }}>
+                <table className="w-full border border-gray-300 dark:border-gray-600" style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
                     <thead className="bg-white dark:bg-gray-800">
-                      <tr className="sticky top-0 z-20 bg-white dark:bg-gray-800 shadow-sm border-b-2 border-gray-300 dark:border-gray-600">
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-0 z-30 bg-white dark:bg-gray-800 border-r-2 border-gray-300 dark:border-gray-600" style={{ width: '60px', minWidth: '60px' }}>#</th>
+                      <tr className="sticky top-0 z-20 bg-white dark:bg-gray-800 shadow-sm">
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-0 z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600" style={{ width: '60px', minWidth: '60px' }}>#</th>
                         {finalVisibleColumns.map((column: any, index: number) => (
                           <th 
                             key={column.id} 
@@ -880,8 +880,8 @@ export default function DatasetWorkspacePage() {
                             onDragOver={(e) => handleColumnDragOver(e, column.id)}
                             onDrop={(e) => handleColumnDrop(e, column.id)}
                             onDragEnd={handleColumnDragEnd}
-                            className={`px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap bg-white dark:bg-gray-800 group border-r-2 border-gray-300 dark:border-gray-600 cursor-move ${
-                              index === 0 ? 'sticky left-[60px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l-2' : ''
+                            className={`px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap bg-white dark:bg-gray-800 group border border-gray-300 dark:border-gray-600 cursor-move ${
+                              index === 0 ? 'sticky left-[60px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
                             } ${
                               draggedColumn === column.id ? 'opacity-50' : ''
                             } ${
@@ -910,14 +910,14 @@ export default function DatasetWorkspacePage() {
                             </div>
                           </th>
                         ))}
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase bg-white dark:bg-gray-800 border-r-2 border-gray-300 dark:border-gray-600" style={{ width: '100px', minWidth: '100px' }}>Actions</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600" style={{ width: '100px', minWidth: '100px' }}>Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y-2 divide-gray-300 dark:divide-gray-600">
+                    <tbody>
                       {Object.entries(displayRowsWithColor).map(([group, { rows }]) =>
                         rows.map((row: any, index: number) => (
                           <tr key={row.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${rowPaddingClass}`} style={{ backgroundColor: row.rowColor }}>
-                            <td className={`px-2 ${cellPaddingClass} text-center text-sm text-gray-500 dark:text-gray-400 font-medium sticky left-0 z-10 bg-white dark:bg-gray-800 border-r-2 border-b-2 border-gray-300 dark:border-gray-600`} style={{ width: '80px', minWidth: '80px' }}>
+                            <td className={`px-2 ${cellPaddingClass} text-center text-sm text-gray-500 dark:text-gray-400 font-medium sticky left-0 z-10 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600`} style={{ width: '80px', minWidth: '80px' }}>
                               <div className="flex items-center justify-center gap-1">
                                 <Button 
                                   variant="ghost" 
@@ -938,8 +938,8 @@ export default function DatasetWorkspacePage() {
                               return (
                                 <td 
                                   key={column.id} 
-                                  className={`px-4 ${cellPaddingClass} border-r-2 border-b-2 border-gray-300 dark:border-gray-600 ${
-                                    colIndex === 0 ? 'sticky left-[60px] z-10 bg-white dark:bg-gray-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l-2' : ''
+                                  className={`px-4 ${cellPaddingClass} border border-gray-300 dark:border-gray-600 ${
+                                    colIndex === 0 ? 'sticky left-[60px] z-10 bg-white dark:bg-gray-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
                                   } ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
                                   style={{ 
                                     minWidth: '250px',
@@ -957,7 +957,7 @@ export default function DatasetWorkspacePage() {
                                 </td>
                               )
                             })}
-                            <td className="px-4 py-3 text-center border-r-2 border-b-2 border-gray-300 dark:border-gray-600" style={{ width: '100px', minWidth: '100px' }}>
+                            <td className="px-4 py-3 text-center border border-gray-300 dark:border-gray-600" style={{ width: '100px', minWidth: '100px' }}>
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
