@@ -80,9 +80,12 @@ export function WorkspaceToolbar({
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false)
   const [newSort, setNewSort] = useState({ field: 'placeholder', direction: 'asc' })
   const [newColorRule, setNewColorRule] = useState({ columnId: 'placeholder', value: '', color: '#10b981' })
-  const [newCellColorFilter, setNewCellColorFilter] = useState({ color: '#10b981', operator: 'is' })
+  const [newCellColorRule, setNewCellColorRule] = useState({ columnId: 'placeholder', value: '', color: '#10b981' })
   const [showSearchInput, setShowSearchInput] = useState(false)
   const [newDateRange, setNewDateRange] = useState({ columnId: 'placeholder', startDate: '', endDate: '' })
+  const [filterHeaderSearch, setFilterHeaderSearch] = useState('')
+  const [cellColorHeaderSearch, setCellColorHeaderSearch] = useState('')
+  const [conditionalFormattingSearch, setConditionalFormattingSearch] = useState('')
 
   const currentRowHeight = rowHeight || 'comfortable'
 
@@ -250,6 +253,16 @@ export function WorkspaceToolbar({
 
               {/* Add New Filter */}
               <div className="space-y-3 pt-3 border-t">
+                {/* Search for headers */}
+                <div className="relative">
+                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search fields..."
+                    value={filterHeaderSearch}
+                    onChange={(e) => setFilterHeaderSearch(e.target.value)}
+                    className="pl-9 h-9"
+                  />
+                </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Where</span>
                   <Select value={newFilter.columnId} onValueChange={(v) => setNewFilter({...newFilter, columnId: v})}>
@@ -259,9 +272,12 @@ export function WorkspaceToolbar({
                     <SelectContent>
                       <SelectItem value="placeholder" disabled>Select field</SelectItem>
                       <SelectItem value="__cell_color__">🎨 Cell Color</SelectItem>
-                      {columns.filter(col => col.id && col.id !== '').map(col => (
-                        <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
-                      ))}
+                      {columns
+                        .filter(col => col.id && col.id !== '' && 
+                          (!filterHeaderSearch || col.name.toLowerCase().includes(filterHeaderSearch.toLowerCase())))
+                        .map(col => (
+                          <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                   <Select value={newFilter.operator} onValueChange={(v) => setNewFilter({...newFilter, operator: v})}>
@@ -415,177 +431,138 @@ export function WorkspaceToolbar({
           </PopoverContent>
         </Popover>
 
-        {/* Colour Panel */}
+        {/* Cell Color Panel */}
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8">
               <Palette className="h-4 w-4 mr-2" />
-              Colour
+              Cell Color
               {colorRules.length > 0 && (
-                <span className="ml-1 text-xs text-primary">({colorRules.length})</span>
+                <span className="ml-1 text-xs text-primary">
+                  ({colorRules.length})
+                </span>
               )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-96" align="start">
             <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Color Rules</h4>
+              <h4 className="font-semibold text-sm">Cell Color Rules</h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Apply colors to cells in a column that match a specific value
+              </p>
               
-              {/* Existing Rules */}
+              {/* Existing Color Rules */}
               {colorRules.map((rule, index) => (
-                <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div
-                    className="w-4 h-4 rounded"
+                    className="w-6 h-6 rounded border-2 border-gray-300"
                     style={{ backgroundColor: rule.color }}
                   />
-                  <span className="text-sm flex-1">
-                    {columns.find(c => c.id === rule.columnId)?.name} = "{rule.value}"
-                  </span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      {columns.find(c => c.id === rule.columnId)?.name || rule.columnId}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      equals "{rule.value}"
+                    </p>
+                  </div>
                   <Button
                     size="icon"
                     variant="ghost"
                     className="h-6 w-6"
-                    onClick={() => removeColorRule(index)}
+                    onClick={() => {
+                      const newRules = colorRules.filter((_, i) => i !== index)
+                      onColorRulesChange(newRules)
+                    }}
                   >
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
               ))}
 
-              {/* Add New Rule */}
-              <div className="space-y-2 pt-2 border-t">
-                <Select value={newColorRule.columnId} onValueChange={(v) => setNewColorRule({...newColorRule, columnId: v})}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Select column" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="placeholder" disabled>Select column</SelectItem>
-                    {columns.filter(col => col.id && col.id !== '').map(col => (
-                      <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Input
-                  placeholder="Value"
-                  value={newColorRule.value}
-                  onChange={(e) => setNewColorRule({...newColorRule, value: e.target.value})}
-                  className="h-8"
-                />
-
-                <div className="flex gap-2">
-                  <Input
-                    type="color"
-                    value={newColorRule.color}
-                    onChange={(e) => setNewColorRule({...newColorRule, color: e.target.value})}
-                    className="h-8 w-16"
-                  />
-                  <Button size="sm" onClick={addColorRule} className="flex-1">
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add Rule
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        {/* Cell Color Filter Panel */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8">
-              <Palette className="h-4 w-4 mr-2" />
-              Cell Color
-              {filters.filter(f => f.columnId === '__cell_color__').length > 0 && (
-                <span className="ml-1 text-xs text-primary">
-                  ({filters.filter(f => f.columnId === '__cell_color__').length})
-                </span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80" align="start">
-            <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Filter by Cell Color</h4>
-              
-              {/* Existing Cell Color Filters */}
-              {filters.filter(f => f.columnId === '__cell_color__').map((filter, index) => {
-                const actualIndex = filters.findIndex(f => f === filter)
-                return (
-                  <div key={actualIndex} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                    <div
-                      className="w-6 h-6 rounded border-2 border-gray-300"
-                      style={{ backgroundColor: filter.value }}
-                    />
-                    <span className="text-sm flex-1">
-                      {filter.operator === 'is' ? 'Show' : 'Hide'} cells with this color
-                    </span>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6"
-                      onClick={() => removeFilter(actualIndex)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                )
-              })}
-
-              {filters.filter(f => f.columnId === '__cell_color__').length === 0 && (
+              {colorRules.length === 0 && (
                 <div className="text-center py-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">No cell color filters applied</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No color rules applied</p>
                 </div>
               )}
 
-              {/* Add New Cell Color Filter */}
+              {/* Add New Color Rule */}
               <div className="space-y-3 pt-3 border-t">
-                <div className="flex items-center gap-2">
+                {/* Search for headers */}
+                <div className="relative">
+                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search fields..."
+                    value={cellColorHeaderSearch}
+                    onChange={(e) => setCellColorHeaderSearch(e.target.value)}
+                    className="pl-9 h-9"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">Select Column</label>
                   <Select 
-                    value={newCellColorFilter.operator} 
-                    onValueChange={(v) => setNewCellColorFilter({...newCellColorFilter, operator: v})}
+                    value={newCellColorRule.columnId} 
+                    onValueChange={(v) => setNewCellColorRule({...newCellColorRule, columnId: v})}
                   >
-                    <SelectTrigger className="h-9 w-32">
-                      <SelectValue />
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select field" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="is">Show</SelectItem>
-                      <SelectItem value="is_not">Hide</SelectItem>
+                      <SelectItem value="placeholder" disabled>Select field</SelectItem>
+                      {columns
+                        .filter(col => col.id && col.id !== '' && 
+                          (!cellColorHeaderSearch || col.name.toLowerCase().includes(cellColorHeaderSearch.toLowerCase())))
+                        .map(col => (
+                          <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
-                  <span className="text-sm text-gray-600 dark:text-gray-300">cells with color:</span>
                 </div>
 
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={newCellColorFilter.color}
-                    onChange={(e) => setNewCellColorFilter({...newCellColorFilter, color: e.target.value})}
-                    className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
-                    title="Pick a color"
-                  />
+                <div className="space-y-2">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">Cell Value</label>
                   <Input
-                    placeholder="#10b981"
-                    value={newCellColorFilter.color}
-                    onChange={(e) => setNewCellColorFilter({...newCellColorFilter, color: e.target.value})}
-                    className="h-10 flex-1"
+                    placeholder="Enter the value to match"
+                    value={newCellColorRule.value}
+                    onChange={(e) => setNewCellColorRule({...newCellColorRule, value: e.target.value})}
+                    className="h-9"
                   />
                 </div>
 
-                <Button 
-                  size="sm" 
+                <div className="space-y-2">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">Color</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={newCellColorRule.color}
+                      onChange={(e) => setNewCellColorRule({...newCellColorRule, color: e.target.value})}
+                      className="h-9 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
+                      title="Pick a color"
+                    />
+                    <Input
+                      placeholder="#10b981"
+                      value={newCellColorRule.color}
+                      onChange={(e) => setNewCellColorRule({...newCellColorRule, color: e.target.value})}
+                      className="h-9 flex-1"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  size="sm"
                   onClick={() => {
-                    if (newCellColorFilter.color) {
-                      onFiltersChange([...filters, {
-                        columnId: '__cell_color__',
-                        operator: newCellColorFilter.operator,
-                        value: newCellColorFilter.color
-                      }])
-                      setNewCellColorFilter({ color: '#10b981', operator: 'is' })
+                    if (newCellColorRule.columnId !== 'placeholder' && newCellColorRule.value) {
+                      onColorRulesChange([...colorRules, newCellColorRule])
+                      setNewCellColorRule({ columnId: 'placeholder', value: '', color: '#10b981' })
+                      setCellColorHeaderSearch('')
                     }
                   }}
                   className="w-full"
+                  disabled={newCellColorRule.columnId === 'placeholder' || !newCellColorRule.value}
                 >
                   <Plus className="h-3 w-3 mr-1" />
-                  Add Color Filter
+                  Add Color Rule
                 </Button>
               </div>
             </div>
@@ -755,6 +732,16 @@ export function WorkspaceToolbar({
 
               {/* Add New Rule */}
               <div className="space-y-3 pt-3 border-t">
+                {/* Search for headers */}
+                <div className="relative">
+                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search fields..."
+                    value={conditionalFormattingSearch}
+                    onChange={(e) => setConditionalFormattingSearch(e.target.value)}
+                    className="pl-9 h-9"
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Field</label>
@@ -767,9 +754,12 @@ export function WorkspaceToolbar({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="placeholder" disabled>Select field</SelectItem>
-                        {columns.filter(col => col.id && col.id !== '').map(col => (
-                          <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
-                        ))}
+                        {columns
+                          .filter(col => col.id && col.id !== '' && 
+                            (!conditionalFormattingSearch || col.name.toLowerCase().includes(conditionalFormattingSearch.toLowerCase())))
+                          .map(col => (
+                            <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
