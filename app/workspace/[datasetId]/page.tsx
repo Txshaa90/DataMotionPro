@@ -11,6 +11,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import {
   Dialog,
@@ -44,7 +45,9 @@ import {
   ClipboardPaste,
   Check,
   Palette,
-  Calendar
+  Calendar,
+  Edit,
+  Copy
 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -91,7 +94,8 @@ export default function DatasetWorkspacePage() {
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
-  const [manualCellColorDialog, setManualCellColorDialog] = useState<{ open: boolean; rowId?: string; columnId?: string }>({ open: false })
+  const [manualCellColorDialog, setManualCellColorDialog] = useState(false)
+  const [manualCellColorColumnId, setManualCellColorColumnId] = useState('placeholder')
   const [manualCellColorValue, setManualCellColorValue] = useState('')
   const [manualCellColorColor, setManualCellColorColor] = useState('#10b981')
   const [dateRangeFilter, setDateRangeFilter] = useState<{ startDate: string; endDate: string; columnId: string } | null>(null)
@@ -152,6 +156,61 @@ export default function DatasetWorkspacePage() {
   useEffect(() => {
     if (activeSheetId) setActiveView(activeSheetId)
   }, [activeSheetId])
+
+  // Realtime sync for shared spreadsheets
+  useEffect(() => {
+    if (!datasetId) return
+
+    // Subscribe to changes on the tables table (dataset rows)
+    const channel = supabase
+      .channel(`table-${datasetId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tables',
+          filter: `id=eq.${datasetId}`
+        },
+        async (payload) => {
+          console.log('Realtime update received:', payload)
+          // Refetch data when changes occur
+          const { data: tableData } = await (supabase as any).from('tables').select('*').eq('id', datasetId).single()
+          if (tableData) {
+            setSupabaseDataset(tableData)
+          }
+        }
+      )
+      .subscribe()
+
+    // Subscribe to view changes
+    const viewChannel = supabase
+      .channel(`views-${datasetId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'views',
+          filter: `table_id=eq.${datasetId}`
+        },
+        async (payload) => {
+          console.log('View update received:', payload)
+          // Refetch views when changes occur
+          const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId)
+          if (viewsData) {
+            setSupabaseViews(viewsData)
+          }
+        }
+      )
+      .subscribe()
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      supabase.removeChannel(channel)
+      supabase.removeChannel(viewChannel)
+    }
+  }, [datasetId])
 
   // Sync horizontal scroll between bottom scrollbar and table
   useEffect(() => {
@@ -391,26 +450,34 @@ export default function DatasetWorkspacePage() {
     }
   }
 
-  const handleOpenManualCellColorDialog = (rowId: string, columnId: string) => {
-    const cellKey = `${rowId}-${columnId}`
-    const existingColor = cellColors[cellKey] || '#10b981'
+  const handleOpenManualCellColorDialog = () => {
+    setManualCellColorColumnId('placeholder')
     setManualCellColorValue('')
-    setManualCellColorColor(existingColor)
-    setManualCellColorDialog({ open: true, rowId, columnId })
+    setManualCellColorColor('#10b981')
+    setManualCellColorDialog(true)
   }
 
   const handleApplyManualCellColor = () => {
-    if (!manualCellColorDialog.rowId || !manualCellColorDialog.columnId) return
+    if (manualCellColorColumnId === 'placeholder' || !manualCellColorValue.trim()) return
     
-    const cellKey = `${manualCellColorDialog.rowId}-${manualCellColorDialog.columnId}`
-    setCellColors(prev => ({ ...prev, [cellKey]: manualCellColorColor }))
+    // Apply color to all cells in the column that match the value
+    const matchingRows = baseRows.filter((row: any) => {
+      const cellValue = String(row[manualCellColorColumnId] || '').toLowerCase()
+      const targetValue = manualCellColorValue.toLowerCase()
+      return cellValue === targetValue
+    })
     
-    // If value is provided, update the cell value as well
-    if (manualCellColorValue.trim()) {
-      handleUpdateCell(manualCellColorDialog.rowId, manualCellColorDialog.columnId, manualCellColorValue)
-    }
+    setCellColors(prev => {
+      const newColors = { ...prev }
+      matchingRows.forEach((row: any) => {
+        const cellKey = `${row.id}-${manualCellColorColumnId}`
+        newColors[cellKey] = manualCellColorColor
+      })
+      return newColors
+    })
     
-    setManualCellColorDialog({ open: false })
+    setManualCellColorDialog(false)
+    setManualCellColorColumnId('placeholder')
     setManualCellColorValue('')
   }
 
@@ -766,7 +833,7 @@ export default function DatasetWorkspacePage() {
                       <ChevronDown className="h-4 w-4 ml-2" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-[180px]">
+                  <DropdownMenuContent align="start" className="w-[220px]">
                     {datasetSheets.map(sheet => (
                       <DropdownMenuItem 
                         key={sheet.id}
@@ -780,6 +847,42 @@ export default function DatasetWorkspacePage() {
                         {sheet.id === activeSheetId && <Check className="h-4 w-4" />}
                       </DropdownMenuItem>
                     ))}
+                    {currentSheet && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const name = window.prompt('Rename sheet', currentSheet.name)
+                            if (name && name !== currentSheet.name) {
+                              handleRenameSheet(currentSheet.id, name)
+                            }
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Rename Sheet
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDuplicateSheet(currentSheet.id)
+                          }}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplicate Sheet
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteSheet(currentSheet.id)
+                          }}
+                          className="text-red-600 dark:text-red-400"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Sheet
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -787,7 +890,7 @@ export default function DatasetWorkspacePage() {
                   <Upload className="h-4 w-4 mr-1" />
                   Import
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleOpenManualCellColorDialog('', '')} title="Set color for selected cells">
+                <Button size="sm" variant="outline" onClick={handleOpenManualCellColorDialog} title="Set color for cells matching a value">
                   <Palette className="h-4 w-4 mr-1" />
                   Set Cell Color
                 </Button>
@@ -1108,23 +1211,40 @@ export default function DatasetWorkspacePage() {
       />
 
       {/* Manual Cell Color Dialog */}
-      <Dialog open={manualCellColorDialog.open} onOpenChange={(open) => setManualCellColorDialog({ open })}>
+      <Dialog open={manualCellColorDialog} onOpenChange={setManualCellColorDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Set Cell Color</DialogTitle>
             <DialogDescription>
-              Add a color to this cell. This will override any conditional formatting rules.
+              Apply color to all cells in a column that match a specific value. This will override conditional formatting.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="cell-value">Cell Value (Optional)</Label>
+              <Label htmlFor="cell-column">Select Column</Label>
+              <select
+                id="cell-column"
+                value={manualCellColorColumnId}
+                onChange={(e) => setManualCellColorColumnId(e.target.value)}
+                className="w-full h-10 px-3 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+              >
+                <option value="placeholder" disabled>Select a column</option>
+                {(currentDataset?.columns || []).map((col: any) => (
+                  <option key={col.id} value={col.id}>{col.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cell-value">Cell Value</Label>
               <Input
                 id="cell-value"
-                placeholder="Enter value for this cell"
+                placeholder="Enter the value to match"
                 value={manualCellColorValue}
                 onChange={(e) => setManualCellColorValue(e.target.value)}
               />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                All cells with this value in the selected column will be colored
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="cell-color">Cell Color</Label>
@@ -1135,6 +1255,7 @@ export default function DatasetWorkspacePage() {
                   value={manualCellColorColor}
                   onChange={(e) => setManualCellColorColor(e.target.value)}
                   className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
+                  title="Pick a color"
                 />
                 <Input
                   placeholder="#10b981"
@@ -1146,8 +1267,11 @@ export default function DatasetWorkspacePage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setManualCellColorDialog({ open: false })}>Cancel</Button>
-            <Button onClick={handleApplyManualCellColor}>
+            <Button variant="outline" onClick={() => setManualCellColorDialog(false)}>Cancel</Button>
+            <Button 
+              onClick={handleApplyManualCellColor}
+              disabled={manualCellColorColumnId === 'placeholder' || !manualCellColorValue.trim()}
+            >
               <Palette className="h-4 w-4 mr-2" />
               Apply Color
             </Button>
