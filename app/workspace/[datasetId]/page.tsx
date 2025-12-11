@@ -859,43 +859,40 @@ export default function DatasetWorkspacePage() {
               >
                 <table className="border-separate border-spacing-0 w-full border-2 border-gray-300 dark:border-gray-600" style={{ minWidth: '100%' }}>
                     <thead className="bg-white dark:bg-gray-800">
-                      {/* Column Letters Row */}
-                      <tr className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-700 border-b border-gray-300 dark:border-gray-600">
-                        <th className="px-2 py-1 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 sticky left-0 z-30 bg-gray-50 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600" style={{ width: '60px', minWidth: '60px' }}></th>
-                        {finalVisibleColumns.map((column: any, index: number) => (
-                          <th key={`letter-${column.id}`} className="px-2 py-1 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600" style={{ minWidth: '250px' }}>
-                            {getColumnLetter(index)}
-                          </th>
-                        ))}
-                        <th className="px-2 py-1 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600" style={{ width: '100px', minWidth: '100px' }}></th>
-                      </tr>
-                      {/* Column Names Row */}
-                      <tr className="sticky z-20 bg-white dark:bg-gray-800 shadow-sm border-b-2 border-gray-300 dark:border-gray-600" style={{ top: '28px' }}>
+                      <tr className="sticky top-0 z-20 bg-white dark:bg-gray-800 shadow-sm border-b-2 border-gray-300 dark:border-gray-600">
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-0 z-30 bg-white dark:bg-gray-800 border-r-2 border-gray-300 dark:border-gray-600" style={{ width: '60px', minWidth: '60px' }}>#</th>
-                        {finalVisibleColumns.map((column: any) => (
+                        {finalVisibleColumns.map((column: any, index: number) => (
                           <th 
                             key={column.id} 
                             draggable
                             onDragStart={() => handleColumnDragStart(column.id)}
                             onDragOver={(e) => handleColumnDragOver(e, column.id)}
                             onDrop={() => handleColumnDrop(column.id)}
-                            className={`px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap bg-white dark:bg-gray-800 group border-r-2 border-gray-300 dark:border-gray-600 cursor-move ${
+                            className={`px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap bg-white dark:bg-gray-800 group border-r-2 border-gray-300 dark:border-gray-600 cursor-move ${
                               draggedColumn === column.id ? 'opacity-50' : ''
                             } ${
                               dragOverColumn === column.id && draggedColumn !== column.id ? 'border-l-4 border-l-blue-500' : ''
                             }`} 
                             style={{ minWidth: '250px' }}
                           >
-                            <div className="flex items-center justify-between gap-2">
-                              <span>{column.name}</span>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleDeleteColumn(column.id)}
-                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+                            <div className="flex flex-col gap-1">
+                              <div className="text-center text-xs font-semibold text-gray-400 dark:text-gray-500">
+                                {getColumnLetter(index)}
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="uppercase">{column.name}</span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteColumn(column.id)
+                                  }}
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
                           </th>
                         ))}
