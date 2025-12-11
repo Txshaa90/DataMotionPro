@@ -881,6 +881,8 @@ export default function DatasetWorkspacePage() {
                             onDrop={(e) => handleColumnDrop(e, column.id)}
                             onDragEnd={handleColumnDragEnd}
                             className={`px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap bg-white dark:bg-gray-800 group border-r-2 border-gray-300 dark:border-gray-600 cursor-move ${
+                              index === 0 ? 'sticky left-[60px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
+                            } ${
                               draggedColumn === column.id ? 'opacity-50' : ''
                             } ${
                               dragOverColumn === column.id && draggedColumn !== column.id ? 'border-l-4 border-l-blue-500' : ''
@@ -936,7 +938,9 @@ export default function DatasetWorkspacePage() {
                               return (
                                 <td 
                                   key={column.id} 
-                                  className={`px-4 ${cellPaddingClass} border-r-2 border-b-2 border-gray-300 dark:border-gray-600 ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
+                                  className={`px-4 ${cellPaddingClass} border-r-2 border-b-2 border-gray-300 dark:border-gray-600 ${
+                                    colIndex === 0 ? 'sticky left-[60px] z-10 bg-white dark:bg-gray-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
+                                  } ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
                                   style={{ 
                                     minWidth: '250px',
                                     backgroundColor: colIndex === 0 ? (cellColor || 'inherit') : (cellColor || 'transparent')
