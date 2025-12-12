@@ -33,6 +33,7 @@ import {
   FileText,
   Columns,
   Settings,
+  Undo,
   Menu as MenuIcon,
   Trash2,
   Upload,
@@ -100,6 +101,10 @@ export default function DatasetWorkspacePage() {
   const [manualCellColorColor, setManualCellColorColor] = useState('#10b981')
   const [dateRangeFilter, setDateRangeFilter] = useState<{ startDate: string; endDate: string; columnId: string } | null>(null)
   const [newlyAddedRowId, setNewlyAddedRowId] = useState<string | null>(null)
+  const [undoStack, setUndoStack] = useState<Array<{
+    type: 'cell_edit' | 'row_add' | 'row_delete' | 'column_add' | 'column_delete'
+    data: any
+  }>>([])
   
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const topScrollRef = useRef<HTMLDivElement>(null)
@@ -213,6 +218,19 @@ export default function DatasetWorkspacePage() {
     }
   }, [datasetId])
 
+  // Global keyboard shortcut for undo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        handleUndo()
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [undoStack])
+
   // Sync horizontal scroll between bottom scrollbar and table
   useEffect(() => {
     const topScroll = topScrollRef.current
@@ -302,6 +320,48 @@ export default function DatasetWorkspacePage() {
     return <Icon className="h-4 w-4" />
   }
 
+  const handleUndo = async () => {
+    if (undoStack.length === 0) return
+    
+    const lastAction = undoStack[undoStack.length - 1]
+    
+    try {
+      if (lastAction.type === 'cell_edit') {
+        const { rowId, columnId, oldValue, sheetId } = lastAction.data
+        const sheet = supabaseViews.find(v => v.id === sheetId)
+        if (!sheet) return
+        
+        const updatedRows = (sheet.rows || []).map((r: any) => 
+          r.id === rowId ? { ...r, [columnId]: oldValue } : r
+        )
+        await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', sheetId)
+        updateSupabaseView(sheetId, { rows: updatedRows })
+      } else if (lastAction.type === 'row_add') {
+        const { rowId, sheetId } = lastAction.data
+        const sheet = supabaseViews.find(v => v.id === sheetId)
+        if (!sheet) return
+        
+        const updatedRows = (sheet.rows || []).filter((r: any) => r.id !== rowId)
+        await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', sheetId)
+        updateSupabaseView(sheetId, { rows: updatedRows })
+      } else if (lastAction.type === 'row_delete') {
+        const { row, index, sheetId } = lastAction.data
+        const sheet = supabaseViews.find(v => v.id === sheetId)
+        if (!sheet) return
+        
+        const updatedRows = [...(sheet.rows || [])]
+        updatedRows.splice(index, 0, row)
+        await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', sheetId)
+        updateSupabaseView(sheetId, { rows: updatedRows })
+      }
+      
+      // Remove the action from undo stack
+      setUndoStack(prev => prev.slice(0, -1))
+    } catch (error) {
+      console.error('Error undoing action:', error)
+    }
+  }
+
   const handleAddRow = async () => {
     if (!currentDataset || !currentSheet) return
     const newRow: any = { id: crypto.randomUUID() }
@@ -310,6 +370,12 @@ export default function DatasetWorkspacePage() {
     try {
       await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
       updateSupabaseView(currentSheet.id, { rows: updatedRows })
+      
+      // Add to undo stack
+      setUndoStack(prev => [...prev, {
+        type: 'row_add',
+        data: { rowId: newRow.id, sheetId: currentSheet.id }
+      }])
     } catch (error) {
       console.error('Error adding row:', error)
     }
@@ -356,10 +422,23 @@ export default function DatasetWorkspacePage() {
 
   const handleDeleteRow = async (rowId: string) => {
     if (!currentSheet) return
+    
+    // Store row data and index for undo
+    const rowIndex = (currentSheet.rows || []).findIndex((r: any) => r.id === rowId)
+    const deletedRow = (currentSheet.rows || []).find((r: any) => r.id === rowId)
+    
     const updatedRows = (currentSheet.rows || []).filter((r: any) => r.id !== rowId)
     try {
       await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
       setSupabaseViews(supabaseViews.map(v => v.id === currentSheet.id ? { ...v, rows: updatedRows } : v))
+      
+      // Add to undo stack
+      if (deletedRow) {
+        setUndoStack(prev => [...prev, {
+          type: 'row_delete',
+          data: { row: deletedRow, index: rowIndex, sheetId: currentSheet.id }
+        }])
+      }
     } catch (error) {
       console.error('Error deleting row:', error)
     }
@@ -409,10 +488,21 @@ export default function DatasetWorkspacePage() {
 
   const handleUpdateCell = async (rowId: string, columnId: string, value: any) => {
     if (!currentSheet) return
+    
+    // Store old value for undo
+    const oldRow = (currentSheet.rows || []).find((r: any) => r.id === rowId)
+    const oldValue = oldRow?.[columnId]
+    
     const updatedRows = (currentSheet.rows || []).map((r: any) => r.id === rowId ? { ...r, [columnId]: value } : r)
     try {
       await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
       updateSupabaseView(currentSheet.id, { rows: updatedRows })
+      
+      // Add to undo stack
+      setUndoStack(prev => [...prev, {
+        type: 'cell_edit',
+        data: { rowId, columnId, oldValue, newValue: value, sheetId: currentSheet.id }
+      }])
     } catch (error) {
       console.error('Error updating cell:', error)
     }
@@ -922,6 +1012,16 @@ export default function DatasetWorkspacePage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={handleUndo}
+                  disabled={undoStack.length === 0}
+                  title={`Undo last action (Ctrl+Z) - ${undoStack.length} action(s) available`}
+                >
+                  <Undo className="h-4 w-4 mr-1" />
+                  Undo
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => setImportDialogOpen(true)}>
                   <Upload className="h-4 w-4 mr-1" />
                   Import
