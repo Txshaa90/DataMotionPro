@@ -99,6 +99,7 @@ export default function DatasetWorkspacePage() {
   const [manualCellColorValue, setManualCellColorValue] = useState('')
   const [manualCellColorColor, setManualCellColorColor] = useState('#10b981')
   const [dateRangeFilter, setDateRangeFilter] = useState<{ startDate: string; endDate: string; columnId: string } | null>(null)
+  const [newlyAddedRowId, setNewlyAddedRowId] = useState<string | null>(null)
   
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const topScrollRef = useRef<HTMLDivElement>(null)
@@ -445,7 +446,8 @@ export default function DatasetWorkspacePage() {
     
     if (isLastRow) {
       // Add a blank row
-      const newRow: any = { id: crypto.randomUUID() }
+      const newRowId = crypto.randomUUID()
+      const newRow: any = { id: newRowId }
       currentDataset.columns.forEach((col: any) => { newRow[col.id] = '' })
       const updatedRows = [...currentRows, newRow]
       
@@ -453,11 +455,19 @@ export default function DatasetWorkspacePage() {
         await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
         updateSupabaseView(currentSheet.id, { rows: updatedRows })
         
+        // Highlight the newly added row
+        setNewlyAddedRowId(newRowId)
+        
         // Scroll to the last row after a short delay to allow DOM update
         setTimeout(() => {
           if (tableContainerRef.current) {
             tableContainerRef.current.scrollTop = tableContainerRef.current.scrollHeight
           }
+          
+          // Remove highlight after 2 seconds
+          setTimeout(() => {
+            setNewlyAddedRowId(null)
+          }, 2000)
         }, 100)
       } catch (error) {
         console.error('Error adding blank row:', error)
@@ -1107,8 +1117,16 @@ export default function DatasetWorkspacePage() {
                     </thead>
                     <tbody>
                       {Object.entries(displayRowsWithColor).map(([group, { rows }]) =>
-                        rows.map((row: any, index: number) => (
-                          <tr key={row.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${rowPaddingClass}`} style={{ backgroundColor: row.rowColor }}>
+                        rows.map((row: any, index: number) => {
+                          const isNewlyAdded = row.id === newlyAddedRowId
+                          return (
+                          <tr 
+                            key={row.id} 
+                            className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-500 ${rowPaddingClass} ${
+                              isNewlyAdded ? 'bg-green-100 dark:bg-green-900/30 ring-2 ring-green-500 ring-inset' : ''
+                            }`} 
+                            style={{ backgroundColor: isNewlyAdded ? undefined : row.rowColor }}
+                          >
                             <td className={`px-2 ${cellPaddingClass} text-center text-sm text-gray-500 dark:text-gray-400 font-medium sticky left-0 z-10 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600`} style={{ width: '80px', minWidth: '80px' }}>
                               <div className="flex items-center justify-center gap-1">
                                 <Button 
@@ -1160,7 +1178,8 @@ export default function DatasetWorkspacePage() {
                               </Button>
                             </td>
                           </tr>
-                        ))
+                          )
+                        })
                       )}
                     </tbody>
                 </table>
