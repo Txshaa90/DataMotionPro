@@ -427,7 +427,7 @@ export default function DatasetWorkspacePage() {
   }
 
   const handlePasteCell = async (targetRowId: string, targetColumnId: string) => {
-    if (!copiedCell) return
+    if (!copiedCell || !currentSheet || !currentDataset) return
     
     // Update cell value
     await handleUpdateCell(targetRowId, targetColumnId, copiedCell.value)
@@ -436,6 +436,32 @@ export default function DatasetWorkspacePage() {
     if (copiedCell.color) {
       const targetCellKey = `${targetRowId}-${targetColumnId}`
       setCellColors(prev => ({ ...prev, [targetCellKey]: copiedCell.color! }))
+    }
+    
+    // Check if we're pasting to the last row
+    const currentRows = currentSheet.rows || []
+    const targetRowIndex = currentRows.findIndex((r: any) => r.id === targetRowId)
+    const isLastRow = targetRowIndex === currentRows.length - 1
+    
+    if (isLastRow) {
+      // Add a blank row
+      const newRow: any = { id: crypto.randomUUID() }
+      currentDataset.columns.forEach((col: any) => { newRow[col.id] = '' })
+      const updatedRows = [...currentRows, newRow]
+      
+      try {
+        await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
+        updateSupabaseView(currentSheet.id, { rows: updatedRows })
+        
+        // Scroll to the last row after a short delay to allow DOM update
+        setTimeout(() => {
+          if (tableContainerRef.current) {
+            tableContainerRef.current.scrollTop = tableContainerRef.current.scrollHeight
+          }
+        }, 100)
+      } catch (error) {
+        console.error('Error adding blank row:', error)
+      }
     }
   }
 
