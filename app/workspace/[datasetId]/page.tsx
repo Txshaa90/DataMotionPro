@@ -190,9 +190,18 @@ export default function DatasetWorkspacePage() {
 
   // Load cell color rules when sheet changes
   useEffect(() => {
-    if (currentSheet?.cell_color_rules) {
+    console.log('🎨 Loading sheet rules:', {
+      sheetId: currentSheet?.id,
+      sheetName: currentSheet?.name,
+      savedRules: currentSheet?.cell_color_rules,
+      rulesCount: currentSheet?.cell_color_rules?.length || 0
+    })
+    
+    if (currentSheet?.cell_color_rules && currentSheet.cell_color_rules.length > 0) {
+      console.log('✅ Setting rules from database:', currentSheet.cell_color_rules)
       setManualCellColorRules(currentSheet.cell_color_rules)
     } else {
+      console.log('❌ No rules found, clearing colors')
       setManualCellColorRules([])
       setCellColors({})
     }
@@ -1715,7 +1724,7 @@ export default function DatasetWorkspacePage() {
                             }`} 
                             style={{ 
                               minWidth: '250px',
-                              backgroundColor: columnHighlights[column.id] || (index === 0 ? '' : 'inherit')
+                              backgroundColor: index === 0 ? '' : (columnHighlights[column.id] || '')
                             }}
                           >
                             <div className="flex flex-col gap-1">
@@ -1809,7 +1818,7 @@ export default function DatasetWorkspacePage() {
                                   } ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
                                   style={{ 
                                     minWidth: '250px',
-                                    backgroundColor: cellColor || columnHighlights[column.id] || (colIndex === 0 ? 'inherit' : 'inherit')
+                                    backgroundColor: cellColor || (colIndex === 0 ? '' : columnHighlights[column.id] || '')
                                   }}
                                 >
                                   <Input
