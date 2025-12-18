@@ -398,17 +398,27 @@ export default function DatasetWorkspacePage() {
     // Update on mount and when content changes
     const timeoutId = setTimeout(updateScrollbarWidth, 100)
     
+    let rafId: number | null = null
+    
     const handleTopScroll = () => {
-      tableContainer.scrollLeft = topScroll.scrollLeft
+      if (rafId) return
+      rafId = requestAnimationFrame(() => {
+        tableContainer.scrollLeft = topScroll.scrollLeft
+        rafId = null
+      })
     }
     
     const handleTableScroll = () => {
-      topScroll.scrollLeft = tableContainer.scrollLeft
+      if (rafId) return
+      rafId = requestAnimationFrame(() => {
+        topScroll.scrollLeft = tableContainer.scrollLeft
+        rafId = null
+      })
     }
     
-    topScroll.addEventListener('scroll', handleTopScroll)
-    tableContainer.addEventListener('scroll', handleTableScroll)
-    window.addEventListener('resize', updateScrollbarWidth)
+    topScroll.addEventListener('scroll', handleTopScroll, { passive: true })
+    tableContainer.addEventListener('scroll', handleTableScroll, { passive: true })
+    window.addEventListener('resize', updateScrollbarWidth, { passive: true })
     
     return () => {
       clearTimeout(timeoutId)
