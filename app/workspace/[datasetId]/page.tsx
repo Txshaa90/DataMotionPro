@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { useTableStore } from '@/store/useTableStore'
 import { useViewStore } from '@/store/useViewStore'
@@ -113,6 +113,7 @@ export default function DatasetWorkspacePage() {
 
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const topScrollRef = useRef<HTMLDivElement>(null)
+  const saveTimerRef = useRef<Record<string, NodeJS.Timeout>>({})
   
   const baseDataset = supabaseDataset || tables.find(t => t.id === datasetId)
   const currentDataset = baseDataset ? {
@@ -235,6 +236,13 @@ export default function DatasetWorkspacePage() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [undoStack])
+
+  // Cleanup pending save timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimerRef.current).forEach(timer => clearTimeout(timer))
+    }
+  }, [])
 
   // Sync horizontal scroll between bottom scrollbar and table
   useEffect(() => {
@@ -630,18 +638,31 @@ export default function DatasetWorkspacePage() {
     // Update UI immediately for responsive typing
     updateSupabaseView(currentSheet.id, { rows: updatedRows })
     
-    // Debounce database write - only save after user stops typing
-    try {
-      await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
-      
-      // Add to undo stack only after successful save
-      setUndoStack(prev => [...prev, {
-        type: 'cell_edit',
-        data: { rowId, columnId, oldValue, newValue: value, sheetId: currentSheet.id }
-      }])
-    } catch (error) {
-      console.error('Error updating cell:', error)
+    // Debounce database write - only save after user stops typing for 500ms
+    const cellKey = `${currentSheet.id}-${rowId}-${columnId}`
+    
+    // Clear existing timer for this cell
+    if (saveTimerRef.current[cellKey]) {
+      clearTimeout(saveTimerRef.current[cellKey])
     }
+    
+    // Set new timer to save after 500ms of no typing
+    saveTimerRef.current[cellKey] = setTimeout(async () => {
+      try {
+        await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
+        
+        // Add to undo stack only after successful save
+        setUndoStack(prev => [...prev, {
+          type: 'cell_edit',
+          data: { rowId, columnId, oldValue, newValue: value, sheetId: currentSheet.id }
+        }])
+        
+        // Clean up timer
+        delete saveTimerRef.current[cellKey]
+      } catch (error) {
+        console.error('Error updating cell:', error)
+      }
+    }, 500)
   }
 
   const handleCopyCell = (rowId: string, columnId: string, value: any) => {
