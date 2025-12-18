@@ -105,7 +105,9 @@ export default function DatasetWorkspacePage() {
     type: 'cell_edit' | 'row_add' | 'row_delete' | 'column_add' | 'column_delete'
     data: any
   }>>([])
-  
+  const [addColumnDialogOpen, setAddColumnDialogOpen] = useState(false)
+  const [newColumnName, setNewColumnName] = useState('')
+
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const topScrollRef = useRef<HTMLDivElement>(null)
   
@@ -422,10 +424,9 @@ export default function DatasetWorkspacePage() {
   }
 
   const handleAddColumn = async () => {
-    if (!currentDataset) return
+    if (!currentDataset || !newColumnName.trim()) return
     
-    const columnName = window.prompt('Enter column name:', 'New Column')
-    if (!columnName) return
+    const columnName = newColumnName.trim()
     
     const newColumn = {
       id: crypto.randomUUID(),
@@ -464,6 +465,10 @@ export default function DatasetWorkspacePage() {
         type: 'column_add',
         data: { columnId: newColumn.id, oldColumns, datasetId }
       }])
+      
+      // Close dialog and reset state
+      setAddColumnDialogOpen(false)
+      setNewColumnName('')
       
       // Scroll to the new column and focus first cell
       setTimeout(() => {
@@ -1155,7 +1160,7 @@ export default function DatasetWorkspacePage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button size="sm" variant="outline" onClick={handleAddColumn}>
+                <Button size="sm" variant="outline" onClick={() => setAddColumnDialogOpen(true)}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Column
                 </Button>
@@ -1466,6 +1471,50 @@ export default function DatasetWorkspacePage() {
         datasetName={currentDataset?.name || ''}
         datasetId={datasetId}
       />
+
+      {/* Add Column Dialog */}
+      <Dialog open={addColumnDialogOpen} onOpenChange={setAddColumnDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Column</DialogTitle>
+            <DialogDescription>
+              Enter a name for the new column. It will be added to the right of existing columns.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="column-name">Column Name</Label>
+              <Input
+                id="column-name"
+                placeholder="New Column"
+                value={newColumnName}
+                onChange={(e) => setNewColumnName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newColumnName.trim()) {
+                    handleAddColumn()
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setAddColumnDialogOpen(false)
+              setNewColumnName('')
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddColumn}
+              disabled={!newColumnName.trim()}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Column
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Manual Cell Color Dialog */}
       <Dialog open={manualCellColorDialog} onOpenChange={setManualCellColorDialog}>
