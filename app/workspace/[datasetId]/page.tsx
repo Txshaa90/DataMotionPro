@@ -1752,7 +1752,7 @@ export default function DatasetWorkspacePage() {
 
       {/* Manual Cell Color Dialog */}
       <Dialog open={manualCellColorDialog} onOpenChange={setManualCellColorDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Set Cell Color</DialogTitle>
             <DialogDescription>
@@ -1760,40 +1760,41 @@ export default function DatasetWorkspacePage() {
             </DialogDescription>
           </DialogHeader>
           
-          {/* Active Cell Color Rules */}
-          {manualCellColorRules.length > 0 && (
-            <div className="space-y-2 border-b pb-4">
-              <h4 className="text-sm font-semibold">Active Cell Color Rules</h4>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {manualCellColorRules.map(rule => {
-                  const column = currentDataset?.columns.find((c: any) => c.id === rule.columnId)
-                  return (
-                    <div key={rule.id} className="flex items-center gap-2 text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                      <div 
-                        className="w-4 h-4 rounded border border-gray-300" 
-                        style={{ backgroundColor: rule.color }}
-                      />
-                      <span className="flex-1">
-                        <span className="font-medium">{column?.name || rule.columnId}</span>
-                        {' '}<span className="text-gray-500">{rule.operator}</span>{' '}
-                        <span className="font-medium">"{rule.value}"</span>
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveCellColorRule(rule.id)}
-                        className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )
-                })}
+          <div className="overflow-y-auto flex-1 pr-2">
+            {/* Active Cell Color Rules */}
+            {manualCellColorRules.length > 0 && (
+              <div className="space-y-2 border-b pb-4 mb-4">
+                <h4 className="text-sm font-semibold">Active Cell Color Rules</h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {manualCellColorRules.map(rule => {
+                    const column = currentDataset?.columns.find((c: any) => c.id === rule.columnId)
+                    return (
+                      <div key={rule.id} className="flex items-center gap-2 text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                        <div 
+                          className="w-4 h-4 rounded border border-gray-300" 
+                          style={{ backgroundColor: rule.color }}
+                        />
+                        <span className="flex-1">
+                          <span className="font-medium">{column?.name || rule.columnId}</span>
+                          {' '}<span className="text-gray-500">{rule.operator}</span>{' '}
+                          <span className="font-medium">"{rule.value}"</span>
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveCellColorRule(rule.id)}
+                          className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-          
-          <div className="space-y-4">
+            )}
+            
+            <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="cell-column">Select Column</Label>
               <select
@@ -1842,6 +1843,35 @@ export default function DatasetWorkspacePage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="cell-color">Cell Color</Label>
+              
+              {/* Preset Colors */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {[
+                  { name: 'Red', color: '#ef4444' },
+                  { name: 'Orange', color: '#f97316' },
+                  { name: 'Yellow', color: '#eab308' },
+                  { name: 'Green', color: '#10b981' },
+                  { name: 'Blue', color: '#3b82f6' },
+                  { name: 'Purple', color: '#a855f7' },
+                  { name: 'Pink', color: '#ec4899' },
+                  { name: 'Gray', color: '#6b7280' }
+                ].map(preset => (
+                  <button
+                    key={preset.color}
+                    type="button"
+                    onClick={() => setManualCellColorColor(preset.color)}
+                    className={`w-8 h-8 rounded border-2 transition-all ${
+                      manualCellColorColor === preset.color 
+                        ? 'border-gray-900 dark:border-white scale-110' 
+                        : 'border-gray-300 dark:border-gray-600 hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: preset.color }}
+                    title={preset.name}
+                  />
+                ))}
+              </div>
+              
+              {/* Custom Color Input */}
               <div className="flex gap-2">
                 <input
                   type="color"
@@ -1849,7 +1879,7 @@ export default function DatasetWorkspacePage() {
                   value={manualCellColorColor}
                   onChange={(e) => setManualCellColorColor(e.target.value)}
                   className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
-                  title="Pick a color"
+                  title="Pick custom color"
                 />
                 <Input
                   placeholder="#10b981"
@@ -1859,7 +1889,9 @@ export default function DatasetWorkspacePage() {
                 />
               </div>
             </div>
+            </div>
           </div>
+          
           <DialogFooter>
             <Button variant="outline" onClick={() => setManualCellColorDialog(false)}>Cancel</Button>
             <Button 
