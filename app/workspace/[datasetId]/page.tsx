@@ -952,7 +952,16 @@ export default function DatasetWorkspacePage() {
   console.log('🔍 Current Sheet Rows:', currentSheet?.rows?.length || 0)
   
   // Fallback: If no columns are visible, show all columns
-  const finalVisibleColumns = visibleColumns.length > 0 ? visibleColumns : currentDataset.columns
+  let finalVisibleColumns = visibleColumns.length > 0 ? visibleColumns : currentDataset.columns
+  
+  // Filter columns by header name when global search is active
+  if (globalSearch.trim()) {
+    const searchLower = globalSearch.toLowerCase()
+    finalVisibleColumns = finalVisibleColumns.filter((col: any) => 
+      col.name.toLowerCase().includes(searchLower)
+    )
+  }
+  
   console.log('🔍 Final Visible Columns:', finalVisibleColumns)
 
   const baseRows = (() => {
@@ -965,10 +974,8 @@ export default function DatasetWorkspacePage() {
 
   const getFilteredRows = () => {
     let rows = [...baseRows]
-    if (globalSearch.trim()) {
-      const searchLower = globalSearch.toLowerCase()
-      rows = rows.filter((row: any) => currentDataset.columns.some((col: any) => String(row[col.id] || '').toLowerCase().includes(searchLower)))
-    }
+    // Global search is now handled by filtering visible columns, not row data
+    // See visibleColumns computation below
     
     console.log('🔍 Active Filters:', activeFilters)
     
