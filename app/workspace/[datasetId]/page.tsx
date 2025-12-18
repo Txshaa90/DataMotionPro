@@ -118,7 +118,7 @@ export default function DatasetWorkspacePage() {
   const [highlightColumnId, setHighlightColumnId] = useState<string | null>(null)
   const [highlightColor, setHighlightColor] = useState('#fef08a')
 
-  const [dateRangeFilter, setDateRangeFilter] = useState<{ start: string; end: string } | null>(null)
+  const [dateRangeFilter, setDateRangeFilter] = useState<{ columnId: string; startDate: string; endDate: string } | null>(null)
   const [mounted, setMounted] = useState(false)
   const [newlyAddedRowId, setNewlyAddedRowId] = useState<string | null>(null)
 
