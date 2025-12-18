@@ -82,7 +82,7 @@ export function WorkspaceToolbar({
   const [newColorRule, setNewColorRule] = useState({ columnId: 'placeholder', value: '', color: '#10b981' })
   const [newCellColorRule, setNewCellColorRule] = useState({ columnId: 'placeholder', value: '', color: '#10b981' })
   const [showSearchInput, setShowSearchInput] = useState(false)
-  const [newDateRange, setNewDateRange] = useState({ columnId: 'placeholder', startDate: '', endDate: '', preset: '' })
+  const [newDateRange, setNewDateRange] = useState({ columnId: 'placeholder', startDate: '', endDate: '', preset: 'custom' })
   const [filterHeaderSearch, setFilterHeaderSearch] = useState('')
   const [cellColorHeaderSearch, setCellColorHeaderSearch] = useState('')
   const [conditionalFormattingSearch, setConditionalFormattingSearch] = useState('')
@@ -575,7 +575,7 @@ export function WorkspaceToolbar({
                       startDate: newDateRange.startDate,
                       endDate: newDateRange.endDate
                     })
-                    setNewDateRange({ columnId: 'placeholder', startDate: '', endDate: '', preset: '' })
+                    setNewDateRange({ columnId: 'placeholder', startDate: '', endDate: '', preset: 'custom' })
                   }
                 }}
                 className="w-full"
