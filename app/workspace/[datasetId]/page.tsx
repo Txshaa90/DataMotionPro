@@ -218,9 +218,12 @@ export default function DatasetWorkspacePage() {
 
   // Reapply cell color rules when rules or sheet rows change
   useEffect(() => {
-    if (!currentSheet || manualCellColorRules.length === 0) return
+    if (!currentSheet || manualCellColorRules.length === 0) {
+      setCellColors({})
+      return
+    }
     
-    // Delay to ensure data is loaded
+    // Debounce to reduce lag
     const timeoutId = setTimeout(() => {
       const rows = currentSheet.type === 'chart' 
         ? (datasetSheets.find(s => s.type === 'grid')?.rows || currentDataset?.rows || [])
@@ -229,43 +232,54 @@ export default function DatasetWorkspacePage() {
       if (!rows || rows.length === 0) return
       
       const newColors: { [key: string]: string } = {}
+      const enabledRules = manualCellColorRules.filter(rule => rule.enabled)
       
-      manualCellColorRules.filter(rule => rule.enabled).forEach(rule => {
+      // Only process if we have enabled rules
+      if (enabledRules.length === 0) {
+        setCellColors({})
+        return
+      }
+      
+      enabledRules.forEach(rule => {
+        const targetLower = rule.value.toLowerCase()
+        const targetNum = parseFloat(rule.value)
+        
         rows.forEach((row: any) => {
           const cellValue = String(row[rule.columnId] || '')
-          const targetValue = rule.value
+          const cellLower = cellValue.toLowerCase()
+          const cellNum = parseFloat(cellValue)
           let matches = false
           
           switch (rule.operator) {
             case 'is':
-              matches = cellValue.toLowerCase() === targetValue.toLowerCase()
+              matches = cellLower === targetLower
               break
             case 'is not':
-              matches = cellValue.toLowerCase() !== targetValue.toLowerCase()
+              matches = cellLower !== targetLower
               break
             case 'contains':
-              matches = cellValue.toLowerCase().includes(targetValue.toLowerCase())
+              matches = cellLower.includes(targetLower)
               break
             case 'does not contain':
-              matches = !cellValue.toLowerCase().includes(targetValue.toLowerCase())
+              matches = !cellLower.includes(targetLower)
               break
             case 'starts with':
-              matches = cellValue.toLowerCase().startsWith(targetValue.toLowerCase())
+              matches = cellLower.startsWith(targetLower)
               break
             case 'ends with':
-              matches = cellValue.toLowerCase().endsWith(targetValue.toLowerCase())
+              matches = cellLower.endsWith(targetLower)
               break
             case 'greater than':
-              matches = parseFloat(cellValue) > parseFloat(targetValue)
+              matches = !isNaN(cellNum) && !isNaN(targetNum) && cellNum > targetNum
               break
             case 'less than':
-              matches = parseFloat(cellValue) < parseFloat(targetValue)
+              matches = !isNaN(cellNum) && !isNaN(targetNum) && cellNum < targetNum
               break
             case 'greater than or equal':
-              matches = parseFloat(cellValue) >= parseFloat(targetValue)
+              matches = !isNaN(cellNum) && !isNaN(targetNum) && cellNum >= targetNum
               break
             case 'less than or equal':
-              matches = parseFloat(cellValue) <= parseFloat(targetValue)
+              matches = !isNaN(cellNum) && !isNaN(targetNum) && cellNum <= targetNum
               break
           }
           
@@ -277,7 +291,7 @@ export default function DatasetWorkspacePage() {
       })
       
       setCellColors(newColors)
-    }, 100)
+    }, 150)
     
     return () => clearTimeout(timeoutId)
   }, [manualCellColorRules, currentSheet, datasetSheets, currentDataset])
@@ -1715,7 +1729,7 @@ export default function DatasetWorkspacePage() {
                 className="flex-1 overflow-auto [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-gray-100 dark:[&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-md dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb:hover]:bg-gray-400 dark:[&::-webkit-scrollbar-thumb:hover]:bg-gray-500" 
                 style={{ scrollbarWidth: 'thin' }}
               >
-                <table className="w-full border border-gray-300 dark:border-gray-600" style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
+                <table className="border border-gray-300 dark:border-gray-600" style={{ minWidth: 'max-content', borderCollapse: 'collapse', width: 'auto' }}>
                     <thead className="bg-white dark:bg-gray-800">
                       <tr className="sticky top-0 z-20 bg-white dark:bg-gray-800 shadow-sm">
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-0 z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600" style={{ width: '60px', minWidth: '60px' }}>#</th>
