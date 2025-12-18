@@ -18,6 +18,7 @@ export default function SignInPage() {
   const [error, setError] = useState('')
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -31,7 +32,7 @@ export default function SignInPage() {
     setLoading(true)
 
     try {
-      await signInWithEmail(email, password)
+      await signInWithEmail(email, password, rememberMe)
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.message || 'Failed to sign in')
@@ -219,10 +220,19 @@ export default function SignInPage() {
             </div>
 
               <div className="flex items-center justify-between mb-4">
-                <Link href="/auth/reset-password" className="text-sm text-primary hover:underline">
-                  Forgot password?
-                </Link>
-              </div>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Remember me</span>
+              </label>
+              <Link href="/auth/reset-password" className="text-sm text-primary hover:underline">
+                Forgot password?
+              </Link>
+            </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? 'Signing in...' : 'Sign In'}

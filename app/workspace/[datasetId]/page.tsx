@@ -353,6 +353,30 @@ export default function DatasetWorkspacePage() {
         updatedRows.splice(index, 0, row)
         await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', sheetId)
         updateSupabaseView(sheetId, { rows: updatedRows })
+      } else if (lastAction.type === 'column_add') {
+        const { columnId, oldColumns, datasetId } = lastAction.data
+        
+        // Restore old columns
+        await (supabase as any).from('tables').update({ 
+          columns: oldColumns
+        }).eq('id', datasetId)
+        
+        // Update local dataset state
+        if (currentDataset) {
+          setSupabaseDataset({ ...currentDataset, columns: oldColumns })
+        }
+        
+        // Update all views to remove the column from visible_columns
+        const viewUpdates = supabaseViews.map(async (view) => {
+          const updatedVisibleColumns = (view.visible_columns || []).filter((id: string) => id !== columnId)
+          await (supabase as any).from('views').update({
+            visible_columns: updatedVisibleColumns
+          }).eq('id', view.id)
+          return { ...view, visible_columns: updatedVisibleColumns }
+        })
+        
+        const updatedViews = await Promise.all(viewUpdates)
+        setSupabaseViews(updatedViews)
       }
       
       // Remove the action from undo stack
@@ -376,8 +400,81 @@ export default function DatasetWorkspacePage() {
         type: 'row_add',
         data: { rowId: newRow.id, sheetId: currentSheet.id }
       }])
+      
+      // Scroll to the new row and focus first cell
+      setTimeout(() => {
+        if (tableContainerRef.current) {
+          tableContainerRef.current.scrollTop = tableContainerRef.current.scrollHeight
+        }
+        // Focus the first cell of the new row
+        const firstColumnId = currentDataset.columns[0]?.id
+        if (firstColumnId) {
+          const cellInput = document.querySelector(`input[data-row-id="${newRow.id}"][data-column-id="${firstColumnId}"]`) as HTMLInputElement
+          if (cellInput) {
+            cellInput.focus()
+            cellInput.select()
+          }
+        }
+      }, 100)
     } catch (error) {
       console.error('Error adding row:', error)
+    }
+  }
+
+  const handleAddColumn = async () => {
+    if (!currentDataset) return
+    
+    const columnName = window.prompt('Enter column name:', 'New Column')
+    if (!columnName) return
+    
+    if (!confirm(`Add column "${columnName}"?`)) return
+    
+    const newColumn = {
+      id: crypto.randomUUID(),
+      name: columnName,
+      type: 'text'
+    }
+    
+    const updatedColumns = [...currentDataset.columns, newColumn]
+    
+    // Store old columns for undo
+    const oldColumns = currentDataset.columns
+    
+    try {
+      // Update the table
+      await (supabase as any).from('tables').update({ 
+        columns: updatedColumns
+      }).eq('id', datasetId)
+      
+      // Update local dataset state
+      setSupabaseDataset({ ...currentDataset, columns: updatedColumns })
+      
+      // Update all views to include the new column in visible_columns
+      const viewUpdates = supabaseViews.map(async (view) => {
+        const updatedVisibleColumns = [...(view.visible_columns || []), newColumn.id]
+        await (supabase as any).from('views').update({
+          visible_columns: updatedVisibleColumns
+        }).eq('id', view.id)
+        return { ...view, visible_columns: updatedVisibleColumns }
+      })
+      
+      const updatedViews = await Promise.all(viewUpdates)
+      setSupabaseViews(updatedViews)
+      
+      // Add to undo stack
+      setUndoStack(prev => [...prev, {
+        type: 'column_add',
+        data: { columnId: newColumn.id, oldColumns, datasetId }
+      }])
+      
+      // Scroll to the new column
+      setTimeout(() => {
+        if (tableContainerRef.current) {
+          tableContainerRef.current.scrollLeft = tableContainerRef.current.scrollWidth
+        }
+      }, 100)
+    } catch (error) {
+      console.error('Error adding column:', error)
     }
   }
 
@@ -1049,6 +1146,10 @@ export default function DatasetWorkspacePage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <Button size="sm" variant="outline" onClick={handleAddColumn}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Column
+                </Button>
               </div>
               <div className="flex items-center gap-2">
                 {currentSheet && datasetSheets.length > 1 && (
@@ -1263,6 +1364,8 @@ export default function DatasetWorkspacePage() {
                                     onKeyDown={(e: any) => handleKeyDown(e, row.id, column.id, row[column.id])}
                                     className={`border-0 focus:ring-1 focus:ring-primary bg-transparent w-full px-2 ${inputHeightClass} text-sm`}
                                     style={{ backgroundColor: 'transparent' }}
+                                    data-row-id={row.id}
+                                    data-column-id={column.id}
                                   />
                                 </td>
                               )

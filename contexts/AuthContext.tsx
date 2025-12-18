@@ -9,7 +9,7 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   signInWithGoogle: () => Promise<void>
-  signInWithEmail: (email: string, password: string) => Promise<void>
+  signInWithEmail: (email: string, password: string, rememberMe?: boolean) => Promise<void>
   signInWithMagicLink: (email: string) => Promise<void>
   signUpWithEmail: (email: string, password: string) => Promise<void>
   verifyOtp: (email: string, token: string, type: 'signup' | 'recovery' | 'email') => Promise<void>
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error
   }
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const signInWithEmail = async (email: string, password: string, rememberMe: boolean = false) => {
     if (!configured) {
       console.warn('Supabase not configured')
       return
@@ -97,6 +97,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
+      options: {
+        // If rememberMe is true, use 'local' storage (persistent)
+        // If false, use 'session' storage (cleared when browser closes)
+        persistSession: rememberMe,
+      },
     })
     if (error) throw error
   }
