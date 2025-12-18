@@ -344,6 +344,12 @@ export function WorkspaceToolbar({
                   <SelectItem value="is not">is not</SelectItem>
                   <SelectItem value="contains">contains</SelectItem>
                   <SelectItem value="does not contain">does not contain</SelectItem>
+                  <SelectItem value="starts with">starts with</SelectItem>
+                  <SelectItem value="ends with">ends with</SelectItem>
+                  <SelectItem value="greater than">greater than</SelectItem>
+                  <SelectItem value="less than">less than</SelectItem>
+                  <SelectItem value="greater than or equal">greater than or equal</SelectItem>
+                  <SelectItem value="less than or equal">less than or equal</SelectItem>
                 </SelectContent>
               </Select>
 

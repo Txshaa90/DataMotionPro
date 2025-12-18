@@ -97,6 +97,7 @@ export default function DatasetWorkspacePage() {
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
   const [manualCellColorDialog, setManualCellColorDialog] = useState(false)
   const [manualCellColorColumnId, setManualCellColorColumnId] = useState('placeholder')
+  const [manualCellColorOperator, setManualCellColorOperator] = useState('is')
   const [manualCellColorValue, setManualCellColorValue] = useState('')
   const [manualCellColorColor, setManualCellColorColor] = useState('#10b981')
   const [dateRangeFilter, setDateRangeFilter] = useState<{ startDate: string; endDate: string; columnId: string } | null>(null)
@@ -746,6 +747,7 @@ export default function DatasetWorkspacePage() {
 
   const handleOpenManualCellColorDialog = () => {
     setManualCellColorColumnId('placeholder')
+    setManualCellColorOperator('is')
     setManualCellColorValue('')
     setManualCellColorColor('#10b981')
     setManualCellColorDialog(true)
@@ -754,11 +756,35 @@ export default function DatasetWorkspacePage() {
   const handleApplyManualCellColor = () => {
     if (manualCellColorColumnId === 'placeholder' || !manualCellColorValue.trim()) return
     
-    // Apply color to all cells in the column that match the value
+    // Apply color to all cells in the column that match based on operator
     const matchingRows = baseRows.filter((row: any) => {
-      const cellValue = String(row[manualCellColorColumnId] || '').toLowerCase()
-      const targetValue = manualCellColorValue.toLowerCase()
-      return cellValue === targetValue
+      const cellValue = String(row[manualCellColorColumnId] || '')
+      const targetValue = manualCellColorValue
+      
+      switch (manualCellColorOperator) {
+        case 'is':
+          return cellValue.toLowerCase() === targetValue.toLowerCase()
+        case 'is not':
+          return cellValue.toLowerCase() !== targetValue.toLowerCase()
+        case 'contains':
+          return cellValue.toLowerCase().includes(targetValue.toLowerCase())
+        case 'does not contain':
+          return !cellValue.toLowerCase().includes(targetValue.toLowerCase())
+        case 'starts with':
+          return cellValue.toLowerCase().startsWith(targetValue.toLowerCase())
+        case 'ends with':
+          return cellValue.toLowerCase().endsWith(targetValue.toLowerCase())
+        case 'greater than':
+          return parseFloat(cellValue) > parseFloat(targetValue)
+        case 'less than':
+          return parseFloat(cellValue) < parseFloat(targetValue)
+        case 'greater than or equal':
+          return parseFloat(cellValue) >= parseFloat(targetValue)
+        case 'less than or equal':
+          return parseFloat(cellValue) <= parseFloat(targetValue)
+        default:
+          return cellValue.toLowerCase() === targetValue.toLowerCase()
+      }
     })
     
     setCellColors(prev => {
@@ -772,6 +798,7 @@ export default function DatasetWorkspacePage() {
     
     setManualCellColorDialog(false)
     setManualCellColorColumnId('placeholder')
+    setManualCellColorOperator('is')
     setManualCellColorValue('')
   }
 
@@ -1663,6 +1690,26 @@ export default function DatasetWorkspacePage() {
               </select>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="cell-operator">Operator</Label>
+              <select
+                id="cell-operator"
+                value={manualCellColorOperator}
+                onChange={(e) => setManualCellColorOperator(e.target.value)}
+                className="w-full h-10 px-3 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+              >
+                <option value="is">is</option>
+                <option value="is not">is not</option>
+                <option value="contains">contains</option>
+                <option value="does not contain">does not contain</option>
+                <option value="starts with">starts with</option>
+                <option value="ends with">ends with</option>
+                <option value="greater than">greater than</option>
+                <option value="less than">less than</option>
+                <option value="greater than or equal">greater than or equal</option>
+                <option value="less than or equal">less than or equal</option>
+              </select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="cell-value">Cell Value</Label>
               <Input
                 id="cell-value"
@@ -1671,7 +1718,7 @@ export default function DatasetWorkspacePage() {
                 onChange={(e) => setManualCellColorValue(e.target.value)}
               />
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                All cells with this value in the selected column will be colored
+                All cells that match this condition will be colored
               </p>
             </div>
             <div className="space-y-2">
