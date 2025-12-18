@@ -846,7 +846,7 @@ export default function DatasetWorkspacePage() {
     setManualCellColorValue('')
   }
 
-  const handleRemoveCellColorRule = (ruleId: string) => {
+  const handleRemoveCellColorRule = async (ruleId: string) => {
     const rule = manualCellColorRules.find(r => r.id === ruleId)
     if (!rule) return
     
