@@ -100,6 +100,14 @@ export default function DatasetWorkspacePage() {
   const [manualCellColorOperator, setManualCellColorOperator] = useState('is')
   const [manualCellColorValue, setManualCellColorValue] = useState('')
   const [manualCellColorColor, setManualCellColorColor] = useState('#10b981')
+  const [manualCellColorRules, setManualCellColorRules] = useState<Array<{
+    id: string
+    columnId: string
+    operator: string
+    value: string
+    color: string
+  }>>([])
+
   const [dateRangeFilter, setDateRangeFilter] = useState<{ startDate: string; endDate: string; columnId: string } | null>(null)
   const [newlyAddedRowId, setNewlyAddedRowId] = useState<string | null>(null)
   const [undoStack, setUndoStack] = useState<Array<{
@@ -756,6 +764,18 @@ export default function DatasetWorkspacePage() {
   const handleApplyManualCellColor = () => {
     if (manualCellColorColumnId === 'placeholder' || !manualCellColorValue.trim()) return
     
+    // Create new rule
+    const newRule = {
+      id: crypto.randomUUID(),
+      columnId: manualCellColorColumnId,
+      operator: manualCellColorOperator,
+      value: manualCellColorValue,
+      color: manualCellColorColor
+    }
+    
+    // Add rule to list
+    setManualCellColorRules(prev => [...prev, newRule])
+    
     // Apply color to all cells in the column that match based on operator
     const matchingRows = baseRows.filter((row: any) => {
       const cellValue = String(row[manualCellColorColumnId] || '')
@@ -800,6 +820,63 @@ export default function DatasetWorkspacePage() {
     setManualCellColorColumnId('placeholder')
     setManualCellColorOperator('is')
     setManualCellColorValue('')
+  }
+
+  const handleRemoveCellColorRule = (ruleId: string) => {
+    const rule = manualCellColorRules.find(r => r.id === ruleId)
+    if (!rule) return
+    
+    // Remove colors applied by this rule
+    setCellColors(prev => {
+      const newColors = { ...prev }
+      baseRows.forEach((row: any) => {
+        const cellValue = String(row[rule.columnId] || '')
+        const targetValue = rule.value
+        let matches = false
+        
+        switch (rule.operator) {
+          case 'is':
+            matches = cellValue.toLowerCase() === targetValue.toLowerCase()
+            break
+          case 'is not':
+            matches = cellValue.toLowerCase() !== targetValue.toLowerCase()
+            break
+          case 'contains':
+            matches = cellValue.toLowerCase().includes(targetValue.toLowerCase())
+            break
+          case 'does not contain':
+            matches = !cellValue.toLowerCase().includes(targetValue.toLowerCase())
+            break
+          case 'starts with':
+            matches = cellValue.toLowerCase().startsWith(targetValue.toLowerCase())
+            break
+          case 'ends with':
+            matches = cellValue.toLowerCase().endsWith(targetValue.toLowerCase())
+            break
+          case 'greater than':
+            matches = parseFloat(cellValue) > parseFloat(targetValue)
+            break
+          case 'less than':
+            matches = parseFloat(cellValue) < parseFloat(targetValue)
+            break
+          case 'greater than or equal':
+            matches = parseFloat(cellValue) >= parseFloat(targetValue)
+            break
+          case 'less than or equal':
+            matches = parseFloat(cellValue) <= parseFloat(targetValue)
+            break
+        }
+        
+        if (matches) {
+          const cellKey = `${row.id}-${rule.columnId}`
+          delete newColors[cellKey]
+        }
+      })
+      return newColors
+    })
+    
+    // Remove rule from list
+    setManualCellColorRules(prev => prev.filter(r => r.id !== ruleId))
   }
 
   const handleAddSheet = async (viewType: 'grid' | 'gallery' | 'form' | 'kanban' | 'calendar' | 'chart' | 'returns' | 'dashboard' = 'grid') => {
@@ -1022,31 +1099,39 @@ export default function DatasetWorkspacePage() {
           case 'is':
           case 'equals': 
             return cellValue === filterValue
+          case 'is not':
           case 'is_not':
             return cellValue !== filterValue
           case 'contains': 
             return cellValue.includes(filterValue)
+          case 'does not contain':
           case 'does_not_contain':
             return !cellValue.includes(filterValue)
+          case 'starts with':
           case 'startsWith': 
             return cellValue.startsWith(filterValue)
+          case 'ends with':
           case 'endsWith': 
             return cellValue.endsWith(filterValue)
+          case 'greater than':
           case 'greater_than': {
             const numValue = parseFloat(rawValue)
             const numFilter = parseFloat(filter.value)
             return !isNaN(numValue) && !isNaN(numFilter) && numValue > numFilter
           }
+          case 'less than':
           case 'less_than': {
             const numValue = parseFloat(rawValue)
             const numFilter = parseFloat(filter.value)
             return !isNaN(numValue) && !isNaN(numFilter) && numValue < numFilter
           }
+          case 'greater than or equal':
           case 'greater_than_or_equal': {
             const numValue = parseFloat(rawValue)
             const numFilter = parseFloat(filter.value)
             return !isNaN(numValue) && !isNaN(numFilter) && numValue >= numFilter
           }
+          case 'less than or equal':
           case 'less_than_or_equal': {
             const numValue = parseFloat(rawValue)
             const numFilter = parseFloat(filter.value)
@@ -1674,6 +1759,40 @@ export default function DatasetWorkspacePage() {
               Apply color to all cells in a column that match a specific value. This will override conditional formatting.
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Active Cell Color Rules */}
+          {manualCellColorRules.length > 0 && (
+            <div className="space-y-2 border-b pb-4">
+              <h4 className="text-sm font-semibold">Active Cell Color Rules</h4>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {manualCellColorRules.map(rule => {
+                  const column = currentDataset?.columns.find((c: any) => c.id === rule.columnId)
+                  return (
+                    <div key={rule.id} className="flex items-center gap-2 text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                      <div 
+                        className="w-4 h-4 rounded border border-gray-300" 
+                        style={{ backgroundColor: rule.color }}
+                      />
+                      <span className="flex-1">
+                        <span className="font-medium">{column?.name || rule.columnId}</span>
+                        {' '}<span className="text-gray-500">{rule.operator}</span>{' '}
+                        <span className="font-medium">"{rule.value}"</span>
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveCellColorRule(rule.id)}
+                        className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="cell-column">Select Column</Label>
