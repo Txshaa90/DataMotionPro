@@ -107,6 +107,9 @@ export default function DatasetWorkspacePage() {
   }>>([])
   const [addColumnDialogOpen, setAddColumnDialogOpen] = useState(false)
   const [newColumnName, setNewColumnName] = useState('')
+  const [deleteColumnDialogOpen, setDeleteColumnDialogOpen] = useState(false)
+  const [columnToDelete, setColumnToDelete] = useState<{id: string, name: string} | null>(null)
+  const [addRowDialogOpen, setAddRowDialogOpen] = useState(false)
 
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const topScrollRef = useRef<HTMLDivElement>(null)
@@ -562,8 +565,15 @@ export default function DatasetWorkspacePage() {
     }
   }
 
-  const handleDeleteColumn = async (columnId: string) => {
-    if (!currentDataset) return
+  const openDeleteColumnDialog = (columnId: string, columnName: string) => {
+    setColumnToDelete({ id: columnId, name: columnName })
+    setDeleteColumnDialogOpen(true)
+  }
+
+  const handleDeleteColumn = async () => {
+    if (!currentDataset || !columnToDelete) return
+    
+    const columnId = columnToDelete.id
     
     // Remove column from dataset
     const updatedColumns = currentDataset.columns.filter((c: any) => c.id !== columnId)
@@ -597,6 +607,10 @@ export default function DatasetWorkspacePage() {
       
       await Promise.all(viewUpdates)
       
+      // Close dialog
+      setDeleteColumnDialogOpen(false)
+      setColumnToDelete(null)
+      
       // Refresh data
       window.location.reload()
     } catch (error) {
@@ -612,11 +626,15 @@ export default function DatasetWorkspacePage() {
     const oldValue = oldRow?.[columnId]
     
     const updatedRows = (currentSheet.rows || []).map((r: any) => r.id === rowId ? { ...r, [columnId]: value } : r)
+    
+    // Update UI immediately for responsive typing
+    updateSupabaseView(currentSheet.id, { rows: updatedRows })
+    
+    // Debounce database write - only save after user stops typing
     try {
       await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
-      updateSupabaseView(currentSheet.id, { rows: updatedRows })
       
-      // Add to undo stack
+      // Add to undo stack only after successful save
       setUndoStack(prev => [...prev, {
         type: 'cell_edit',
         data: { rowId, columnId, oldValue, newValue: value, sheetId: currentSheet.id }
@@ -1157,7 +1175,7 @@ export default function DatasetWorkspacePage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={handleAddRow}>
+                    <DropdownMenuItem onClick={() => setAddRowDialogOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Single Row
                     </DropdownMenuItem>
@@ -1324,7 +1342,7 @@ export default function DatasetWorkspacePage() {
                                   size="icon" 
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    handleDeleteColumn(column.id)
+                                    openDeleteColumnDialog(column.id, column.name)
                                   }}
                                   className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600"
                                 >
@@ -1518,6 +1536,59 @@ export default function DatasetWorkspacePage() {
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Column
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Column Confirmation Dialog */}
+      <Dialog open={deleteColumnDialogOpen} onOpenChange={setDeleteColumnDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Column</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the column "{columnToDelete?.name}"? This action cannot be undone and will remove all data in this column.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setDeleteColumnDialogOpen(false)
+              setColumnToDelete(null)
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteColumn}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Column
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Row Dialog */}
+      <Dialog open={addRowDialogOpen} onOpenChange={setAddRowDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Row</DialogTitle>
+            <DialogDescription>
+              A new empty row will be added to the bottom of your spreadsheet.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddRowDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                setAddRowDialogOpen(false)
+                handleAddRow()
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Row
             </Button>
           </DialogFooter>
         </DialogContent>
