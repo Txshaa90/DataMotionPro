@@ -440,13 +440,20 @@ export default function DatasetWorkspacePage() {
     const oldColumns = currentDataset.columns
     
     try {
-      // Update the table
-      await (supabase as any).from('tables').update({ 
+      // Update the table - ONLY update columns, preserve rows
+      const { data: updateData, error: updateError } = await (supabase as any).from('tables').update({ 
         columns: updatedColumns
-      }).eq('id', datasetId)
+      }).eq('id', datasetId).select()
       
-      // Update local dataset state
-      setSupabaseDataset({ ...currentDataset, columns: updatedColumns })
+      if (updateError) {
+        console.error('Error updating columns:', updateError)
+        throw updateError
+      }
+      
+      console.log('Column added successfully:', updateData)
+      
+      // Update local dataset state - preserve all existing data
+      setSupabaseDataset((prev: any) => ({ ...prev, columns: updatedColumns }))
       
       // Update all views to include the new column in visible_columns
       const viewUpdates = supabaseViews.map(async (view) => {
