@@ -110,6 +110,7 @@ export default function DatasetWorkspacePage() {
   const [deleteColumnDialogOpen, setDeleteColumnDialogOpen] = useState(false)
   const [columnToDelete, setColumnToDelete] = useState<{id: string, name: string} | null>(null)
   const [addRowDialogOpen, setAddRowDialogOpen] = useState(false)
+  const [editingCell, setEditingCell] = useState<{rowId: string, columnId: string} | null>(null)
 
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const topScrollRef = useRef<HTMLDivElement>(null)
@@ -208,6 +209,11 @@ export default function DatasetWorkspacePage() {
         },
         async (payload) => {
           console.log('View update received:', payload)
+          // Don't refetch if user is actively editing - prevents overwriting current input
+          if (editingCell) {
+            console.log('Skipping sync - user is editing')
+            return
+          }
           // Refetch views when changes occur
           const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId)
           if (viewsData) {
@@ -1421,6 +1427,8 @@ export default function DatasetWorkspacePage() {
                                     type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
                                     value={row[column.id] || ''}
                                     onChange={(e) => handleUpdateCell(row.id, column.id, e.target.value)}
+                                    onFocus={() => setEditingCell({ rowId: row.id, columnId: column.id })}
+                                    onBlur={() => setEditingCell(null)}
                                     onKeyDown={(e: any) => handleKeyDown(e, row.id, column.id, row[column.id])}
                                     className={`border-0 focus:ring-1 focus:ring-primary bg-transparent w-full px-2 ${inputHeightClass} text-sm`}
                                     style={{ backgroundColor: 'transparent' }}
