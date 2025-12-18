@@ -97,13 +97,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
-      options: {
-        // If rememberMe is true, use 'local' storage (persistent)
-        // If false, use 'session' storage (cleared when browser closes)
-        persistSession: rememberMe,
-      },
     })
     if (error) throw error
+    
+    // Store remember me preference
+    if (rememberMe) {
+      localStorage.setItem('rememberMe', 'true')
+    } else {
+      localStorage.removeItem('rememberMe')
+    }
   }
 
   const signInWithMagicLink = async (email: string) => {
