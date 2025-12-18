@@ -48,7 +48,9 @@ import {
   Palette,
   Calendar,
   Edit,
-  Copy
+  Copy,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -106,6 +108,7 @@ export default function DatasetWorkspacePage() {
     operator: string
     value: string
     color: string
+    enabled: boolean
   }>>([])
 
   const [dateRangeFilter, setDateRangeFilter] = useState<{ startDate: string; endDate: string; columnId: string } | null>(null)
@@ -178,6 +181,17 @@ export default function DatasetWorkspacePage() {
   useEffect(() => {
     if (activeSheetId) setActiveView(activeSheetId)
   }, [activeSheetId])
+
+  // Load cell color rules when sheet changes
+  useEffect(() => {
+    if (currentSheet?.cell_color_rules) {
+      setManualCellColorRules(currentSheet.cell_color_rules)
+      applyAllCellColorRules(currentSheet.cell_color_rules)
+    } else {
+      setManualCellColorRules([])
+      setCellColors({})
+    }
+  }, [currentSheet?.id])
 
   // Realtime sync for shared spreadsheets
   useEffect(() => {
@@ -761,7 +775,7 @@ export default function DatasetWorkspacePage() {
     setManualCellColorDialog(true)
   }
 
-  const handleApplyManualCellColor = () => {
+  const handleApplyManualCellColor = async () => {
     if (manualCellColorColumnId === 'placeholder' || !manualCellColorValue.trim()) return
     
     // Create new rule
@@ -770,11 +784,21 @@ export default function DatasetWorkspacePage() {
       columnId: manualCellColorColumnId,
       operator: manualCellColorOperator,
       value: manualCellColorValue,
-      color: manualCellColorColor
+      color: manualCellColorColor,
+      enabled: true
     }
     
     // Add rule to list
-    setManualCellColorRules(prev => [...prev, newRule])
+    const updatedRules = [...manualCellColorRules, newRule]
+    setManualCellColorRules(updatedRules)
+    
+    // Save rules to current sheet
+    if (currentSheet) {
+      await (supabase as any)
+        .from('views')
+        .update({ cell_color_rules: updatedRules })
+        .eq('id', currentSheet.id)
+    }
     
     // Apply color to all cells in the column that match based on operator
     const matchingRows = baseRows.filter((row: any) => {
@@ -876,7 +900,86 @@ export default function DatasetWorkspacePage() {
     })
     
     // Remove rule from list
-    setManualCellColorRules(prev => prev.filter(r => r.id !== ruleId))
+    const updatedRules = manualCellColorRules.filter(r => r.id !== ruleId)
+    setManualCellColorRules(updatedRules)
+    
+    // Save to database
+    if (currentSheet) {
+      await (supabase as any)
+        .from('views')
+        .update({ cell_color_rules: updatedRules })
+        .eq('id', currentSheet.id)
+    }
+  }
+
+  const handleToggleCellColorRule = async (ruleId: string) => {
+    const updatedRules = manualCellColorRules.map(r => 
+      r.id === ruleId ? { ...r, enabled: !r.enabled } : r
+    )
+    setManualCellColorRules(updatedRules)
+    
+    // Save to database
+    if (currentSheet) {
+      await (supabase as any)
+        .from('views')
+        .update({ cell_color_rules: updatedRules })
+        .eq('id', currentSheet.id)
+    }
+    
+    // Reapply all enabled rules
+    applyAllCellColorRules(updatedRules)
+  }
+
+  const applyAllCellColorRules = (rules: typeof manualCellColorRules) => {
+    const newColors: { [key: string]: string } = {}
+    
+    rules.filter(rule => rule.enabled).forEach(rule => {
+      baseRows.forEach((row: any) => {
+        const cellValue = String(row[rule.columnId] || '')
+        const targetValue = rule.value
+        let matches = false
+        
+        switch (rule.operator) {
+          case 'is':
+            matches = cellValue.toLowerCase() === targetValue.toLowerCase()
+            break
+          case 'is not':
+            matches = cellValue.toLowerCase() !== targetValue.toLowerCase()
+            break
+          case 'contains':
+            matches = cellValue.toLowerCase().includes(targetValue.toLowerCase())
+            break
+          case 'does not contain':
+            matches = !cellValue.toLowerCase().includes(targetValue.toLowerCase())
+            break
+          case 'starts with':
+            matches = cellValue.toLowerCase().startsWith(targetValue.toLowerCase())
+            break
+          case 'ends with':
+            matches = cellValue.toLowerCase().endsWith(targetValue.toLowerCase())
+            break
+          case 'greater than':
+            matches = parseFloat(cellValue) > parseFloat(targetValue)
+            break
+          case 'less than':
+            matches = parseFloat(cellValue) < parseFloat(targetValue)
+            break
+          case 'greater than or equal':
+            matches = parseFloat(cellValue) >= parseFloat(targetValue)
+            break
+          case 'less than or equal':
+            matches = parseFloat(cellValue) <= parseFloat(targetValue)
+            break
+        }
+        
+        if (matches) {
+          const cellKey = `${row.id}-${rule.columnId}`
+          newColors[cellKey] = rule.color
+        }
+      })
+    })
+    
+    setCellColors(newColors)
   }
 
   const handleAddSheet = async (viewType: 'grid' | 'gallery' | 'form' | 'kanban' | 'calendar' | 'chart' | 'returns' | 'dashboard' = 'grid') => {
@@ -1769,7 +1872,7 @@ export default function DatasetWorkspacePage() {
                   {manualCellColorRules.map(rule => {
                     const column = currentDataset?.columns.find((c: any) => c.id === rule.columnId)
                     return (
-                      <div key={rule.id} className="flex items-center gap-2 text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                      <div key={rule.id} className={`flex items-center gap-2 text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded ${!rule.enabled ? 'opacity-50' : ''}`}>
                         <div 
                           className="w-4 h-4 rounded border border-gray-300" 
                           style={{ backgroundColor: rule.color }}
@@ -1782,8 +1885,18 @@ export default function DatasetWorkspacePage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => handleToggleCellColorRule(rule.id)}
+                          className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600"
+                          title={rule.enabled ? "Hide rule" : "Show rule"}
+                        >
+                          {rule.enabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleRemoveCellColorRule(rule.id)}
                           className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
+                          title="Delete rule"
                         >
                           <X className="h-4 w-4" />
                         </Button>
