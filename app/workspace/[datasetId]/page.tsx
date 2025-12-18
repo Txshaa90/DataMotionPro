@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { useTableStore } from '@/store/useTableStore'
 import { useViewStore } from '@/store/useViewStore'
 import { Button } from '@/components/ui/button'
@@ -112,13 +113,19 @@ export default function DatasetWorkspacePage() {
   }>>([])
   const [cellColorRulesSaving, setCellColorRulesSaving] = useState(false)
   const [cellColorRulesSaved, setCellColorRulesSaved] = useState(false)
-  const [columnHighlights, setColumnHighlights] = useState<{ [columnId: string]: string }>({})
+  const [columnHighlights, setColumnHighlights] = useState<Record<string, string>>({})
   const [highlightColumnDialog, setHighlightColumnDialog] = useState(false)
   const [highlightColumnId, setHighlightColumnId] = useState<string | null>(null)
   const [highlightColor, setHighlightColor] = useState('#fef08a')
 
-  const [dateRangeFilter, setDateRangeFilter] = useState<{ startDate: string; endDate: string; columnId: string } | null>(null)
+  const [dateRangeFilter, setDateRangeFilter] = useState<{ start: string; end: string } | null>(null)
+  const [mounted, setMounted] = useState(false)
   const [newlyAddedRowId, setNewlyAddedRowId] = useState<string | null>(null)
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   const [undoStack, setUndoStack] = useState<Array<{
     type: 'cell_edit' | 'row_add' | 'row_delete' | 'column_add' | 'column_delete'
     data: any
@@ -417,7 +424,7 @@ export default function DatasetWorkspacePage() {
   })
 
 
-  if (loading) {
+  if (loading || !mounted) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <Database className="h-16 w-16 opacity-20 animate-pulse" />
