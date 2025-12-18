@@ -326,7 +326,7 @@ export function WorkspaceToolbar({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="placeholder" disabled>Select column</SelectItem>
-                  {columns.map(col => (
+                  {columns.filter(col => col.id && col.id.trim() !== '').map(col => (
                     <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -415,7 +415,7 @@ export function WorkspaceToolbar({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="placeholder" disabled>Select column</SelectItem>
-                  {columns.map(col => (
+                  {columns.filter(col => col.id && col.id.trim() !== '').map(col => (
                     <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -504,7 +504,7 @@ export function WorkspaceToolbar({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="placeholder" disabled>Select column</SelectItem>
-                    {columns.filter(col => col.type === 'date' || col.id.toLowerCase().includes('date')).map(col => (
+                    {columns.filter(col => (col.type === 'date' || col.id.toLowerCase().includes('date')) && col.id && col.id.trim() !== '').map(col => (
                       <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -652,7 +652,7 @@ export function WorkspaceToolbar({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="placeholder" disabled>Select column</SelectItem>
-                  {filteredConditionalColumns.map(col => (
+                  {filteredConditionalColumns.filter(col => col.id && col.id.trim() !== '').map(col => (
                     <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
                   ))}
                 </SelectContent>
