@@ -205,12 +205,69 @@ export default function DatasetWorkspacePage() {
     }
   }, [currentSheet?.id])
 
-  // Reapply cell color rules when rules or baseRows change
+  // Reapply cell color rules when rules or sheet rows change
   useEffect(() => {
-    if (manualCellColorRules.length > 0 && baseRows.length > 0) {
-      applyAllCellColorRules(manualCellColorRules)
+    if (manualCellColorRules.length > 0 && currentSheet?.rows?.length > 0) {
+      // Delay to ensure baseRows is computed
+      setTimeout(() => {
+        const rows = currentSheet?.type === 'chart' 
+          ? (datasetSheets.find(s => s.type === 'grid')?.rows || currentDataset.rows || [])
+          : (currentSheet?.rows || currentDataset.rows || [])
+        
+        if (rows.length > 0) {
+          const newColors: { [key: string]: string } = {}
+          
+          manualCellColorRules.filter(rule => rule.enabled).forEach(rule => {
+            rows.forEach((row: any) => {
+              const cellValue = String(row[rule.columnId] || '')
+              const targetValue = rule.value
+              let matches = false
+              
+              switch (rule.operator) {
+                case 'is':
+                  matches = cellValue.toLowerCase() === targetValue.toLowerCase()
+                  break
+                case 'is not':
+                  matches = cellValue.toLowerCase() !== targetValue.toLowerCase()
+                  break
+                case 'contains':
+                  matches = cellValue.toLowerCase().includes(targetValue.toLowerCase())
+                  break
+                case 'does not contain':
+                  matches = !cellValue.toLowerCase().includes(targetValue.toLowerCase())
+                  break
+                case 'starts with':
+                  matches = cellValue.toLowerCase().startsWith(targetValue.toLowerCase())
+                  break
+                case 'ends with':
+                  matches = cellValue.toLowerCase().endsWith(targetValue.toLowerCase())
+                  break
+                case 'greater than':
+                  matches = parseFloat(cellValue) > parseFloat(targetValue)
+                  break
+                case 'less than':
+                  matches = parseFloat(cellValue) < parseFloat(targetValue)
+                  break
+                case 'greater than or equal':
+                  matches = parseFloat(cellValue) >= parseFloat(targetValue)
+                  break
+                case 'less than or equal':
+                  matches = parseFloat(cellValue) <= parseFloat(targetValue)
+                  break
+              }
+              
+              if (matches) {
+                const cellKey = `${row.id}-${rule.columnId}`
+                newColors[cellKey] = rule.color
+              }
+            })
+          })
+          
+          setCellColors(newColors)
+        }
+      }, 100)
     }
-  }, [manualCellColorRules, baseRows.length])
+  }, [manualCellColorRules, currentSheet?.rows, currentSheet?.type, datasetSheets, currentDataset.rows])
 
   // Realtime sync for shared spreadsheets
   useEffect(() => {
