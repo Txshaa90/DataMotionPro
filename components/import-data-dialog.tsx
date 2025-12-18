@@ -189,8 +189,10 @@ export function ImportDataDialog({
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return // Skip header row
         
+        // Build rowData with id first, then columns in header order
         const rowData: any = { id: crypto.randomUUID() }
         const cellColors: any = {}
+        const cellValues: any = {}
         
         row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
           const header = headers[colNumber - 1]
@@ -211,7 +213,7 @@ export function ImportDataDialog({
             value = (value as any).richText.map((t: any) => t.text).join('')
           }
           
-          rowData[header] = value
+          cellValues[header] = value
           
           // Extract cell background color
           if (cell.fill && cell.fill.type === 'pattern') {
@@ -237,6 +239,11 @@ export function ImportDataDialog({
               }
             }
           }
+        })
+        
+        // Add columns in header order to preserve column sequence
+        headers.forEach(header => {
+          rowData[header] = cellValues[header] !== undefined ? cellValues[header] : ''
         })
         
         // Store cell colors if any were found
@@ -430,16 +437,25 @@ export function ImportDataDialog({
         const sheetsData = await parseExcelWithExcelJS(file, selectedExcelSheets)
         
         // Extract columns from ALL sheets to get complete column list
-        const allColumnKeys = new Set<string>()
+        // Use array to preserve order instead of Set
+        const allColumnKeys: string[] = []
+        const seenColumns = new Set<string>()
+        
         Object.values(sheetsData).forEach(sheetRows => {
           if (sheetRows && sheetRows.length > 0) {
             const sampleRow = sheetRows[0]
-            Object.keys(sampleRow).filter(key => key !== 'id' && key !== '_cellColors').forEach(key => allColumnKeys.add(key))
+            // Object.keys preserves insertion order in modern JavaScript
+            Object.keys(sampleRow).filter(key => key !== 'id' && key !== '_cellColors').forEach(key => {
+              if (!seenColumns.has(key)) {
+                allColumnKeys.push(key)
+                seenColumns.add(key)
+              }
+            })
           }
         })
         
-        const columnKeys = Array.from(allColumnKeys)
-        console.log('📋 All unique columns from import:', columnKeys)
+        const columnKeys = allColumnKeys
+        console.log('📋 All unique columns from import (in order):', columnKeys)
         
         if (columnKeys.length > 0) {
           // Get current dataset columns
