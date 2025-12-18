@@ -110,6 +110,8 @@ export default function DatasetWorkspacePage() {
     color: string
     enabled: boolean
   }>>([])
+  const [cellColorRulesSaving, setCellColorRulesSaving] = useState(false)
+  const [cellColorRulesSaved, setCellColorRulesSaved] = useState(false)
 
   const [dateRangeFilter, setDateRangeFilter] = useState<{ startDate: string; endDate: string; columnId: string } | null>(null)
   const [newlyAddedRowId, setNewlyAddedRowId] = useState<string | null>(null)
@@ -793,12 +795,16 @@ export default function DatasetWorkspacePage() {
     setManualCellColorRules(updatedRules)
     
     // Save rules to current sheet
+    setCellColorRulesSaving(true)
     if (currentSheet) {
       await (supabase as any)
         .from('views')
         .update({ cell_color_rules: updatedRules })
         .eq('id', currentSheet.id)
     }
+    setCellColorRulesSaving(false)
+    setCellColorRulesSaved(true)
+    setTimeout(() => setCellColorRulesSaved(false), 2000)
     
     // Apply color to all cells in the column that match based on operator
     const matchingRows = baseRows.filter((row: any) => {
@@ -904,12 +910,16 @@ export default function DatasetWorkspacePage() {
     setManualCellColorRules(updatedRules)
     
     // Save to database
+    setCellColorRulesSaving(true)
     if (currentSheet) {
       await (supabase as any)
         .from('views')
         .update({ cell_color_rules: updatedRules })
         .eq('id', currentSheet.id)
     }
+    setCellColorRulesSaving(false)
+    setCellColorRulesSaved(true)
+    setTimeout(() => setCellColorRulesSaved(false), 2000)
   }
 
   const handleToggleCellColorRule = async (ruleId: string) => {
@@ -919,12 +929,16 @@ export default function DatasetWorkspacePage() {
     setManualCellColorRules(updatedRules)
     
     // Save to database
+    setCellColorRulesSaving(true)
     if (currentSheet) {
       await (supabase as any)
         .from('views')
         .update({ cell_color_rules: updatedRules })
         .eq('id', currentSheet.id)
     }
+    setCellColorRulesSaving(false)
+    setCellColorRulesSaved(true)
+    setTimeout(() => setCellColorRulesSaved(false), 2000)
     
     // Reapply all enabled rules
     applyAllCellColorRules(updatedRules)
@@ -1857,9 +1871,21 @@ export default function DatasetWorkspacePage() {
       <Dialog open={manualCellColorDialog} onOpenChange={setManualCellColorDialog}>
         <DialogContent className="max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Set Cell Color</DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Set Cell Color</DialogTitle>
+              {cellColorRulesSaving && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <span className="animate-spin">⏳</span> Saving...
+                </span>
+              )}
+              {cellColorRulesSaved && (
+                <span className="text-xs text-green-600 flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Saved
+                </span>
+              )}
+            </div>
             <DialogDescription>
-              Apply color to all cells in a column that match a specific value. This will override conditional formatting.
+              Apply color to all cells in a column that match a specific value. This will override conditional formatting. Rules are automatically saved.
             </DialogDescription>
           </DialogHeader>
           
