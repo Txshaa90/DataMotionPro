@@ -427,8 +427,6 @@ export default function DatasetWorkspacePage() {
     const columnName = window.prompt('Enter column name:', 'New Column')
     if (!columnName) return
     
-    if (!confirm(`Add column "${columnName}"?`)) return
-    
     const newColumn = {
       id: crypto.randomUUID(),
       name: columnName,
@@ -467,12 +465,23 @@ export default function DatasetWorkspacePage() {
         data: { columnId: newColumn.id, oldColumns, datasetId }
       }])
       
-      // Scroll to the new column
+      // Scroll to the new column and focus first cell
       setTimeout(() => {
         if (tableContainerRef.current) {
+          // Scroll all the way to the right to show the new column
           tableContainerRef.current.scrollLeft = tableContainerRef.current.scrollWidth
         }
-      }, 100)
+        
+        // Focus the first cell of the new column
+        const firstRow = (currentSheet?.rows || [])[0]
+        if (firstRow) {
+          const cellInput = document.querySelector(`input[data-row-id="${firstRow.id}"][data-column-id="${newColumn.id}"]`) as HTMLInputElement
+          if (cellInput) {
+            cellInput.focus()
+            cellInput.select()
+          }
+        }
+      }, 200)
     } catch (error) {
       console.error('Error adding column:', error)
     }
