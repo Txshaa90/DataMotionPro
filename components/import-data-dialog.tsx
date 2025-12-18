@@ -623,28 +623,31 @@ export function ImportDataDialog({
           rowCount: importedRows.length 
         })
 
-        // Get current sheet data
-        const { data: sheetData, error: fetchError } = await (supabase as any)
+        // Create a new sheet for the imported data
+        const sheetName = file.name.replace(/\.(csv|json)$/i, '') || 'Imported Data'
+        
+        const { data: insertedData, error: insertError } = await (supabase as any)
           .from('views')
-          .select('rows, visible_columns')
-          .eq('id', sheetId)
-          .single()
-
-        if (fetchError) throw fetchError
-
-        const currentRows = sheetData?.rows || []
-        const updatedRows = [...currentRows, ...importedRows]
-
-        // Update sheet with imported data and visible columns
-        const { error: updateError } = await (supabase as any)
-          .from('views')
-          .update({ 
-            rows: updatedRows,
-            visible_columns: columnKeys // Update visible columns
+          .insert({
+            user_id: userId,
+            table_id: datasetId,
+            name: sheetName,
+            type: 'grid',
+            visible_columns: columnKeys,
+            filters: [],
+            sorts: [],
+            color_rules: [],
+            group_by: null,
+            rows: importedRows
           })
-          .eq('id', sheetId)
+          .select()
 
-        if (updateError) throw updateError
+        if (insertError) {
+          console.error(`❌ Error creating sheet "${sheetName}":`, insertError)
+          throw new Error(`Failed to import data: ${insertError.message}`)
+        }
+        
+        console.log(`✅ Sheet "${sheetName}" created successfully with ${importedRows.length} rows`)
       }
 
       // Success
