@@ -1732,7 +1732,7 @@ export default function DatasetWorkspacePage() {
                 <table className="border border-gray-300 dark:border-gray-600" style={{ minWidth: 'max-content', borderCollapse: 'collapse', width: 'auto' }}>
                     <thead className="bg-white dark:bg-gray-800">
                       <tr className="sticky top-0 z-20 bg-white dark:bg-gray-800 shadow-sm">
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-0 z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600" style={{ width: '60px', minWidth: '60px' }}>#</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-0 z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}>#</th>
                         {finalVisibleColumns.map((column: any, index: number) => (
                           <th 
                             key={column.id} 
@@ -1819,7 +1819,7 @@ export default function DatasetWorkspacePage() {
                             }`} 
                             style={{ backgroundColor: isNewlyAdded ? undefined : row.rowColor }}
                           >
-                            <td className={`px-2 ${cellPaddingClass} text-center text-sm text-gray-500 dark:text-gray-400 font-medium sticky left-0 z-10 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600`} style={{ width: '80px', minWidth: '80px' }}>
+                            <td className={`px-2 ${cellPaddingClass} text-center text-sm text-gray-500 dark:text-gray-400 font-medium sticky left-0 z-10 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`} style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}>
                               <div className="flex items-center justify-center gap-1">
                                 <Button 
                                   variant="ghost" 
@@ -1841,10 +1841,11 @@ export default function DatasetWorkspacePage() {
                                 <td 
                                   key={column.id} 
                                   className={`px-4 ${cellPaddingClass} border border-gray-300 dark:border-gray-600 ${
-                                    colIndex === 0 ? 'sticky left-[60px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
+                                    colIndex === 0 ? 'sticky left-[60px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-white dark:bg-gray-800' : ''
                                   } ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
                                   style={{ 
-                                    minWidth: '250px',
+                                    minWidth: '200px',
+                                    maxWidth: '250px',
                                     backgroundColor: cellColor || (colIndex === 0 ? '' : columnHighlights[column.id] || '')
                                   }}
                                 >
