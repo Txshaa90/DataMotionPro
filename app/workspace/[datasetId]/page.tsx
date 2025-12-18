@@ -886,13 +886,23 @@ export default function DatasetWorkspacePage() {
         .from('views')
         .update({ cell_color_rules: updatedRules })
         .eq('id', currentSheet.id)
+      
+      // Update the local sheet data to include the new rules
+      setSupabaseViews(supabaseViews.map(v => 
+        v.id === currentSheet.id ? { ...v, cell_color_rules: updatedRules } : v
+      ))
     }
     setCellColorRulesSaving(false)
     setCellColorRulesSaved(true)
     setTimeout(() => setCellColorRulesSaved(false), 2000)
     
+    // Get rows based on sheet type
+    const rows = currentSheet?.type === 'chart' 
+      ? (datasetSheets.find(s => s.type === 'grid')?.rows || currentDataset?.rows || [])
+      : (currentSheet?.rows || currentDataset?.rows || [])
+    
     // Apply color to all cells in the column that match based on operator
-    const matchingRows = baseRows.filter((row: any) => {
+    const matchingRows = rows.filter((row: any) => {
       const cellValue = String(row[manualCellColorColumnId] || '')
       const targetValue = manualCellColorValue
       
@@ -1727,13 +1737,13 @@ export default function DatasetWorkspacePage() {
                               backgroundColor: index === 0 ? '' : (columnHighlights[column.id] || '')
                             }}
                           >
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-1 w-full">
                               <div className="text-center text-xs font-semibold text-gray-400 dark:text-gray-500">
                                 {getColumnLetter(index)}
                               </div>
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="uppercase truncate flex-1">{column.name}</span>
-                                <div className="flex gap-0.5 flex-shrink-0">
+                              <div className="flex items-center justify-between gap-1 w-full">
+                                <span className="uppercase truncate flex-1 min-w-0">{column.name}</span>
+                                <div className="flex gap-0.5 flex-shrink-0 items-center">
                                   <Button 
                                     variant="ghost" 
                                     size="icon" 
