@@ -112,6 +112,10 @@ export default function DatasetWorkspacePage() {
   }>>([])
   const [cellColorRulesSaving, setCellColorRulesSaving] = useState(false)
   const [cellColorRulesSaved, setCellColorRulesSaved] = useState(false)
+  const [columnHighlights, setColumnHighlights] = useState<{ [columnId: string]: string }>({})
+  const [highlightColumnDialog, setHighlightColumnDialog] = useState(false)
+  const [highlightColumnId, setHighlightColumnId] = useState<string | null>(null)
+  const [highlightColor, setHighlightColor] = useState('#fef08a')
 
   const [dateRangeFilter, setDateRangeFilter] = useState<{ startDate: string; endDate: string; columnId: string } | null>(null)
   const [newlyAddedRowId, setNewlyAddedRowId] = useState<string | null>(null)
@@ -192,6 +196,13 @@ export default function DatasetWorkspacePage() {
     } else {
       setManualCellColorRules([])
       setCellColors({})
+    }
+    
+    // Load column highlights
+    if (currentSheet?.column_highlights) {
+      setColumnHighlights(currentSheet.column_highlights)
+    } else {
+      setColumnHighlights({})
     }
   }, [currentSheet?.id])
 
@@ -996,6 +1007,43 @@ export default function DatasetWorkspacePage() {
     setCellColors(newColors)
   }
 
+  const handleOpenHighlightColumnDialog = (columnId: string) => {
+    setHighlightColumnId(columnId)
+    setHighlightColor(columnHighlights[columnId] || '#fef08a')
+    setHighlightColumnDialog(true)
+  }
+
+  const handleApplyColumnHighlight = async () => {
+    if (!highlightColumnId) return
+    
+    const updatedHighlights = { ...columnHighlights, [highlightColumnId]: highlightColor }
+    setColumnHighlights(updatedHighlights)
+    
+    // Save to database
+    if (currentSheet) {
+      await (supabase as any)
+        .from('views')
+        .update({ column_highlights: updatedHighlights })
+        .eq('id', currentSheet.id)
+    }
+    
+    setHighlightColumnDialog(false)
+  }
+
+  const handleRemoveColumnHighlight = async (columnId: string) => {
+    const updatedHighlights = { ...columnHighlights }
+    delete updatedHighlights[columnId]
+    setColumnHighlights(updatedHighlights)
+    
+    // Save to database
+    if (currentSheet) {
+      await (supabase as any)
+        .from('views')
+        .update({ column_highlights: updatedHighlights })
+        .eq('id', currentSheet.id)
+    }
+  }
+
   const handleAddSheet = async (viewType: 'grid' | 'gallery' | 'form' | 'kanban' | 'calendar' | 'chart' | 'returns' | 'dashboard' = 'grid') => {
     if (!currentDataset) return
     const newSheet = {
@@ -1593,14 +1641,17 @@ export default function DatasetWorkspacePage() {
                             onDragOver={(e) => handleColumnDragOver(e, column.id)}
                             onDrop={(e) => handleColumnDrop(e, column.id)}
                             onDragEnd={handleColumnDragEnd}
-                            className={`px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap bg-white dark:bg-gray-800 group border border-gray-300 dark:border-gray-600 cursor-move ${
+                            className={`px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap group border border-gray-300 dark:border-gray-600 cursor-move ${
                               index === 0 ? 'sticky left-[60px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
                             } ${
                               draggedColumn === column.id ? 'opacity-50' : ''
                             } ${
                               dragOverColumn === column.id && draggedColumn !== column.id ? 'border-l-4 border-l-blue-500' : ''
                             }`} 
-                            style={{ minWidth: '250px' }}
+                            style={{ 
+                              minWidth: '250px',
+                              backgroundColor: columnHighlights[column.id] || (index === 0 ? '' : 'inherit')
+                            }}
                           >
                             <div className="flex flex-col gap-1">
                               <div className="text-center text-xs font-semibold text-gray-400 dark:text-gray-500">
@@ -1608,17 +1659,45 @@ export default function DatasetWorkspacePage() {
                               </div>
                               <div className="flex items-center justify-between gap-2">
                                 <span className="uppercase">{column.name}</span>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    openDeleteColumnDialog(column.id, column.name)
-                                  }}
-                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
+                                <div className="flex gap-1">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleOpenHighlightColumnDialog(column.id)
+                                    }}
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-yellow-600"
+                                    title="Highlight column"
+                                  >
+                                    <Palette className="h-3 w-3" />
+                                  </Button>
+                                  {columnHighlights[column.id] && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleRemoveColumnHighlight(column.id)
+                                      }}
+                                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600"
+                                      title="Remove highlight"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openDeleteColumnDialog(column.id, column.name)
+                                    }}
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </th>
@@ -1660,11 +1739,11 @@ export default function DatasetWorkspacePage() {
                                 <td 
                                   key={column.id} 
                                   className={`px-4 ${cellPaddingClass} border border-gray-300 dark:border-gray-600 ${
-                                    colIndex === 0 ? 'sticky left-[60px] z-10 bg-white dark:bg-gray-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
+                                    colIndex === 0 ? 'sticky left-[60px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
                                   } ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
                                   style={{ 
                                     minWidth: '250px',
-                                    ...(cellColor && { backgroundColor: cellColor })
+                                    backgroundColor: cellColor || columnHighlights[column.id] || (colIndex === 0 ? 'inherit' : 'inherit')
                                   }}
                                 >
                                   <Input
@@ -2039,6 +2118,82 @@ export default function DatasetWorkspacePage() {
             >
               <Palette className="h-4 w-4 mr-2" />
               Apply Color
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Highlight Column Dialog */}
+      <Dialog open={highlightColumnDialog} onOpenChange={setHighlightColumnDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Highlight Column</DialogTitle>
+            <DialogDescription>
+              Choose a background color for the entire column. This will be applied to all cells in the column.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Column</Label>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {highlightColumnId && currentDataset?.columns.find((c: any) => c.id === highlightColumnId)?.name}
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="highlight-color">Highlight Color</Label>
+              
+              {/* Preset Colors */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {[
+                  { name: 'Yellow', color: '#fef08a' },
+                  { name: 'Light Green', color: '#bbf7d0' },
+                  { name: 'Light Blue', color: '#bfdbfe' },
+                  { name: 'Light Pink', color: '#fbcfe8' },
+                  { name: 'Light Purple', color: '#e9d5ff' },
+                  { name: 'Light Orange', color: '#fed7aa' },
+                  { name: 'Light Red', color: '#fecaca' },
+                  { name: 'Light Gray', color: '#e5e7eb' }
+                ].map(preset => (
+                  <button
+                    key={preset.color}
+                    type="button"
+                    onClick={() => setHighlightColor(preset.color)}
+                    className={`w-10 h-10 rounded border-2 transition-all ${
+                      highlightColor === preset.color 
+                        ? 'border-gray-900 dark:border-white scale-110' 
+                        : 'border-gray-300 dark:border-gray-600 hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: preset.color }}
+                    title={preset.name}
+                  />
+                ))}
+              </div>
+              
+              {/* Custom Color Input */}
+              <div className="flex gap-2">
+                <input
+                  type="color"
+                  id="highlight-color"
+                  value={highlightColor}
+                  onChange={(e) => setHighlightColor(e.target.value)}
+                  className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
+                  title="Pick custom color"
+                />
+                <Input
+                  placeholder="#fef08a"
+                  value={highlightColor}
+                  onChange={(e) => setHighlightColor(e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHighlightColumnDialog(false)}>Cancel</Button>
+            <Button onClick={handleApplyColumnHighlight}>
+              <Palette className="h-4 w-4 mr-2" />
+              Apply Highlight
             </Button>
           </DialogFooter>
         </DialogContent>
