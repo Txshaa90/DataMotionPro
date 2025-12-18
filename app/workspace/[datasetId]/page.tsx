@@ -155,8 +155,7 @@ export default function DatasetWorkspacePage() {
           .eq('id', datasetId)
           .single()
         
-        console.log('🔍 Workspace - Dataset fetch:', { datasetData, datasetError })
-        console.log('🔍 Workspace - Rows count:', datasetData?.rows?.length || 0)
+        // Dataset fetch logging removed
         
         if (datasetError) throw datasetError
 
@@ -190,20 +189,9 @@ export default function DatasetWorkspacePage() {
 
   // Load cell color rules when sheet changes
   useEffect(() => {
-    console.log('🎨 Loading sheet rules:', {
-      sheetId: currentSheet?.id,
-      sheetName: currentSheet?.name,
-      hasRulesField: 'cell_color_rules' in (currentSheet || {}),
-      savedRules: currentSheet?.cell_color_rules,
-      rulesCount: currentSheet?.cell_color_rules?.length || 0,
-      fullSheet: currentSheet
-    })
-    
     if (currentSheet?.cell_color_rules && currentSheet.cell_color_rules.length > 0) {
-      console.log('✅ Setting rules from database:', currentSheet.cell_color_rules)
       setManualCellColorRules(currentSheet.cell_color_rules)
     } else {
-      console.log('❌ No rules found, clearing colors. Sheet has rules field?', 'cell_color_rules' in (currentSheet || {}))
       setManualCellColorRules([])
       setCellColors({})
     }
@@ -1326,12 +1314,7 @@ export default function DatasetWorkspacePage() {
     .map((colId: string) => currentDataset.columns.find((col: any) => col.id === colId))
     .filter((col: any) => col !== undefined)
   
-  // Debug logging
-  console.log('🔍 Dataset Columns:', currentDataset.columns)
-  console.log('🔍 Active Visible Columns:', activeVisibleColumns)
-  console.log('🔍 Filtered Visible Columns:', visibleColumns)
-  console.log('🔍 Current Sheet:', currentSheet)
-  console.log('🔍 Current Sheet Rows:', currentSheet?.rows?.length || 0)
+  // Debug logging removed to prevent render loop
   
   // Fallback: If no columns are visible, show all columns
   let finalVisibleColumns = visibleColumns.length > 0 ? visibleColumns : currentDataset.columns
@@ -1344,7 +1327,7 @@ export default function DatasetWorkspacePage() {
     )
   }
   
-  console.log('🔍 Final Visible Columns:', finalVisibleColumns)
+  // Final visible columns computed
 
   const baseRows = (() => {
     if (currentSheet?.type === 'chart') {
@@ -1359,7 +1342,7 @@ export default function DatasetWorkspacePage() {
     // Global search is now handled by filtering visible columns, not row data
     // See visibleColumns computation below
     
-    console.log('🔍 Active Filters:', activeFilters)
+    // Active filters applied
     
     for (const filter of activeFilters) {
       const beforeCount = rows.length
@@ -1367,8 +1350,6 @@ export default function DatasetWorkspacePage() {
         const rawValue = row[filter.columnId] || ''
         const cellValue = String(rawValue).toLowerCase()
         const filterValue = String(filter.value).toLowerCase()
-        
-        console.log(`Filter check: "${cellValue}" ${filter.operator} "${filterValue}"`)
         
         switch (filter.operator) {
           case 'is':
