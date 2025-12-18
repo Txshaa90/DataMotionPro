@@ -193,15 +193,17 @@ export default function DatasetWorkspacePage() {
     console.log('🎨 Loading sheet rules:', {
       sheetId: currentSheet?.id,
       sheetName: currentSheet?.name,
+      hasRulesField: 'cell_color_rules' in (currentSheet || {}),
       savedRules: currentSheet?.cell_color_rules,
-      rulesCount: currentSheet?.cell_color_rules?.length || 0
+      rulesCount: currentSheet?.cell_color_rules?.length || 0,
+      fullSheet: currentSheet
     })
     
     if (currentSheet?.cell_color_rules && currentSheet.cell_color_rules.length > 0) {
       console.log('✅ Setting rules from database:', currentSheet.cell_color_rules)
       setManualCellColorRules(currentSheet.cell_color_rules)
     } else {
-      console.log('❌ No rules found, clearing colors')
+      console.log('❌ No rules found, clearing colors. Sheet has rules field?', 'cell_color_rules' in (currentSheet || {}))
       setManualCellColorRules([])
       setCellColors({})
     }
@@ -1725,7 +1727,7 @@ export default function DatasetWorkspacePage() {
                             onDragOver={(e) => handleColumnDragOver(e, column.id)}
                             onDrop={(e) => handleColumnDrop(e, column.id)}
                             onDragEnd={handleColumnDragEnd}
-                            className={`px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap group border border-gray-300 dark:border-gray-600 cursor-move ${
+                            className={`px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 group border border-gray-300 dark:border-gray-600 cursor-move ${
                               index === 0 ? 'sticky left-[60px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
                             } ${
                               draggedColumn === column.id ? 'opacity-50' : ''
@@ -1733,17 +1735,18 @@ export default function DatasetWorkspacePage() {
                               dragOverColumn === column.id && draggedColumn !== column.id ? 'border-l-4 border-l-blue-500' : ''
                             }`} 
                             style={{ 
-                              minWidth: '250px',
+                              minWidth: '200px',
+                              maxWidth: '250px',
                               backgroundColor: index === 0 ? '' : (columnHighlights[column.id] || '')
                             }}
                           >
-                            <div className="flex flex-col gap-1 w-full">
-                              <div className="text-center text-xs font-semibold text-gray-400 dark:text-gray-500">
+                            <div className="flex flex-col gap-0.5 w-full overflow-hidden">
+                              <div className="text-center text-[10px] font-semibold text-gray-400 dark:text-gray-500">
                                 {getColumnLetter(index)}
                               </div>
-                              <div className="flex items-center justify-between gap-1 w-full">
-                                <span className="uppercase truncate flex-1 min-w-0">{column.name}</span>
-                                <div className="flex gap-0.5 flex-shrink-0 items-center">
+                              <div className="flex items-center gap-1 w-full overflow-hidden">
+                                <span className="uppercase text-[11px] leading-tight break-words flex-1 overflow-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{column.name}</span>
+                                <div className="flex gap-0.5 flex-shrink-0 items-center ml-auto">
                                   <Button 
                                     variant="ghost" 
                                     size="icon" 
