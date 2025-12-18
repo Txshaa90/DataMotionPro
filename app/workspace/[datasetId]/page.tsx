@@ -942,7 +942,10 @@ export default function DatasetWorkspacePage() {
   const activeSorts = localSorts.length > 0 ? localSorts : (currentSheet?.sorts || [])
   const activeColorRules = localColorRules.length > 0 ? localColorRules : (currentSheet?.color_rules || [])
 
-  const visibleColumns = currentDataset.columns.filter((col: any) => activeVisibleColumns.includes(col.id))
+  // Map visible columns in the order specified by activeVisibleColumns, not dataset order
+  const visibleColumns = activeVisibleColumns
+    .map((colId: string) => currentDataset.columns.find((col: any) => col.id === colId))
+    .filter((col: any) => col !== undefined)
   
   // Debug logging
   console.log('🔍 Dataset Columns:', currentDataset.columns)
