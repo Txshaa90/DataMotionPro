@@ -420,6 +420,11 @@ export default function DatasetWorkspacePage() {
         data: { rowId: newRow.id, sheetId: currentSheet.id }
       }])
       
+      // Navigate to the last page where the new row is located
+      const totalRows = updatedRows.length
+      const lastPage = Math.ceil(totalRows / rowsPerPage)
+      setCurrentPage(lastPage)
+      
       // Scroll to the new row and focus first cell
       setTimeout(() => {
         if (tableContainerRef.current) {
