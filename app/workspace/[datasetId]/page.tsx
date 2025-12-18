@@ -1741,65 +1741,51 @@ export default function DatasetWorkspacePage() {
                             onDragOver={(e) => handleColumnDragOver(e, column.id)}
                             onDrop={(e) => handleColumnDrop(e, column.id)}
                             onDragEnd={handleColumnDragEnd}
-                            className={`px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 group border border-gray-300 dark:border-gray-600 cursor-move ${
-                              index === 0 ? 'sticky left-[60px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
+                            className={`px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap group border border-gray-300 dark:border-gray-600 cursor-move ${
+                              index === 0 ? 'sticky left-[60px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-white dark:bg-gray-800' : ''
                             } ${
                               draggedColumn === column.id ? 'opacity-50' : ''
                             } ${
                               dragOverColumn === column.id && draggedColumn !== column.id ? 'border-l-4 border-l-blue-500' : ''
                             }`} 
                             style={{ 
-                              minWidth: '200px',
-                              maxWidth: '250px',
+                              minWidth: '180px',
+                              width: '180px',
                               backgroundColor: index === 0 ? '' : (columnHighlights[column.id] || '')
                             }}
                           >
-                            <div className="flex flex-col gap-0.5 w-full overflow-hidden">
-                              <div className="text-center text-[10px] font-semibold text-gray-400 dark:text-gray-500">
+                            <div className="flex items-center gap-2 w-full">
+                              <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 flex-shrink-0">
                                 {getColumnLetter(index)}
-                              </div>
-                              <div className="flex items-center gap-1 w-full overflow-hidden">
-                                <span className="uppercase text-[11px] leading-tight break-words flex-1 overflow-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{column.name}</span>
-                                <div className="flex gap-0.5 flex-shrink-0 items-center ml-auto">
+                              </span>
+                              <span className="uppercase text-xs truncate flex-1 min-w-0">{column.name}</span>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleOpenHighlightColumnDialog(column.id)
+                                  }}
+                                  className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-yellow-600"
+                                  title="Highlight column"
+                                >
+                                  <Palette className="h-3 w-3" />
+                                </Button>
+                                {columnHighlights[column.id] && (
                                   <Button 
                                     variant="ghost" 
                                     size="icon" 
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      handleOpenHighlightColumnDialog(column.id)
+                                      handleRemoveColumnHighlight(column.id)
                                     }}
-                                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-yellow-600"
-                                    title="Highlight column"
+                                    className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600"
+                                    title="Remove highlight"
                                   >
-                                    <Palette className="h-3 w-3" />
+                                    <X className="h-3 w-3" />
                                   </Button>
-                                  {columnHighlights[column.id] && (
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleRemoveColumnHighlight(column.id)
-                                      }}
-                                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600"
-                                      title="Remove highlight"
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </Button>
-                                  )}
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      openDeleteColumnDialog(column.id, column.name)
-                                    }}
-                                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600"
-                                    title="Delete column"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
+                                )}
                               </div>
                             </div>
                           </th>
@@ -1844,8 +1830,8 @@ export default function DatasetWorkspacePage() {
                                     colIndex === 0 ? 'sticky left-[60px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-white dark:bg-gray-800' : ''
                                   } ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
                                   style={{ 
-                                    minWidth: '200px',
-                                    maxWidth: '250px',
+                                    minWidth: '180px',
+                                    width: '180px',
                                     backgroundColor: cellColor || (colIndex === 0 ? '' : columnHighlights[column.id] || '')
                                   }}
                                 >
