@@ -192,7 +192,6 @@ export default function DatasetWorkspacePage() {
   useEffect(() => {
     if (currentSheet?.cell_color_rules) {
       setManualCellColorRules(currentSheet.cell_color_rules)
-      applyAllCellColorRules(currentSheet.cell_color_rules)
     } else {
       setManualCellColorRules([])
       setCellColors({})
@@ -205,6 +204,13 @@ export default function DatasetWorkspacePage() {
       setColumnHighlights({})
     }
   }, [currentSheet?.id])
+
+  // Reapply cell color rules when rules or baseRows change
+  useEffect(() => {
+    if (manualCellColorRules.length > 0 && baseRows.length > 0) {
+      applyAllCellColorRules(manualCellColorRules)
+    }
+  }, [manualCellColorRules, baseRows.length])
 
   // Realtime sync for shared spreadsheets
   useEffect(() => {
@@ -1657,9 +1663,9 @@ export default function DatasetWorkspacePage() {
                               <div className="text-center text-xs font-semibold text-gray-400 dark:text-gray-500">
                                 {getColumnLetter(index)}
                               </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="uppercase">{column.name}</span>
-                                <div className="flex gap-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="uppercase truncate flex-1">{column.name}</span>
+                                <div className="flex gap-0.5 flex-shrink-0">
                                   <Button 
                                     variant="ghost" 
                                     size="icon" 
@@ -1667,7 +1673,7 @@ export default function DatasetWorkspacePage() {
                                       e.stopPropagation()
                                       handleOpenHighlightColumnDialog(column.id)
                                     }}
-                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-yellow-600"
+                                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-yellow-600"
                                     title="Highlight column"
                                   >
                                     <Palette className="h-3 w-3" />
@@ -1680,7 +1686,7 @@ export default function DatasetWorkspacePage() {
                                         e.stopPropagation()
                                         handleRemoveColumnHighlight(column.id)
                                       }}
-                                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600"
+                                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600"
                                       title="Remove highlight"
                                     >
                                       <X className="h-3 w-3" />
@@ -1693,7 +1699,8 @@ export default function DatasetWorkspacePage() {
                                       e.stopPropagation()
                                       openDeleteColumnDialog(column.id, column.name)
                                     }}
-                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600"
+                                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600"
+                                    title="Delete column"
                                   >
                                     <Trash2 className="h-3 w-3" />
                                   </Button>
