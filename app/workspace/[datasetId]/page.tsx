@@ -289,7 +289,7 @@ export default function DatasetWorkspacePage() {
     }, 150)
     
     return () => clearTimeout(timeoutId)
-  }, [manualCellColorRules, currentSheet, datasetSheets, currentDataset])
+  }, [manualCellColorRules, currentSheet?.id, currentSheet?.rows, currentSheet?.type])
 
   // Realtime sync for shared spreadsheets
   useEffect(() => {
@@ -1784,6 +1784,18 @@ export default function DatasetWorkspacePage() {
                                     <X className="h-3 w-3" />
                                   </Button>
                                 )}
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleOpenDeleteColumnDialog(column)
+                                  }}
+                                  className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600"
+                                  title="Delete column"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
                               </div>
                             </div>
                           </th>
@@ -2071,8 +2083,8 @@ export default function DatasetWorkspacePage() {
                         />
                         <span className="flex-1">
                           <span className="font-medium">{column?.name || rule.columnId}</span>
-                          {' '}<span className="text-gray-500">{rule.operator}</span>{' '}
-                          <span className="font-medium">"{rule.value}"</span>
+                          {' '}<span className="text-gray-500">{String(rule.operator)}</span>{' '}
+                          <span className="font-medium">"{String(rule.value)}"</span>
                         </span>
                         <Button
                           variant="ghost"
@@ -2317,7 +2329,7 @@ export default function DatasetWorkspacePage() {
                           </label>
                           <Input
                             type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
-                            value={selectedRow[column.id] || ''}
+                            value={String(selectedRow[column.id] ?? '')}
                             onChange={(e) => {
                               const updatedRow = { ...selectedRow, [column.id]: e.target.value }
                               setSelectedRow(updatedRow)
