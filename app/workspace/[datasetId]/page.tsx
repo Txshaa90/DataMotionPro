@@ -1994,7 +1994,7 @@ export default function DatasetWorkspacePage() {
                             {/* Resize handle */}
                             <div
                               onMouseDown={(e) => handleResizeStart(e, column.id)}
-                              className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 hover:w-1.5 transition-all"
+                              className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize bg-transparent hover:bg-blue-400 transition-colors"
                               style={{ zIndex: 40 }}
                               title="Drag to resize column"
                             />
