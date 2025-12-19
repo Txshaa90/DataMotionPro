@@ -1483,7 +1483,7 @@ export default function DatasetWorkspacePage() {
   const inputHeightClass = rowHeight === 'compact' ? 'h-7' : 'h-8'
 
   return (
-    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden" suppressHydrationWarning>
       <div className="flex flex-1 overflow-hidden">
         <IconSidebar 
           isExpanded={!sidebarCollapsed}
@@ -1497,7 +1497,7 @@ export default function DatasetWorkspacePage() {
           onSheetRename={handleRenameSheet}
         />
 
-        <main className="flex-1 flex flex-col overflow-hidden pb-14" style={{ maxWidth: '100%' }}>
+        <main className="flex-1 flex flex-col overflow-hidden pb-14" style={{ maxWidth: '100%' }} suppressHydrationWarning>
           <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-4 py-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
