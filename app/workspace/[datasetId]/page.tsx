@@ -1274,6 +1274,11 @@ export default function DatasetWorkspacePage() {
         .from('views')
         .update({ column_highlights: updatedHighlights })
         .eq('id', currentSheet.id)
+      
+      // Update local state so highlights persist when switching sheets
+      setSupabaseViews(supabaseViews.map(v => 
+        v.id === currentSheet.id ? { ...v, column_highlights: updatedHighlights } : v
+      ))
     }
     
     setHighlightColumnDialog(false)
@@ -1290,6 +1295,11 @@ export default function DatasetWorkspacePage() {
         .from('views')
         .update({ column_highlights: updatedHighlights })
         .eq('id', currentSheet.id)
+      
+      // Update local state so highlights persist when switching sheets
+      setSupabaseViews(supabaseViews.map(v => 
+        v.id === currentSheet.id ? { ...v, column_highlights: updatedHighlights } : v
+      ))
     }
   }
 
