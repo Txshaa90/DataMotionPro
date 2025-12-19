@@ -375,6 +375,30 @@ export default function DatasetWorkspacePage() {
     }
   }, [])
 
+  // Column resize handlers - must be before early returns
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!resizingColumn) return
+    const diff = e.clientX - resizeStartX
+    const newWidth = Math.max(100, resizeStartWidth + diff)
+    setColumnWidths(prev => ({ ...prev, [resizingColumn]: newWidth }))
+  }, [resizingColumn, resizeStartX, resizeStartWidth])
+
+  const handleResizeEnd = useCallback(() => {
+    setResizingColumn(null)
+  }, [])
+
+  useEffect(() => {
+    if (!resizingColumn) return
+
+    document.addEventListener('mousemove', handleResizeMove)
+    document.addEventListener('mouseup', handleResizeEnd)
+    
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMove)
+      document.removeEventListener('mouseup', handleResizeEnd)
+    }
+  }, [resizingColumn, handleResizeMove, handleResizeEnd])
+
   // Sync horizontal scroll between bottom scrollbar and table
   useEffect(() => {
     const topScroll = topScrollRef.current
@@ -1304,7 +1328,7 @@ export default function DatasetWorkspacePage() {
     setDragOverColumn(null)
   }
 
-  // Column resize handlers
+  // Column resize start handler (non-hook function)
   const handleResizeStart = (e: React.MouseEvent, columnId: string) => {
     e.preventDefault()
     e.stopPropagation()
@@ -1312,29 +1336,6 @@ export default function DatasetWorkspacePage() {
     setResizeStartX(e.clientX)
     setResizeStartWidth(columnWidths[columnId] || 180)
   }
-
-  const handleResizeMove = useCallback((e: MouseEvent) => {
-    if (!resizingColumn) return
-    const diff = e.clientX - resizeStartX
-    const newWidth = Math.max(100, resizeStartWidth + diff)
-    setColumnWidths(prev => ({ ...prev, [resizingColumn]: newWidth }))
-  }, [resizingColumn, resizeStartX, resizeStartWidth])
-
-  const handleResizeEnd = useCallback(() => {
-    setResizingColumn(null)
-  }, [])
-
-  useEffect(() => {
-    if (!resizingColumn) return
-
-    document.addEventListener('mousemove', handleResizeMove)
-    document.addEventListener('mouseup', handleResizeEnd)
-    
-    return () => {
-      document.removeEventListener('mousemove', handleResizeMove)
-      document.removeEventListener('mouseup', handleResizeEnd)
-    }
-  }, [resizingColumn, handleResizeMove, handleResizeEnd])
 
   // Convert index to column letter (A, B, C, ... Z, AA, AB, etc.)
   const getColumnLetter = (index: number): string => {
