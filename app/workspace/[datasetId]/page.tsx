@@ -51,7 +51,9 @@ import {
   Edit,
   Copy,
   Eye,
-  EyeOff
+  EyeOff,
+  ArrowUpAZ,
+  ArrowDownZA
 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -136,8 +138,12 @@ export default function DatasetWorkspacePage() {
   }>>([])
   const [addColumnDialogOpen, setAddColumnDialogOpen] = useState(false)
   const [newColumnName, setNewColumnName] = useState('')
+  const [insertColumnDialogOpen, setInsertColumnDialogOpen] = useState(false)
+  const [insertColumnData, setInsertColumnData] = useState<{index: number, direction: 'left' | 'right', referenceColumnName: string} | null>(null)
+  const [insertColumnName, setInsertColumnName] = useState('')
   const [deleteColumnDialogOpen, setDeleteColumnDialogOpen] = useState(false)
   const [columnToDelete, setColumnToDelete] = useState<{id: string, name: string} | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [addRowDialogOpen, setAddRowDialogOpen] = useState(false)
   const [editingCell, setEditingCell] = useState<{rowId: string, columnId: string} | null>(null)
 
@@ -198,6 +204,8 @@ export default function DatasetWorkspacePage() {
     if (activeSheetId) setActiveView(activeSheetId)
   }, [activeSheetId])
 
+  // Column widths removed - using fixed 250px default
+
   // Load cell color rules when sheet changes
   useEffect(() => {
     if (currentSheet?.cell_color_rules && currentSheet.cell_color_rules.length > 0) {
@@ -213,6 +221,8 @@ export default function DatasetWorkspacePage() {
     } else {
       setColumnHighlights({})
     }
+    
+    // Column widths reset removed - using fixed 250px default
   }, [currentSheet?.id])
 
   // Reapply cell color rules when rules or sheet rows change
@@ -375,7 +385,7 @@ export default function DatasetWorkspacePage() {
     }
   }, [])
 
-  // Column resize handlers - must be before early returns
+  // Column resize handlers
   const handleResizeMove = useCallback((e: MouseEvent) => {
     if (!resizingColumn) return
     const diff = e.clientX - resizeStartX
@@ -604,6 +614,110 @@ export default function DatasetWorkspacePage() {
     }
   }
 
+  const openInsertColumnDialog = (columnId: string, direction: 'left' | 'right', columnName: string) => {
+    // Find the column index in the VISIBLE columns, not the full dataset
+    const visibleCols = currentSheet?.visible_columns || currentDataset?.columns.map((c: any) => c.id) || []
+    const visibleIndex = visibleCols.findIndex((id: string) => id === columnId)
+    
+    console.log('Opening insert dialog:', { columnId, columnName, visibleIndex, direction, visibleColumns: visibleCols.length })
+    
+    if (visibleIndex === undefined || visibleIndex === -1) {
+      console.error('Column not found in visible columns:', columnId)
+      return
+    }
+    
+    // Store both the visible index and the column ID for reference
+    setInsertColumnData({ index: visibleIndex, direction, referenceColumnName: columnName })
+    setInsertColumnName('')
+    setInsertColumnDialogOpen(true)
+  }
+
+  const handleInsertColumn = async () => {
+    if (!currentDataset || !insertColumnData || !insertColumnName.trim() || !currentSheet) return
+    
+    const { index: visibleColumnIndex, direction } = insertColumnData
+    const columnName = insertColumnName.trim()
+    
+    // Get the visible columns order
+    const visibleCols = currentSheet.visible_columns || currentDataset.columns.map((c: any) => c.id)
+    
+    console.log('Inserting column:', { visibleColumnIndex, direction, columnName, visibleColumns: visibleCols.length })
+    
+    const newColumn = {
+      id: crypto.randomUUID(),
+      name: columnName,
+      type: 'text'
+    }
+    
+    // Insert in the visible columns array at the correct position
+    const visibleInsertIndex = direction === 'left' ? visibleColumnIndex : visibleColumnIndex + 1
+    const updatedVisibleColumns = [
+      ...visibleCols.slice(0, visibleInsertIndex),
+      newColumn.id,
+      ...visibleCols.slice(visibleInsertIndex)
+    ]
+    
+    // Add the new column to the end of the dataset columns array
+    const updatedColumns = [...currentDataset.columns, newColumn]
+    
+    console.log('Insert index in visible columns:', { visibleInsertIndex, direction, visibleColumnIndex })
+    console.log('Updated visible columns order:', updatedVisibleColumns.length)
+    
+    // Store old columns for undo
+    const oldColumns = currentDataset.columns
+    
+    try {
+      // Update the table
+      const { data: updateData, error: updateError } = await (supabase as any).from('tables').update({ 
+        columns: updatedColumns
+      }).eq('id', datasetId).select()
+      
+      if (updateError) {
+        console.error('Error updating columns:', updateError)
+        throw updateError
+      }
+      
+      console.log('Column inserted successfully:', updateData)
+      
+      // Update local dataset state
+      setSupabaseDataset((prev: any) => ({ ...prev, columns: updatedColumns }))
+      
+      // Update the current view with the new visible columns order
+      await (supabase as any).from('views').update({
+        visible_columns: updatedVisibleColumns
+      }).eq('id', currentSheet.id)
+      
+      // Update other views to just append the new column
+      const otherViewUpdates = supabaseViews.filter(v => v.id !== currentSheet.id).map(async (view) => {
+        const viewVisibleCols = [...(view.visible_columns || []), newColumn.id]
+        await (supabase as any).from('views').update({
+          visible_columns: viewVisibleCols
+        }).eq('id', view.id)
+        return { ...view, visible_columns: viewVisibleCols }
+      })
+      
+      await Promise.all(otherViewUpdates)
+      
+      // Update local state with new visible columns
+      setSupabaseViews(supabaseViews.map(v => 
+        v.id === currentSheet.id ? { ...v, visible_columns: updatedVisibleColumns } : v
+      ))
+      
+      // Add to undo stack
+      setUndoStack(prev => [...prev, {
+        type: 'column_add',
+        data: { columnId: newColumn.id, oldColumns, datasetId }
+      }])
+      
+      // Close dialog and reset state
+      setInsertColumnDialogOpen(false)
+      setInsertColumnData(null)
+      setInsertColumnName('')
+    } catch (error) {
+      console.error('Error inserting column:', error)
+    }
+  }
+
   const handleAddColumn = async () => {
     if (!currentDataset || !newColumnName.trim()) return
     
@@ -749,7 +863,9 @@ export default function DatasetWorkspacePage() {
   }
 
   const handleDeleteColumn = async () => {
-    if (!currentDataset || !columnToDelete) return
+    if (!columnToDelete || !currentDataset) return
+    
+    setIsDeleting(true)
     
     const columnId = columnToDelete.id
     
@@ -816,7 +932,7 @@ export default function DatasetWorkspacePage() {
       clearTimeout(saveTimerRef.current[cellKey])
     }
     
-    // Set new timer to save after 500ms of no typing
+    // Set new timer to save after 300ms of no typing
     saveTimerRef.current[cellKey] = setTimeout(async () => {
       try {
         await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
@@ -832,7 +948,7 @@ export default function DatasetWorkspacePage() {
       } catch (error) {
         console.error('Error updating cell:', error)
       }
-    }, 500)
+    }, 300)
   }
 
   const handleCopyCell = (rowId: string, columnId: string, value: any) => {
@@ -1328,7 +1444,7 @@ export default function DatasetWorkspacePage() {
     setDragOverColumn(null)
   }
 
-  // Column resize start handler (non-hook function)
+  // Column resize start handler
   const handleResizeStart = (e: React.MouseEvent, columnId: string) => {
     e.preventDefault()
     e.stopPropagation()
@@ -1689,7 +1805,7 @@ export default function DatasetWorkspacePage() {
             </div>
           </div>
 
-          {currentSheet?.type !== 'chart' && currentSheet?.type !== 'returns' && (
+          {currentSheet?.type !== 'chart' && currentSheet?.type !== 'returns' && currentSheet?.type !== 'dashboard' && (
             <WorkspaceToolbar
               columns={currentDataset.columns || []}
               visibleColumns={activeVisibleColumns}
@@ -1762,9 +1878,9 @@ export default function DatasetWorkspacePage() {
               <div 
                 ref={tableContainerRef} 
                 className="flex-1 overflow-auto [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-gray-100 dark:[&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-md dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb:hover]:bg-gray-400 dark:[&::-webkit-scrollbar-thumb:hover]:bg-gray-500" 
-                style={{ scrollbarWidth: 'thin' }}
+                style={{ scrollbarWidth: 'thin', scrollBehavior: 'auto', willChange: 'scroll-position' }}
               >
-                <table className="border border-gray-300 dark:border-gray-600" style={{ minWidth: 'max-content', borderCollapse: 'collapse', width: 'auto' }}>
+                <table className="border border-gray-300 dark:border-gray-600" style={{ borderCollapse: 'collapse', width: 'max-content' }}>
                     <thead className="bg-white dark:bg-gray-800">
                       <tr className="sticky top-0 z-20 bg-white dark:bg-gray-800 shadow-sm">
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-0 z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}>#</th>
@@ -1776,65 +1892,76 @@ export default function DatasetWorkspacePage() {
                             onDragOver={(e) => handleColumnDragOver(e, column.id)}
                             onDrop={(e) => handleColumnDrop(e, column.id)}
                             onDragEnd={handleColumnDragEnd}
-                            className={`px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap group border border-gray-300 dark:border-gray-600 cursor-move ${
-                              index === 0 ? 'sticky left-[60px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-white dark:bg-gray-800' : ''
+                            className={`px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 group border border-gray-300 dark:border-gray-600 cursor-move ${
+                              index === 0 ? 'sticky left-[60px] z-[25] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-white dark:bg-gray-800' : ''
                             } ${
                               draggedColumn === column.id ? 'opacity-50' : ''
                             } ${
                               dragOverColumn === column.id && draggedColumn !== column.id ? 'border-l-4 border-l-blue-500' : ''
                             }`} 
                             style={{ 
-                              minWidth: columnWidths[column.id] ? `${columnWidths[column.id]}px` : '180px',
-                              width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : '180px',
-                              backgroundColor: index === 0 ? '' : (columnHighlights[column.id] || ''),
-                              position: 'relative'
+                              width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : 'auto',
+                              minWidth: '180px',
+                              backgroundColor: index === 0 ? '' : (columnHighlights[column.id] || '')
                             }}
                           >
-                            <div className="flex items-center gap-2 w-full">
+                            <div className="flex items-center gap-2 w-full overflow-hidden">
                               <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 flex-shrink-0">
                                 {getColumnLetter(index)}
                               </span>
-                              <span className="uppercase text-xs truncate flex-1 min-w-0">{column.name}</span>
-                              <div className="flex gap-1 flex-shrink-0">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleOpenHighlightColumnDialog(column.id)
-                                  }}
-                                  className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-yellow-600"
-                                  title="Highlight column"
-                                >
-                                  <Palette className="h-3 w-3" />
-                                </Button>
-                                {columnHighlights[column.id] && (
+                              <span className="uppercase text-xs flex-1 min-w-0 whitespace-nowrap overflow-hidden text-ellipsis" title={column.name}>{column.name}</span>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
                                   <Button 
                                     variant="ghost" 
                                     size="icon" 
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleRemoveColumnHighlight(column.id)
-                                    }}
-                                    className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600"
-                                    title="Remove highlight"
+                                    className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    <X className="h-3 w-3" />
+                                    <ChevronDown className="h-3 w-3" />
                                   </Button>
-                                )}
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    openDeleteColumnDialog(column.id, column.name)
-                                  }}
-                                  className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600"
-                                  title="Delete column"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-56">
+                                  <DropdownMenuItem onClick={() => openInsertColumnDialog(column.id, 'left', column.name)}>
+                                    <ArrowLeft className="mr-2 h-4 w-4" />
+                                    Insert left
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openInsertColumnDialog(column.id, 'right', column.name)}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Insert right
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleSort(column.id, 'asc')}>
+                                    <ArrowUpAZ className="mr-2 h-4 w-4" />
+                                    Sort A → Z
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleSort(column.id, 'desc')}>
+                                    <ArrowDownZA className="mr-2 h-4 w-4" />
+                                    Sort Z → A
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleOpenHighlightColumnDialog(column.id)}>
+                                    <Palette className="mr-2 h-4 w-4" />
+                                    Highlight column
+                                  </DropdownMenuItem>
+                                  {columnHighlights[column.id] && (
+                                    <DropdownMenuItem onClick={() => handleRemoveColumnHighlight(column.id)}>
+                                      <X className="mr-2 h-4 w-4" />
+                                      Remove highlight
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  {index !== 0 && (
+                                    <DropdownMenuItem 
+                                      onClick={() => openDeleteColumnDialog(column.id, column.name)}
+                                      className="text-red-600"
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete field
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                             {/* Resize handle */}
                             <div
@@ -1882,11 +2009,11 @@ export default function DatasetWorkspacePage() {
                                 <td 
                                   key={column.id} 
                                   className={`px-4 ${cellPaddingClass} border border-gray-300 dark:border-gray-600 ${
-                                    colIndex === 0 ? 'sticky left-[60px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-white dark:bg-gray-800' : ''
+                                    colIndex === 0 ? 'sticky left-[60px] z-[15] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-white dark:bg-gray-800' : ''
                                   } ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
                                   style={{ 
-                                    minWidth: columnWidths[column.id] ? `${columnWidths[column.id]}px` : '180px',
-                                    width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : '180px',
+                                    width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : 'auto',
+                                    minWidth: '180px',
                                     backgroundColor: cellColor || (colIndex === 0 ? '' : columnHighlights[column.id] || '')
                                   }}
                                 >
@@ -2037,6 +2164,55 @@ export default function DatasetWorkspacePage() {
         </DialogContent>
       </Dialog>
 
+      {/* Insert Column Dialog */}
+      <Dialog open={insertColumnDialogOpen} onOpenChange={setInsertColumnDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Insert Column {insertColumnData?.direction === 'left' ? 'Left' : 'Right'}</DialogTitle>
+            <DialogDescription>
+              {insertColumnData && (
+                <>
+                  This will insert a new column to the <strong>{insertColumnData.direction}</strong> of <strong>{insertColumnData.referenceColumnName}</strong>.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="insert-column-name">Column Name</Label>
+              <Input
+                id="insert-column-name"
+                placeholder="New Column"
+                value={insertColumnName}
+                onChange={(e) => setInsertColumnName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && insertColumnName.trim()) {
+                    handleInsertColumn()
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setInsertColumnDialogOpen(false)
+              setInsertColumnData(null)
+              setInsertColumnName('')
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleInsertColumn}
+              disabled={!insertColumnName.trim()}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Insert Column
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Column Confirmation Dialog */}
       <Dialog open={deleteColumnDialogOpen} onOpenChange={setDeleteColumnDialogOpen}>
         <DialogContent>
@@ -2056,9 +2232,19 @@ export default function DatasetWorkspacePage() {
             <Button 
               variant="destructive"
               onClick={handleDeleteColumn}
+              disabled={isDeleting}
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Column
+              {isDeleting ? (
+                <>
+                  <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Column
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
