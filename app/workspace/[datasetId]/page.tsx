@@ -1313,27 +1313,28 @@ export default function DatasetWorkspacePage() {
     setResizeStartWidth(columnWidths[columnId] || 180)
   }
 
-  const handleResizeMove = (e: MouseEvent) => {
+  const handleResizeMove = useCallback((e: MouseEvent) => {
     if (!resizingColumn) return
     const diff = e.clientX - resizeStartX
     const newWidth = Math.max(100, resizeStartWidth + diff)
     setColumnWidths(prev => ({ ...prev, [resizingColumn]: newWidth }))
-  }
+  }, [resizingColumn, resizeStartX, resizeStartWidth])
 
-  const handleResizeEnd = () => {
+  const handleResizeEnd = useCallback(() => {
     setResizingColumn(null)
-  }
+  }, [])
 
   useEffect(() => {
-    if (resizingColumn) {
-      document.addEventListener('mousemove', handleResizeMove)
-      document.addEventListener('mouseup', handleResizeEnd)
-      return () => {
-        document.removeEventListener('mousemove', handleResizeMove)
-        document.removeEventListener('mouseup', handleResizeEnd)
-      }
+    if (!resizingColumn) return
+
+    document.addEventListener('mousemove', handleResizeMove)
+    document.addEventListener('mouseup', handleResizeEnd)
+    
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMove)
+      document.removeEventListener('mouseup', handleResizeEnd)
     }
-  }, [resizingColumn, resizeStartX, resizeStartWidth])
+  }, [resizingColumn, handleResizeMove, handleResizeEnd])
 
   // Convert index to column letter (A, B, C, ... Z, AA, AB, etc.)
   const getColumnLetter = (index: number): string => {
@@ -1883,8 +1884,8 @@ export default function DatasetWorkspacePage() {
                                     colIndex === 0 ? 'sticky left-[60px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-white dark:bg-gray-800' : ''
                                   } ${isCopied ? 'ring-2 ring-blue-500 ring-inset' : ''}`} 
                                   style={{ 
-                                    minWidth: '180px',
-                                    width: '180px',
+                                    minWidth: columnWidths[column.id] ? `${columnWidths[column.id]}px` : '180px',
+                                    width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : '180px',
                                     backgroundColor: cellColor || (colIndex === 0 ? '' : columnHighlights[column.id] || '')
                                   }}
                                 >
