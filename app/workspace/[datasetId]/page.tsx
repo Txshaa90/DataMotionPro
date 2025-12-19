@@ -1391,6 +1391,24 @@ export default function DatasetWorkspacePage() {
     await updateView({ sorts })
   }
 
+  const handleSort = async (columnId: string, direction: 'asc' | 'desc') => {
+    const newSort = { columnId, direction }
+    const existingSortIndex = activeSorts.findIndex((s: any) => s.columnId === columnId)
+    
+    let updatedSorts
+    if (existingSortIndex >= 0) {
+      // Replace existing sort for this column
+      updatedSorts = [...activeSorts]
+      updatedSorts[existingSortIndex] = newSort
+    } else {
+      // Add new sort
+      updatedSorts = [...activeSorts, newSort]
+    }
+    
+    setLocalSorts(updatedSorts)
+    await updateView({ sorts: updatedSorts })
+  }
+
   const handleColorRulesChange = async (colorRules: any[]) => {
     setLocalColorRules(colorRules)
     await updateView({ color_rules: colorRules })
