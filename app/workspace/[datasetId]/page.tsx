@@ -1789,7 +1789,7 @@ export default function DatasetWorkspacePage() {
                                   size="icon" 
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    handleOpenDeleteColumnDialog(column)
+                                    openDeleteColumnDialog(column.id, column.name)
                                   }}
                                   className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600"
                                   title="Delete column"
