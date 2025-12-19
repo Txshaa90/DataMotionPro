@@ -95,7 +95,7 @@ export default function DatasetWorkspacePage() {
   const [comments, setComments] = useState<any[]>([])
   const [newComment, setNewComment] = useState('')
   const [copiedCell, setCopiedCell] = useState<{ rowId: string; columnId: string; value: any; color?: string } | null>(null)
-  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
+  const [selectedCells, setSelectedCells] = useState<string[]>([])
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
   const [manualCellColorDialog, setManualCellColorDialog] = useState(false)
