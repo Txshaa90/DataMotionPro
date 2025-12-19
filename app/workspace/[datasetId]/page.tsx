@@ -1792,7 +1792,7 @@ export default function DatasetWorkspacePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Object.entries(displayRowsWithColor).map(([group, { rows }]) =>
+                      {Object.entries(displayRowsWithColor).flatMap(([group, { rows }]) =>
                         rows.map((row: any, index: number) => {
                           const isNewlyAdded = row.id === newlyAddedRowId
                           return (
