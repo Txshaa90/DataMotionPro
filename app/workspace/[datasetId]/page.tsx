@@ -1835,7 +1835,7 @@ export default function DatasetWorkspacePage() {
                                 >
                                   <Input
                                     type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
-                                    value={row[column.id] || ''}
+                                    value={String(row[column.id] ?? '')}
                                     onChange={(e) => handleUpdateCell(row.id, column.id, e.target.value)}
                                     onFocus={() => setEditingCell({ rowId: row.id, columnId: column.id })}
                                     onBlur={() => setEditingCell(null)}
