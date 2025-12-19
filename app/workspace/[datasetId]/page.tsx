@@ -117,6 +117,10 @@ export default function DatasetWorkspacePage() {
   const [highlightColumnDialog, setHighlightColumnDialog] = useState(false)
   const [highlightColumnId, setHighlightColumnId] = useState<string | null>(null)
   const [highlightColor, setHighlightColor] = useState('#fef08a')
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null)
+  const [resizeStartX, setResizeStartX] = useState(0)
+  const [resizeStartWidth, setResizeStartWidth] = useState(0)
 
   const [dateRangeFilter, setDateRangeFilter] = useState<{ columnId: string; startDate: string; endDate: string } | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -1300,6 +1304,37 @@ export default function DatasetWorkspacePage() {
     setDragOverColumn(null)
   }
 
+  // Column resize handlers
+  const handleResizeStart = (e: React.MouseEvent, columnId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setResizingColumn(columnId)
+    setResizeStartX(e.clientX)
+    setResizeStartWidth(columnWidths[columnId] || 180)
+  }
+
+  const handleResizeMove = (e: MouseEvent) => {
+    if (!resizingColumn) return
+    const diff = e.clientX - resizeStartX
+    const newWidth = Math.max(100, resizeStartWidth + diff)
+    setColumnWidths(prev => ({ ...prev, [resizingColumn]: newWidth }))
+  }
+
+  const handleResizeEnd = () => {
+    setResizingColumn(null)
+  }
+
+  useEffect(() => {
+    if (resizingColumn) {
+      document.addEventListener('mousemove', handleResizeMove)
+      document.addEventListener('mouseup', handleResizeEnd)
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove)
+        document.removeEventListener('mouseup', handleResizeEnd)
+      }
+    }
+  }, [resizingColumn, resizeStartX, resizeStartWidth])
+
   // Convert index to column letter (A, B, C, ... Z, AA, AB, etc.)
   const getColumnLetter = (index: number): string => {
     let letter = ''
@@ -1747,9 +1782,10 @@ export default function DatasetWorkspacePage() {
                               dragOverColumn === column.id && draggedColumn !== column.id ? 'border-l-4 border-l-blue-500' : ''
                             }`} 
                             style={{ 
-                              minWidth: '180px',
-                              width: '180px',
-                              backgroundColor: index === 0 ? '' : (columnHighlights[column.id] || '')
+                              minWidth: columnWidths[column.id] ? `${columnWidths[column.id]}px` : '180px',
+                              width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : '180px',
+                              backgroundColor: index === 0 ? '' : (columnHighlights[column.id] || ''),
+                              position: 'relative'
                             }}
                           >
                             <div className="flex items-center gap-2 w-full">
@@ -1798,6 +1834,13 @@ export default function DatasetWorkspacePage() {
                                 </Button>
                               </div>
                             </div>
+                            {/* Resize handle */}
+                            <div
+                              onMouseDown={(e) => handleResizeStart(e, column.id)}
+                              className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 hover:w-1.5 transition-all"
+                              style={{ zIndex: 40 }}
+                              title="Drag to resize column"
+                            />
                           </th>
                         ))}
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600" style={{ width: '100px', minWidth: '100px' }}>Actions</th>
