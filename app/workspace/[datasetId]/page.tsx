@@ -53,7 +53,8 @@ import {
   Eye,
   EyeOff,
   ArrowUpAZ,
-  ArrowDownZA
+  ArrowDownZA,
+  Type
 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -119,6 +120,16 @@ export default function DatasetWorkspacePage() {
   const [highlightColumnDialog, setHighlightColumnDialog] = useState(false)
   const [highlightColumnId, setHighlightColumnId] = useState<string | null>(null)
   const [highlightColor, setHighlightColor] = useState('#fef08a')
+  const [formatCellsDialog, setFormatCellsDialog] = useState(false)
+  const [formatColumnId, setFormatColumnId] = useState<string | null>(null)
+  const [columnFormats, setColumnFormats] = useState<Record<string, any>>({})
+  const [formatType, setFormatType] = useState<'number' | 'currency' | 'percentage' | 'date' | 'text'>('text')
+  const [numberDecimals, setNumberDecimals] = useState(2)
+  const [currencySymbol, setCurrencySymbol] = useState('$')
+  const [dateFormat, setDateFormat] = useState('MM/DD/YYYY')
+  const [fontBold, setFontBold] = useState(false)
+  const [fontItalic, setFontItalic] = useState(false)
+  const [fontUnderline, setFontUnderline] = useState(false)
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [resizingColumn, setResizingColumn] = useState<string | null>(null)
   const [resizeStartX, setResizeStartX] = useState(0)
@@ -220,6 +231,13 @@ export default function DatasetWorkspacePage() {
       setColumnHighlights(currentSheet.column_highlights)
     } else {
       setColumnHighlights({})
+    }
+    
+    // Load column formats
+    if (currentSheet?.column_formats) {
+      setColumnFormats(currentSheet.column_formats)
+    } else {
+      setColumnFormats({})
     }
     
     // Column widths reset removed - using fixed 250px default
@@ -1256,6 +1274,118 @@ export default function DatasetWorkspacePage() {
     setCellColors(newColors)
   }
 
+  // Format cell value based on column format
+  const formatCellValue = (value: any, columnId: string) => {
+    const format = columnFormats[columnId]
+    if (!format || !value) return value
+    
+    try {
+      switch (format.type) {
+        case 'number':
+          const num = parseFloat(value)
+          if (isNaN(num)) return value
+          return num.toLocaleString('en-US', { 
+            minimumFractionDigits: format.decimals,
+            maximumFractionDigits: format.decimals 
+          })
+        
+        case 'currency':
+          const currNum = parseFloat(value)
+          if (isNaN(currNum)) return value
+          return `${format.currencySymbol}${currNum.toLocaleString('en-US', { 
+            minimumFractionDigits: format.decimals,
+            maximumFractionDigits: format.decimals 
+          })}`
+        
+        case 'percentage':
+          const pctNum = parseFloat(value)
+          if (isNaN(pctNum)) return value
+          return `${pctNum.toFixed(format.decimals)}%`
+        
+        case 'date':
+          const date = new Date(value)
+          if (isNaN(date.getTime())) return value
+          
+          const month = String(date.getMonth() + 1).padStart(2, '0')
+          const day = String(date.getDate()).padStart(2, '0')
+          const year = date.getFullYear()
+          
+          switch (format.dateFormat) {
+            case 'MM/DD/YYYY':
+              return `${month}/${day}/${year}`
+            case 'DD/MM/YYYY':
+              return `${day}/${month}/${year}`
+            case 'YYYY-MM-DD':
+              return `${year}-${month}-${day}`
+            case 'DD-MM-YYYY':
+              return `${day}-${month}-${year}`
+            default:
+              return `${month}/${day}/${year}`
+          }
+        
+        default:
+          return value
+      }
+    } catch (error) {
+      return value
+    }
+  }
+
+  const handleOpenFormatCellsDialog = (columnId: string) => {
+    setFormatColumnId(columnId)
+    const existingFormat = columnFormats[columnId]
+    if (existingFormat) {
+      setFormatType(existingFormat.type || 'text')
+      setNumberDecimals(existingFormat.decimals || 2)
+      setCurrencySymbol(existingFormat.currencySymbol || '$')
+      setDateFormat(existingFormat.dateFormat || 'MM/DD/YYYY')
+      setFontBold(existingFormat.bold || false)
+      setFontItalic(existingFormat.italic || false)
+      setFontUnderline(existingFormat.underline || false)
+    } else {
+      setFormatType('text')
+      setNumberDecimals(2)
+      setCurrencySymbol('$')
+      setDateFormat('MM/DD/YYYY')
+      setFontBold(false)
+      setFontItalic(false)
+      setFontUnderline(false)
+    }
+    setFormatCellsDialog(true)
+  }
+
+  const handleApplyFormatCells = async () => {
+    if (!formatColumnId) return
+    
+    const format = {
+      type: formatType,
+      decimals: numberDecimals,
+      currencySymbol,
+      dateFormat,
+      bold: fontBold,
+      italic: fontItalic,
+      underline: fontUnderline
+    }
+    
+    const updatedFormats = { ...columnFormats, [formatColumnId]: format }
+    setColumnFormats(updatedFormats)
+    
+    // Save to database
+    if (currentSheet) {
+      await (supabase as any)
+        .from('views')
+        .update({ column_formats: updatedFormats })
+        .eq('id', currentSheet.id)
+      
+      // Update local state
+      setSupabaseViews(supabaseViews.map(v => 
+        v.id === currentSheet.id ? { ...v, column_formats: updatedFormats } : v
+      ))
+    }
+    
+    setFormatCellsDialog(false)
+  }
+
   const handleOpenHighlightColumnDialog = (columnId: string) => {
     setHighlightColumnId(columnId)
     setHighlightColor(columnHighlights[columnId] || '#fef08a')
@@ -1968,6 +2098,10 @@ export default function DatasetWorkspacePage() {
                                     Sort Z → A
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleOpenFormatCellsDialog(column.id)}>
+                                    <Type className="mr-2 h-4 w-4" />
+                                    Format cells
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleOpenHighlightColumnDialog(column.id)}>
                                     <Palette className="mr-2 h-4 w-4" />
                                     Highlight column
@@ -2047,13 +2181,20 @@ export default function DatasetWorkspacePage() {
                                 >
                                   <Input
                                     type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
-                                    value={String(row[column.id] ?? '')}
+                                    value={editingCell?.rowId === row.id && editingCell?.columnId === column.id 
+                                      ? String(row[column.id] ?? '') 
+                                      : String(formatCellValue(row[column.id], column.id) ?? '')}
                                     onChange={(e) => handleUpdateCell(row.id, column.id, e.target.value)}
                                     onFocus={() => setEditingCell({ rowId: row.id, columnId: column.id })}
                                     onBlur={() => setEditingCell(null)}
                                     onKeyDown={(e: any) => handleKeyDown(e, row.id, column.id, row[column.id])}
                                     className={`border-0 focus:ring-1 focus:ring-primary bg-transparent w-full px-2 ${inputHeightClass} text-sm`}
-                                    style={{ backgroundColor: 'transparent' }}
+                                    style={{ 
+                                      backgroundColor: 'transparent',
+                                      fontWeight: columnFormats[column.id]?.bold ? 'bold' : 'normal',
+                                      fontStyle: columnFormats[column.id]?.italic ? 'italic' : 'normal',
+                                      textDecoration: columnFormats[column.id]?.underline ? 'underline' : 'none'
+                                    }}
                                     data-row-id={row.id}
                                     data-column-id={column.id}
                                   />
@@ -2552,6 +2693,156 @@ export default function DatasetWorkspacePage() {
             <Button onClick={handleApplyColumnHighlight}>
               <Palette className="h-4 w-4 mr-2" />
               Apply Highlight
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Format Cells Dialog */}
+      <Dialog open={formatCellsDialog} onOpenChange={setFormatCellsDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Format Cells</DialogTitle>
+            <DialogDescription>
+              Apply number, currency, date formatting and font styling to the entire column.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Format Type Selection */}
+            <div className="space-y-2">
+              <Label>Format Type</Label>
+              <div className="grid grid-cols-5 gap-2">
+                {['text', 'number', 'currency', 'percentage', 'date'].map((type) => (
+                  <Button
+                    key={type}
+                    variant={formatType === type ? 'default' : 'outline'}
+                    onClick={() => setFormatType(type as any)}
+                    className="capitalize"
+                  >
+                    {type}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Number Format Options */}
+            {formatType === 'number' && (
+              <div className="space-y-2">
+                <Label htmlFor="decimals">Decimal Places</Label>
+                <Input
+                  id="decimals"
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={numberDecimals}
+                  onChange={(e) => setNumberDecimals(parseInt(e.target.value) || 0)}
+                />
+                <p className="text-xs text-gray-500">Example: 1234.56</p>
+              </div>
+            )}
+
+            {/* Currency Format Options */}
+            {formatType === 'currency' && (
+              <div className="space-y-2">
+                <Label htmlFor="currency-symbol">Currency Symbol</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <select
+                      id="currency-symbol"
+                      value={currencySymbol}
+                      onChange={(e) => setCurrencySymbol(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md"
+                    >
+                      <option value="$">$ (USD)</option>
+                      <option value="€">€ (EUR)</option>
+                      <option value="£">£ (GBP)</option>
+                      <option value="¥">¥ (JPY/CNY)</option>
+                      <option value="₹">₹ (INR)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="currency-decimals">Decimal Places</Label>
+                    <Input
+                      id="currency-decimals"
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={numberDecimals}
+                      onChange={(e) => setNumberDecimals(parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">Example: {currencySymbol}1,234.56</p>
+              </div>
+            )}
+
+            {/* Percentage Format Options */}
+            {formatType === 'percentage' && (
+              <div className="space-y-2">
+                <Label htmlFor="pct-decimals">Decimal Places</Label>
+                <Input
+                  id="pct-decimals"
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={numberDecimals}
+                  onChange={(e) => setNumberDecimals(parseInt(e.target.value) || 0)}
+                />
+                <p className="text-xs text-gray-500">Example: 45.50%</p>
+              </div>
+            )}
+
+            {/* Date Format Options */}
+            {formatType === 'date' && (
+              <div className="space-y-2">
+                <Label htmlFor="date-format">Date Format</Label>
+                <select
+                  id="date-format"
+                  value={dateFormat}
+                  onChange={(e) => setDateFormat(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md"
+                >
+                  <option value="MM/DD/YYYY">MM/DD/YYYY (12/31/2024)</option>
+                  <option value="DD/MM/YYYY">DD/MM/YYYY (31/12/2024)</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD (2024-12-31)</option>
+                  <option value="DD-MM-YYYY">DD-MM-YYYY (31-12-2024)</option>
+                </select>
+              </div>
+            )}
+
+            {/* Font Styling */}
+            <div className="space-y-2">
+              <Label>Font Styling</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={fontBold ? 'default' : 'outline'}
+                  onClick={() => setFontBold(!fontBold)}
+                  className="font-bold"
+                >
+                  B
+                </Button>
+                <Button
+                  variant={fontItalic ? 'default' : 'outline'}
+                  onClick={() => setFontItalic(!fontItalic)}
+                  className="italic"
+                >
+                  I
+                </Button>
+                <Button
+                  variant={fontUnderline ? 'default' : 'outline'}
+                  onClick={() => setFontUnderline(!fontUnderline)}
+                  className="underline"
+                >
+                  U
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormatCellsDialog(false)}>Cancel</Button>
+            <Button onClick={handleApplyFormatCells}>
+              <Type className="h-4 w-4 mr-2" />
+              Apply Format
             </Button>
           </DialogFooter>
         </DialogContent>
