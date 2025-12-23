@@ -15,6 +15,13 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -54,7 +61,8 @@ import {
   EyeOff,
   ArrowUpAZ,
   ArrowDownZA,
-  Type
+  Type,
+  ListOrdered
 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -130,6 +138,11 @@ export default function DatasetWorkspacePage() {
   const [fontBold, setFontBold] = useState(false)
   const [fontItalic, setFontItalic] = useState(false)
   const [fontUnderline, setFontUnderline] = useState(false)
+  const [dropdownConfigDialog, setDropdownConfigDialog] = useState(false)
+  const [dropdownColumnId, setDropdownColumnId] = useState<string | null>(null)
+  const [dropdownOptions, setDropdownOptions] = useState<Array<{label: string, color: string}>>([])
+  const [newOptionLabel, setNewOptionLabel] = useState('')
+  const [newOptionColor, setNewOptionColor] = useState('#e5e7eb')
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [resizingColumn, setResizingColumn] = useState<string | null>(null)
   const [resizeStartX, setResizeStartX] = useState(0)
@@ -240,8 +253,16 @@ export default function DatasetWorkspacePage() {
       setColumnFormats({})
     }
     
+    // Load visible columns from database to persist hidden fields
+    if (currentSheet?.visible_columns && currentSheet.visible_columns.length > 0) {
+      setLocalVisibleColumns(currentSheet.visible_columns)
+    } else if (currentDataset?.columns) {
+      // If no visible_columns saved, show all columns
+      setLocalVisibleColumns(currentDataset.columns.map((c: any) => c.id))
+    }
+    
     // Column widths reset removed - using fixed 250px default
-  }, [currentSheet?.id])
+  }, [currentSheet?.id, currentDataset?.columns])
 
   // Reapply cell color rules when rules or sheet rows change
   useEffect(() => {
@@ -1386,6 +1407,51 @@ export default function DatasetWorkspacePage() {
     setFormatCellsDialog(false)
   }
 
+  const handleOpenDropdownConfigDialog = (columnId: string) => {
+    setDropdownColumnId(columnId)
+    const column = currentDataset?.columns.find((c: any) => c.id === columnId)
+    if (column?.dropdownOptions) {
+      setDropdownOptions(column.dropdownOptions)
+    } else {
+      setDropdownOptions([])
+    }
+    setNewOptionLabel('')
+    setNewOptionColor('#e5e7eb')
+    setDropdownConfigDialog(true)
+  }
+
+  const handleAddDropdownOption = () => {
+    if (!newOptionLabel.trim()) return
+    setDropdownOptions([...dropdownOptions, { label: newOptionLabel.trim(), color: newOptionColor }])
+    setNewOptionLabel('')
+    setNewOptionColor('#e5e7eb')
+  }
+
+  const handleRemoveDropdownOption = (index: number) => {
+    setDropdownOptions(dropdownOptions.filter((_, i) => i !== index))
+  }
+
+  const handleSaveDropdownOptions = async () => {
+    if (!dropdownColumnId || !currentDataset) return
+    
+    const updatedColumns = currentDataset.columns.map((col: any) => 
+      col.id === dropdownColumnId 
+        ? { ...col, type: 'select', dropdownOptions }
+        : col
+    )
+    
+    try {
+      await (supabase as any).from('tables').update({ 
+        columns: updatedColumns
+      }).eq('id', datasetId)
+      
+      setSupabaseDataset((prev: any) => ({ ...prev, columns: updatedColumns }))
+      setDropdownConfigDialog(false)
+    } catch (error) {
+      console.error('Error saving dropdown options:', error)
+    }
+  }
+
   const handleOpenHighlightColumnDialog = (columnId: string) => {
     setHighlightColumnId(columnId)
     setHighlightColor(columnHighlights[columnId] || '#fef08a')
@@ -2098,6 +2164,10 @@ export default function DatasetWorkspacePage() {
                                     Sort Z → A
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleOpenDropdownConfigDialog(column.id)}>
+                                    <ListOrdered className="mr-2 h-4 w-4" />
+                                    Configure dropdown
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleOpenFormatCellsDialog(column.id)}>
                                     <Type className="mr-2 h-4 w-4" />
                                     Format cells
@@ -2179,25 +2249,56 @@ export default function DatasetWorkspacePage() {
                                     backgroundColor: cellColor || (colIndex === 0 ? '' : columnHighlights[column.id] || '')
                                   }}
                                 >
-                                  <Input
-                                    type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
-                                    value={editingCell?.rowId === row.id && editingCell?.columnId === column.id 
-                                      ? String(row[column.id] ?? '') 
-                                      : String(formatCellValue(row[column.id], column.id) ?? '')}
-                                    onChange={(e) => handleUpdateCell(row.id, column.id, e.target.value)}
-                                    onFocus={() => setEditingCell({ rowId: row.id, columnId: column.id })}
-                                    onBlur={() => setEditingCell(null)}
-                                    onKeyDown={(e: any) => handleKeyDown(e, row.id, column.id, row[column.id])}
-                                    className={`border-0 focus:ring-1 focus:ring-primary bg-transparent w-full px-2 ${inputHeightClass} text-sm`}
-                                    style={{ 
-                                      backgroundColor: 'transparent',
-                                      fontWeight: columnFormats[column.id]?.bold ? 'bold' : 'normal',
-                                      fontStyle: columnFormats[column.id]?.italic ? 'italic' : 'normal',
-                                      textDecoration: columnFormats[column.id]?.underline ? 'underline' : 'none'
-                                    }}
-                                    data-row-id={row.id}
-                                    data-column-id={column.id}
-                                  />
+                                  {column.type === 'select' && column.dropdownOptions?.length > 0 ? (
+                                    <Select
+                                      value={String(row[column.id] ?? '')}
+                                      onValueChange={(value) => handleUpdateCell(row.id, column.id, value)}
+                                    >
+                                      <SelectTrigger 
+                                        className={`border-0 focus:ring-1 focus:ring-primary bg-transparent w-full h-auto ${inputHeightClass} text-sm`}
+                                        style={{
+                                          fontWeight: columnFormats[column.id]?.bold ? 'bold' : 'normal',
+                                          fontStyle: columnFormats[column.id]?.italic ? 'italic' : 'normal',
+                                          textDecoration: columnFormats[column.id]?.underline ? 'underline' : 'none'
+                                        }}
+                                      >
+                                        <SelectValue placeholder="Select..." />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {column.dropdownOptions.map((option: any, idx: number) => (
+                                          <SelectItem key={idx} value={option.label}>
+                                            <div className="flex items-center gap-2">
+                                              <div 
+                                                className="w-3 h-3 rounded" 
+                                                style={{ backgroundColor: option.color }}
+                                              />
+                                              <span>{option.label}</span>
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <Input
+                                      type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
+                                      value={editingCell?.rowId === row.id && editingCell?.columnId === column.id 
+                                        ? String(row[column.id] ?? '') 
+                                        : String(formatCellValue(row[column.id], column.id) ?? '')}
+                                      onChange={(e) => handleUpdateCell(row.id, column.id, e.target.value)}
+                                      onFocus={() => setEditingCell({ rowId: row.id, columnId: column.id })}
+                                      onBlur={() => setEditingCell(null)}
+                                      onKeyDown={(e: any) => handleKeyDown(e, row.id, column.id, row[column.id])}
+                                      className={`border-0 focus:ring-1 focus:ring-primary bg-transparent w-full px-2 ${inputHeightClass} text-sm`}
+                                      style={{ 
+                                        backgroundColor: 'transparent',
+                                        fontWeight: columnFormats[column.id]?.bold ? 'bold' : 'normal',
+                                        fontStyle: columnFormats[column.id]?.italic ? 'italic' : 'normal',
+                                        textDecoration: columnFormats[column.id]?.underline ? 'underline' : 'none'
+                                      }}
+                                      data-row-id={row.id}
+                                      data-column-id={column.id}
+                                    />
+                                  )}
                                 </td>
                               )
                             })}
@@ -2843,6 +2944,106 @@ export default function DatasetWorkspacePage() {
             <Button onClick={handleApplyFormatCells}>
               <Type className="h-4 w-4 mr-2" />
               Apply Format
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Configure Dropdown Dialog */}
+      <Dialog open={dropdownConfigDialog} onOpenChange={setDropdownConfigDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Configure Dropdown Options</DialogTitle>
+            <DialogDescription>
+              Add options for this column. Users will be able to select from these predefined values.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Existing Options */}
+            {dropdownOptions.length > 0 && (
+              <div className="space-y-2">
+                <Label>Current Options</Label>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {dropdownOptions.map((option, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+                      <div 
+                        className="w-6 h-6 rounded flex-shrink-0" 
+                        style={{ backgroundColor: option.color }}
+                      />
+                      <span className="flex-1 text-sm">{option.label}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveDropdownOption(index)}
+                        className="h-6 w-6 text-gray-400 hover:text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Add New Option */}
+            <div className="space-y-2">
+              <Label>Add New Option</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Option label"
+                  value={newOptionLabel}
+                  onChange={(e) => setNewOptionLabel(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newOptionLabel.trim()) {
+                      handleAddDropdownOption()
+                    }
+                  }}
+                  className="flex-1"
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={newOptionColor}
+                    onChange={(e) => setNewOptionColor(e.target.value)}
+                    className="w-10 h-10 rounded cursor-pointer"
+                  />
+                  <Button
+                    onClick={handleAddDropdownOption}
+                    disabled={!newOptionLabel.trim()}
+                    size="icon"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Preset colors: 
+                <span className="inline-flex gap-1 ml-2">
+                  {[
+                    { name: 'Gray', color: '#e5e7eb' },
+                    { name: 'Blue', color: '#93c5fd' },
+                    { name: 'Green', color: '#86efac' },
+                    { name: 'Yellow', color: '#fde047' },
+                    { name: 'Red', color: '#fca5a5' },
+                    { name: 'Purple', color: '#d8b4fe' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.color}
+                      onClick={() => setNewOptionColor(preset.color)}
+                      className="w-5 h-5 rounded border border-gray-300 hover:scale-110 transition-transform"
+                      style={{ backgroundColor: preset.color }}
+                      title={preset.name}
+                    />
+                  ))}
+                </span>
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDropdownConfigDialog(false)}>Cancel</Button>
+            <Button onClick={handleSaveDropdownOptions}>
+              <ListOrdered className="h-4 w-4 mr-2" />
+              Save Options
             </Button>
           </DialogFooter>
         </DialogContent>
