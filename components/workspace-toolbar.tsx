@@ -29,6 +29,7 @@ import {
   Search as SearchIcon,
   Sparkles,
   Calendar,
+  Type,
 } from 'lucide-react'
 
 interface WorkspaceToolbarProps {
@@ -52,6 +53,10 @@ interface WorkspaceToolbarProps {
   onViewDelete?: () => void
   dateRangeFilter?: { startDate: string; endDate: string; columnId: string } | null
   onDateRangeFilterChange?: (filter: { startDate: string; endDate: string; columnId: string } | null) => void
+  globalFontColor?: string
+  globalBgColor?: string
+  onGlobalFontColorChange?: (color: string) => void
+  onGlobalBgColorChange?: (color: string) => void
 }
 
 export function WorkspaceToolbar({
@@ -75,6 +80,10 @@ export function WorkspaceToolbar({
   onViewDelete,
   dateRangeFilter,
   onDateRangeFilterChange,
+  globalFontColor,
+  globalBgColor,
+  onGlobalFontColorChange,
+  onGlobalBgColorChange,
 }: WorkspaceToolbarProps) {
   const [newFilter, setNewFilter] = useState({ columnId: 'placeholder', operator: 'is', value: '' })
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false)
@@ -595,121 +604,89 @@ export function WorkspaceToolbar({
         </PopoverContent>
       </Popover>
 
-      {/* Conditional Formatting Rules */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8">
-            <Sparkles className="h-4 w-4 mr-2" />
-            Conditional Formatting
-            {filters.filter(f => f.columnId === '__conditional_format__').length > 0 && (
-              <span className="ml-1 text-xs text-primary">
-                ({filters.filter(f => f.columnId === '__conditional_format__').length})
-              </span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-96" align="start">
-          <div className="space-y-3">
-            <h4 className="font-semibold text-sm">Conditional Formatting Rules</h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Apply colors to cells based on their values
-            </p>
-            
-            {/* Current Rules */}
-            {colorRules.length > 0 && (
-              <div className="space-y-2">
-                {colorRules.map(rule => (
-                  <div key={rule.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                    <div
-                      className="w-4 h-4 rounded"
-                      style={{ backgroundColor: rule.color }}
-                    />
-                    <span className="text-sm flex-1">
-                      {columns.find(c => c.id === rule.columnId)?.name || 'Unknown'} = "{rule.value}"
-                    </span>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6"
-                      onClick={() => removeColorRule(rule.id)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add New Rule */}
-            <div className="space-y-2 pt-2 border-t">
-              <Input
-                placeholder="Search columns..."
-                value={conditionalFormattingSearch}
-                onChange={(e) => setConditionalFormattingSearch(e.target.value)}
-                className="h-8"
-              />
+      {/* Global Font & Background Settings */}
+      {onGlobalFontColorChange && onGlobalBgColorChange && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8">
+              <Type className="h-4 w-4 mr-2" />
+              Spreadsheet Style
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="start">
+            <div className="space-y-4">
+              <h4 className="font-semibold text-sm">Global Spreadsheet Style</h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Set font and background colors for the entire spreadsheet
+              </p>
               
-              <Select
-                value={newColorRule.columnId}
-                onValueChange={(v) => setNewColorRule({...newColorRule, columnId: v})}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select column" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="placeholder" disabled>Select column</SelectItem>
-                  {filteredConditionalColumns.filter(col => col.id && col.id.trim() !== '').map(col => (
-                    <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Font Color</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={globalFontColor || '#000000'}
+                      onChange={(e) => onGlobalFontColorChange?.(e.target.value)}
+                      className="w-10 h-10 rounded cursor-pointer border"
+                    />
+                    <Input
+                      placeholder="#000000"
+                      value={globalFontColor || '#000000'}
+                      onChange={(e) => onGlobalFontColorChange?.(e.target.value)}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
 
-              <Input
-                placeholder="Cell value"
-                value={newColorRule.value}
-                onChange={(e) => setNewColorRule({...newColorRule, value: e.target.value})}
-                className="h-9"
-              />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Background Color</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={globalBgColor || '#ffffff'}
+                      onChange={(e) => onGlobalBgColorChange?.(e.target.value)}
+                      className="w-10 h-10 rounded cursor-pointer border"
+                    />
+                    <Input
+                      placeholder="#ffffff"
+                      value={globalBgColor || '#ffffff'}
+                      onChange={(e) => onGlobalBgColorChange?.(e.target.value)}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
 
-              <div className="flex gap-2">
-                <input
-                  type="color"
-                  value={newColorRule.color}
-                  onChange={(e) => setNewColorRule({...newColorRule, color: e.target.value})}
-                  className="h-9 w-16 rounded border cursor-pointer"
-                />
-                <Input
-                  placeholder="#10b981"
-                  value={newColorRule.color}
-                  onChange={(e) => setNewColorRule({...newColorRule, color: e.target.value})}
-                  className="h-9 flex-1"
-                />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Preview</label>
+                  <div 
+                    className="px-3 py-2 rounded border"
+                    style={{
+                      backgroundColor: globalBgColor || '#ffffff',
+                      color: globalFontColor || '#000000'
+                    }}
+                  >
+                    Sample spreadsheet text
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      onGlobalFontColorChange?.('#000000')
+                      onGlobalBgColorChange?.('#ffffff')
+                    }}
+                    className="flex-1"
+                  >
+                    Reset to Default
+                  </Button>
+                </div>
               </div>
-
-              <Button
-                size="sm"
-                onClick={addColorRule}
-                className="w-full"
-                disabled={newColorRule.columnId === 'placeholder' || !newColorRule.value}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Rule
-              </Button>
             </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-
-      {/* Row Height Toggle */}
-      {onRowHeightChange && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8"
-          onClick={() => onRowHeightChange(currentRowHeight === 'compact' ? 'comfortable' : 'compact')}
-        >
-          {currentRowHeight === 'compact' ? 'Comfortable' : 'Compact'}
-        </Button>
+          </PopoverContent>
+        </Popover>
       )}
 
       {/* Search */}

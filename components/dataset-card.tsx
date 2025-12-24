@@ -103,11 +103,43 @@ export function DatasetCard({
     )
   }
 
-  // Calculate file size (rough estimate based on rows)
-  const estimatedSize = table.rows.length * 0.5 // KB estimate
-  const sizeDisplay = estimatedSize > 1000 
-    ? `${(estimatedSize / 1000).toFixed(1)} MB` 
-    : `${Math.round(estimatedSize)} KB`
+  // Calculate file size based on actual data content
+  const calculateDataSize = () => {
+    if (!table.rows || table.rows.length === 0) return 0
+    
+    // Estimate metadata overhead (table structure, column definitions, etc.)
+    const metadataSize = 2 // KB for table metadata
+    
+    // Sample first few rows to estimate average row size
+    const sampleSize = Math.min(10, table.rows.length)
+    let sampleTotalSize = 0
+    
+    for (let i = 0; i < sampleSize; i++) {
+      const rowString = JSON.stringify(table.rows[i])
+      sampleTotalSize += rowString.length
+    }
+    
+    // Calculate average row size in bytes
+    const avgRowSize = sampleTotalSize / sampleSize
+    
+    // Estimate total size based on all rows
+    const totalSize = avgRowSize * table.rows.length
+    
+    // Convert bytes to KB and add metadata
+    const sizeInKB = (totalSize / 1024) + metadataSize
+    return sizeInKB
+  }
+  
+  const estimatedSize = calculateDataSize()
+  const sizeDisplay = estimatedSize === 0 
+    ? '0 KB'
+    : estimatedSize > 1024 * 1024 // > 1 GB
+      ? `${(estimatedSize / (1024 * 1024)).toFixed(2)} GB`
+      : estimatedSize > 1024 // > 1 MB
+        ? `${(estimatedSize / 1024).toFixed(1)} MB` 
+        : estimatedSize < 1
+          ? `${Math.round(estimatedSize * 1024)} bytes`
+          : `${Math.round(estimatedSize)} KB`
 
   // Determine tag based on counts
   const getTag = () => {
