@@ -101,6 +101,9 @@ export default function DatasetWorkspacePage() {
   const [rowHeight, setRowHeight] = useState<'compact' | 'comfortable'>('comfortable')
   const [globalFontColor, setGlobalFontColor] = useState('#000000')
   const [globalBgColor, setGlobalBgColor] = useState('#ffffff')
+  const [globalBold, setGlobalBold] = useState(false)
+  const [globalItalic, setGlobalItalic] = useState(false)
+  const [globalUnderline, setGlobalUnderline] = useState(false)
   const [cellColors, setCellColors] = useState<Record<string, string>>({}) // { "rowId-columnId": "color" }
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowId: string; columnId: string } | null>(null)
   const [selectedRow, setSelectedRow] = useState<any | null>(null)
@@ -139,6 +142,10 @@ export default function DatasetWorkspacePage() {
   const [dateFormat, setDateFormat] = useState('MM/DD/YYYY')
   const [fontBold, setFontBold] = useState(false)
   const [fontItalic, setFontItalic] = useState(false)
+  const [renameSheetDialog, setRenameSheetDialog] = useState(false)
+  const [renameSheetName, setRenameSheetName] = useState('')
+  const [isEditingSheetName, setIsEditingSheetName] = useState(false)
+  const [editingSheetName, setEditingSheetName] = useState('')
   const [fontUnderline, setFontUnderline] = useState(false)
   const [dropdownConfigDialog, setDropdownConfigDialog] = useState(false)
   const [dropdownColumnId, setDropdownColumnId] = useState<string | null>(null)
@@ -152,6 +159,9 @@ export default function DatasetWorkspacePage() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [resizingColumn, setResizingColumn] = useState<string | null>(null)
   const [resizeStartX, setResizeStartX] = useState(0)
+  const [pastePreviewDialog, setPastePreviewDialog] = useState(false)
+  const [pastePreviewData, setPastePreviewData] = useState<any[]>([])
+  const [pasteColumnMapping, setPasteColumnMapping] = useState<Record<number, string>>({})
   const [resizeStartWidth, setResizeStartWidth] = useState(0)
 
   const [dateRangeFilter, setDateRangeFilter] = useState<{ columnId: string; startDate: string; endDate: string } | null>(null)
@@ -847,34 +857,66 @@ export default function DatasetWorkspacePage() {
       
       // Parse tab-separated or comma-separated values (from Excel/Sheets)
       const lines = text.trim().split('\n')
-      const newRows: any[] = []
+      const parsedData: any[] = []
       
       for (const line of lines) {
         // Try tab-separated first (Excel default), then comma-separated
         const values = line.includes('\t') ? line.split('\t') : line.split(',')
+        parsedData.push(values.map(v => v.trim()))
+      }
+      
+      if (parsedData.length === 0) {
+        alert('No data found in clipboard')
+        return
+      }
+      
+      // Set up default column mapping (index to column id)
+      const defaultMapping: Record<number, string> = {}
+      currentDataset.columns.forEach((col: any, index: number) => {
+        if (index < parsedData[0].length) {
+          defaultMapping[index] = col.id
+        }
+      })
+      
+      // Show preview dialog
+      setPastePreviewData(parsedData)
+      setPasteColumnMapping(defaultMapping)
+      setPastePreviewDialog(true)
+    } catch (error) {
+      console.error('Error pasting from clipboard:', error)
+      alert('Failed to paste from clipboard. Make sure you have copied data from Excel or a spreadsheet.')
+    }
+  }
+
+  const handleConfirmPaste = async () => {
+    if (!currentDataset || !currentSheet) return
+    
+    try {
+      const newRows: any[] = []
+      
+      for (const rowData of pastePreviewData) {
         const newRow: any = { id: crypto.randomUUID() }
         
-        // Map values to columns
-        currentDataset.columns.forEach((col: any, index: number) => {
-          newRow[col.id] = values[index]?.trim() || ''
+        // Map values using the column mapping
+        Object.entries(pasteColumnMapping).forEach(([dataIndex, columnId]) => {
+          const value = rowData[parseInt(dataIndex)]
+          if (value !== undefined) {
+            newRow[columnId] = value
+          }
         })
         
         newRows.push(newRow)
-      }
-      
-      if (newRows.length === 0) {
-        alert('No data found in clipboard')
-        return
       }
       
       const updatedRows = [...(currentSheet.rows || []), ...newRows]
       await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
       updateSupabaseView(currentSheet.id, { rows: updatedRows })
       
+      setPastePreviewDialog(false)
       alert(`Successfully added ${newRows.length} row(s) from clipboard!`)
     } catch (error) {
-      console.error('Error pasting from clipboard:', error)
-      alert('Failed to paste from clipboard. Make sure you have copied data from Excel or a spreadsheet.')
+      console.error('Error confirming paste:', error)
+      alert('Failed to paste data')
     }
   }
 
@@ -1897,15 +1939,62 @@ export default function DatasetWorkspacePage() {
               <div className="flex items-center gap-2">
                 {/* Sheet Selector */}
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="min-w-[180px] justify-between">
-                      <span className="flex items-center gap-2">
-                        {currentSheet && getSheetIcon(currentSheet.type)}
-                        <span className="text-sm">{currentSheet?.name || 'Select Sheet'}</span>
-                      </span>
-                      <ChevronDown className="h-4 w-4 ml-2" />
-                    </Button>
-                  </DropdownMenuTrigger>
+                  {isEditingSheetName ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={editingSheetName}
+                        onChange={(e) => setEditingSheetName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && editingSheetName.trim() && currentSheet) {
+                            handleRenameSheet(currentSheet.id, editingSheetName.trim())
+                            setIsEditingSheetName(false)
+                          }
+                          if (e.key === 'Escape') {
+                            setIsEditingSheetName(false)
+                          }
+                        }}
+                        onBlur={() => {
+                          if (editingSheetName.trim() && currentSheet && editingSheetName !== currentSheet.name) {
+                            handleRenameSheet(currentSheet.id, editingSheetName.trim())
+                          }
+                          setIsEditingSheetName(false)
+                        }}
+                        className="h-8 text-sm w-[180px]"
+                        autoFocus
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          if (editingSheetName.trim() && currentSheet) {
+                            handleRenameSheet(currentSheet.id, editingSheetName.trim())
+                          }
+                          setIsEditingSheetName(false)
+                        }}
+                        className="h-8 w-8"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setIsEditingSheetName(false)}
+                        className="h-8 w-8"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="min-w-[180px] justify-between">
+                        <span className="flex items-center gap-2">
+                          {currentSheet && getSheetIcon(currentSheet.type)}
+                          <span className="text-sm">{currentSheet?.name || 'Select Sheet'}</span>
+                        </span>
+                        <ChevronDown className="h-4 w-4 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  )}
                   <DropdownMenuContent align="start" className="w-[220px]">
                     {datasetSheets.map(sheet => (
                       <DropdownMenuItem 
@@ -1926,10 +2015,8 @@ export default function DatasetWorkspacePage() {
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation()
-                            const name = window.prompt('Rename sheet', currentSheet.name)
-                            if (name && name !== currentSheet.name) {
-                              handleRenameSheet(currentSheet.id, name)
-                            }
+                            setEditingSheetName(currentSheet.name)
+                            setIsEditingSheetName(true)
                           }}
                         >
                           <Edit className="h-4 w-4 mr-2" />
@@ -2064,8 +2151,8 @@ export default function DatasetWorkspacePage() {
               rowHeight={rowHeight}
               onRowHeightChange={setRowHeight}
               onViewRename={currentSheet ? () => {
-                const name = window.prompt('Rename view', currentSheet.name)
-                if (name && name !== currentSheet.name) handleRenameSheet(currentSheet.id, name)
+                setRenameSheetName(currentSheet.name)
+                setRenameSheetDialog(true)
               } : undefined}
               onViewDuplicate={currentSheet ? () => handleDuplicateSheet(currentSheet.id) : undefined}
               onViewDelete={currentSheet ? () => handleDeleteSheet(currentSheet.id) : undefined}
@@ -2075,6 +2162,12 @@ export default function DatasetWorkspacePage() {
               globalBgColor={globalBgColor}
               onGlobalFontColorChange={setGlobalFontColor}
               onGlobalBgColorChange={setGlobalBgColor}
+              globalBold={globalBold}
+              globalItalic={globalItalic}
+              globalUnderline={globalUnderline}
+              onGlobalBoldChange={setGlobalBold}
+              onGlobalItalicChange={setGlobalItalic}
+              onGlobalUnderlineChange={setGlobalUnderline}
             />
           )}
 
@@ -2268,7 +2361,10 @@ export default function DatasetWorkspacePage() {
                                     width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : 'auto',
                                     minWidth: '180px',
                                     backgroundColor: cellColor || columnHighlights[column.id] || globalBgColor,
-                                    color: globalFontColor
+                                    color: globalFontColor,
+                                    fontWeight: globalBold ? 'bold' : 'normal',
+                                    fontStyle: globalItalic ? 'italic' : 'normal',
+                                    textDecoration: globalUnderline ? 'underline' : 'none'
                                   }}
                                 >
                                   {column.type === 'select' && column.dropdownOptions?.length > 0 ? (
@@ -3184,6 +3280,138 @@ export default function DatasetWorkspacePage() {
             <Button onClick={handleSaveDropdownOptions}>
               <ListOrdered className="h-4 w-4 mr-2" />
               Save Options
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Paste Preview Dialog */}
+      <Dialog open={pastePreviewDialog} onOpenChange={setPastePreviewDialog}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Paste {pastePreviewData.length} Row(s)</DialogTitle>
+            <DialogDescription>
+              Review and edit your data before pasting. Each row will be added to your table.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto space-y-3">
+            {/* Info banner */}
+            <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <ClipboardPaste className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div>
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Pasting {pastePreviewData.length} row(s) into your table
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Edit any data values below before pasting
+                </p>
+              </div>
+            </div>
+
+            {/* Table preview with editable data cells */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-r w-20">
+                        Row #
+                      </th>
+                      {currentDataset?.columns.map((col: any) => (
+                        <th key={col.id} className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 border-b border-r min-w-[150px]">
+                          {col.name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pastePreviewData.map((row: any[], rowIndex: number) => {
+                      const currentRowCount = currentSheet?.rows?.length || 0
+                      const newRowNumber = currentRowCount + rowIndex + 1
+                      return (
+                        <tr key={rowIndex} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 border-b">
+                          <td className="px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-400 border-r bg-gray-50 dark:bg-gray-800/50">
+                            {newRowNumber}
+                          </td>
+                          {currentDataset?.columns.map((col: any, colIndex: number) => {
+                            const cellValue = row[colIndex] || ''
+                            return (
+                              <td key={col.id} className="px-2 py-1 border-r">
+                                <Input
+                                  value={cellValue}
+                                  onChange={(e) => {
+                                    const newData = [...pastePreviewData]
+                                    newData[rowIndex][colIndex] = e.target.value
+                                    setPastePreviewData(newData)
+                                  }}
+                                  className="h-8 text-sm border-0 focus:ring-1 focus:ring-primary bg-white dark:bg-gray-900"
+                                  placeholder="empty"
+                                />
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPastePreviewDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmPaste}>
+              <Check className="h-4 w-4 mr-2" />
+              Paste {pastePreviewData.length} Row(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Sheet Dialog */}
+      <Dialog open={renameSheetDialog} onOpenChange={setRenameSheetDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Sheet</DialogTitle>
+            <DialogDescription>
+              Enter a new name for this sheet
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              value={renameSheetName}
+              onChange={(e) => setRenameSheetName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && renameSheetName.trim() && currentSheet) {
+                  handleRenameSheet(currentSheet.id, renameSheetName.trim())
+                  setRenameSheetDialog(false)
+                }
+                if (e.key === 'Escape') {
+                  setRenameSheetDialog(false)
+                }
+              }}
+              placeholder="Sheet name"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameSheetDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (renameSheetName.trim() && currentSheet) {
+                  handleRenameSheet(currentSheet.id, renameSheetName.trim())
+                  setRenameSheetDialog(false)
+                }
+              }}
+              disabled={!renameSheetName.trim()}
+            >
+              Rename
             </Button>
           </DialogFooter>
         </DialogContent>

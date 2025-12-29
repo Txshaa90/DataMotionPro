@@ -30,6 +30,9 @@ import {
   Sparkles,
   Calendar,
   Type,
+  Bold,
+  Italic,
+  Underline,
 } from 'lucide-react'
 
 interface WorkspaceToolbarProps {
@@ -57,6 +60,12 @@ interface WorkspaceToolbarProps {
   globalBgColor?: string
   onGlobalFontColorChange?: (color: string) => void
   onGlobalBgColorChange?: (color: string) => void
+  globalBold?: boolean
+  globalItalic?: boolean
+  globalUnderline?: boolean
+  onGlobalBoldChange?: (bold: boolean) => void
+  onGlobalItalicChange?: (italic: boolean) => void
+  onGlobalUnderlineChange?: (underline: boolean) => void
 }
 
 export function WorkspaceToolbar({
@@ -84,6 +93,12 @@ export function WorkspaceToolbar({
   globalBgColor,
   onGlobalFontColorChange,
   onGlobalBgColorChange,
+  globalBold,
+  globalItalic,
+  globalUnderline,
+  onGlobalBoldChange,
+  onGlobalItalicChange,
+  onGlobalUnderlineChange,
 }: WorkspaceToolbarProps) {
   const [newFilter, setNewFilter] = useState({ columnId: 'placeholder', operator: 'is', value: '' })
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false)
@@ -613,14 +628,46 @@ export function WorkspaceToolbar({
               Spreadsheet Style
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80" align="start">
+          <PopoverContent className="w-80 max-h-[80vh] overflow-y-auto" align="start">
             <div className="space-y-4">
               <h4 className="font-semibold text-sm">Global Spreadsheet Style</h4>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Set font and background colors for the entire spreadsheet
+                Set font, background colors, and text formatting for the entire spreadsheet
               </p>
               
               <div className="space-y-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Text Formatting</label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={globalBold ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => onGlobalBoldChange?.(!globalBold)}
+                      className="flex-1"
+                    >
+                      <Bold className="h-4 w-4 mr-1" />
+                      Bold
+                    </Button>
+                    <Button
+                      variant={globalItalic ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => onGlobalItalicChange?.(!globalItalic)}
+                      className="flex-1"
+                    >
+                      <Italic className="h-4 w-4 mr-1" />
+                      Italic
+                    </Button>
+                    <Button
+                      variant={globalUnderline ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => onGlobalUnderlineChange?.(!globalUnderline)}
+                      className="flex-1"
+                    >
+                      <Underline className="h-4 w-4 mr-1" />
+                      Underline
+                    </Button>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Font Color</label>
                   <div className="flex gap-2">
@@ -663,7 +710,10 @@ export function WorkspaceToolbar({
                     className="px-3 py-2 rounded border"
                     style={{
                       backgroundColor: globalBgColor || '#ffffff',
-                      color: globalFontColor || '#000000'
+                      color: globalFontColor || '#000000',
+                      fontWeight: globalBold ? 'bold' : 'normal',
+                      fontStyle: globalItalic ? 'italic' : 'normal',
+                      textDecoration: globalUnderline ? 'underline' : 'none'
                     }}
                   >
                     Sample spreadsheet text
@@ -677,6 +727,9 @@ export function WorkspaceToolbar({
                     onClick={() => {
                       onGlobalFontColorChange?.('#000000')
                       onGlobalBgColorChange?.('#ffffff')
+                      onGlobalBoldChange?.(false)
+                      onGlobalItalicChange?.(false)
+                      onGlobalUnderlineChange?.(false)
                     }}
                     className="flex-1"
                   >
