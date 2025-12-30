@@ -204,32 +204,13 @@ export function ImportDataDialog({
           if (value instanceof Date) {
             value = value.toISOString().split('T')[0] // YYYY-MM-DD
           }
-          // Handle formula cells - extract the calculated result
-          else if (value && typeof value === 'object') {
-            // Formula with result
-            if ('result' in value) {
-              value = (value as any).result
-              // If result is also a date, format it
-              if (value instanceof Date) {
-                value = value.toISOString().split('T')[0]
-              }
-            }
-            // Formula with error (e.g., #REF!, #VALUE!)
-            else if ('error' in value) {
-              value = '' // Set to empty for error formulas
-            }
-            // Rich text
-            else if ('richText' in value) {
-              value = (value as any).richText.map((t: any) => t.text).join('')
-            }
-            // Hyperlink
-            else if ('text' in value && 'hyperlink' in value) {
-              value = (value as any).text
-            }
-            // Other object types - try to stringify
-            else {
-              value = String(value)
-            }
+          // Handle formula results
+          else if (value && typeof value === 'object' && 'result' in value) {
+            value = (value as any).result
+          }
+          // Handle rich text
+          else if (value && typeof value === 'object' && 'richText' in value) {
+            value = (value as any).richText.map((t: any) => t.text).join('')
           }
           
           cellValues[header] = value
