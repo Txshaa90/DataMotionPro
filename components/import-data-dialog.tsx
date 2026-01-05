@@ -483,7 +483,12 @@ export function ImportDataDialog({
     setError(null)
 
     try {
-      const userId = '0aebc03e-defa-465d-ac65-b6c15806fd26' // TODO: Get from auth context
+      // Get actual authenticated user ID
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        throw new Error('You must be logged in to import data')
+      }
+      const userId = user.id
 
       if (selectedSource === 'excel' && selectedExcelSheets.length > 0) {
         // Multi-sheet Excel import using ExcelJS
