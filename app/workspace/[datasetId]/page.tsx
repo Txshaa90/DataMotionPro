@@ -1843,6 +1843,14 @@ export default function DatasetWorkspacePage() {
   
   // Final visible columns computed
 
+  // Enrich sheets with their rows from cache for reports
+  const sheetsWithRows = useMemo(() => {
+    return datasetSheets.map(sheet => ({
+      ...sheet,
+      rows: sheetRowsCache[sheet.id] || sheet.rows || []
+    }))
+  }, [datasetSheets, sheetRowsCache])
+
   const baseRows = (() => {
     if (currentSheet?.type === 'chart') {
       const firstGridView = datasetSheets.find(s => s.type === 'grid')
@@ -2281,7 +2289,7 @@ export default function DatasetWorkspacePage() {
               <ProfitabilityReport
                 columns={currentDataset.columns || []}
                 rows={baseRows || []}
-                sheets={datasetSheets}
+                sheets={sheetsWithRows}
               />
             </div>
           ) : currentSheet?.type === 'dashboard' ? (
