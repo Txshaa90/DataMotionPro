@@ -296,7 +296,13 @@ export default function DatasetWorkspacePage() {
           await Promise.all(
             viewsData.map(async (view: any) => {
               const rows = await fetchSheetRows(view.id)
-              rowsCache[view.id] = rows
+              // Fallback to views.rows if sheet_rows is empty (for legacy/shared datasets)
+              if (rows.length === 0 && view.rows && Array.isArray(view.rows) && view.rows.length > 0) {
+                console.log(`📋 Using fallback rows from views.rows for view ${view.id}: ${view.rows.length} rows`)
+                rowsCache[view.id] = view.rows
+              } else {
+                rowsCache[view.id] = rows
+              }
             })
           )
           console.log('📦 Rows cache populated:', Object.keys(rowsCache).map(k => `${k}: ${rowsCache[k].length} rows`))
