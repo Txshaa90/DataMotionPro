@@ -209,11 +209,22 @@ export default function DatasetWorkspacePage() {
   const fetchSheetRows = async (viewId: string): Promise<any[]> => {
     try {
       console.log(`🔍 Fetching rows for view: ${viewId}`)
+      
+      // First, get the count to know how many rows to fetch
+      const { count } = await (supabase as any)
+        .from('sheet_rows')
+        .select('*', { count: 'exact', head: true })
+        .eq('view_id', viewId)
+      
+      console.log(`📊 Total rows in database: ${count}`)
+      
+      // Fetch all rows with increased limit (Supabase default is 1000)
       const { data, error } = await (supabase as any)
         .from('sheet_rows')
         .select('row_data, row_index')
         .eq('view_id', viewId)
         .order('row_index', { ascending: true })
+        .limit(100000) // Set high limit to get all rows
       
       if (error) {
         console.error('❌ Error fetching sheet rows:', error)
