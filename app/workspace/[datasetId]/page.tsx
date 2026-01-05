@@ -205,6 +205,14 @@ export default function DatasetWorkspacePage() {
   const datasetSheets = supabaseViews.length > 0 ? supabaseViews : getViewsByTable(datasetId)
   const currentSheet = datasetSheets.find(s => s.id === activeSheetId) || datasetSheets[0]
 
+  // Enrich sheets with their rows from cache for reports
+  const sheetsWithRows = useMemo(() => {
+    return datasetSheets.map(sheet => ({
+      ...sheet,
+      rows: sheetRowsCache[sheet.id] || sheet.rows || []
+    }))
+  }, [datasetSheets, sheetRowsCache])
+
   // Helper function to fetch rows from sheet_rows table
   const fetchSheetRows = async (viewId: string): Promise<any[]> => {
     try {
@@ -1842,14 +1850,6 @@ export default function DatasetWorkspacePage() {
   }
   
   // Final visible columns computed
-
-  // Enrich sheets with their rows from cache for reports
-  const sheetsWithRows = useMemo(() => {
-    return datasetSheets.map(sheet => ({
-      ...sheet,
-      rows: sheetRowsCache[sheet.id] || sheet.rows || []
-    }))
-  }, [datasetSheets, sheetRowsCache])
 
   const baseRows = (() => {
     if (currentSheet?.type === 'chart') {
