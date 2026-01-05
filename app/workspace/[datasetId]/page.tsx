@@ -86,9 +86,11 @@ export default function DatasetWorkspacePage() {
   
   const [activeSheetId, setActiveSheetId] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [iconSidebarCollapsed, setIconSidebarCollapsed] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [sheetRowsCache, setSheetRowsCache] = useState<{ [viewId: string]: any[] }>({})
   const [supabaseDataset, setSupabaseDataset] = useState<any>(null)
   const [supabaseViews, setSupabaseViews] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
 
@@ -203,6 +205,27 @@ export default function DatasetWorkspacePage() {
   const datasetSheets = supabaseViews.length > 0 ? supabaseViews : getViewsByTable(datasetId)
   const currentSheet = datasetSheets.find(s => s.id === activeSheetId) || datasetSheets[0]
 
+  // Helper function to fetch rows from sheet_rows table
+  const fetchSheetRows = async (viewId: string): Promise<any[]> => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('sheet_rows')
+        .select('row_data, row_index')
+        .eq('view_id', viewId)
+        .order('row_index', { ascending: true })
+      
+      if (error) {
+        console.error('Error fetching sheet rows:', error)
+        return []
+      }
+      
+      return data?.map((r: any) => r.row_data) || []
+    } catch (error) {
+      console.error('Error fetching sheet rows:', error)
+      return []
+    }
+  }
+
   useEffect(() => {
     async function fetchData() {
       if (!datasetId) return
@@ -213,8 +236,6 @@ export default function DatasetWorkspacePage() {
           .select('*')
           .eq('id', datasetId)
           .single()
-        
-        // Dataset fetch logging removed
         
         if (datasetError) throw datasetError
 
@@ -227,9 +248,21 @@ export default function DatasetWorkspacePage() {
         setSupabaseDataset(datasetData)
         setSupabaseViews(viewsData || [])
         
-        if (viewsData && viewsData.length > 0 && !activeSheetId) {
-          setActiveSheetId(viewsData[0].id)
-          setActiveView(viewsData[0].id)
+        // Fetch rows for all views from sheet_rows table
+        if (viewsData && viewsData.length > 0) {
+          const rowsCache: { [viewId: string]: any[] } = {}
+          await Promise.all(
+            viewsData.map(async (view: any) => {
+              const rows = await fetchSheetRows(view.id)
+              rowsCache[view.id] = rows
+            })
+          )
+          setSheetRowsCache(rowsCache)
+          
+          if (!activeSheetId) {
+            setActiveSheetId(viewsData[0].id)
+            setActiveView(viewsData[0].id)
+          }
         }
       } catch (error) {
         console.error('Error fetching dataset:', error)
@@ -1778,9 +1811,9 @@ export default function DatasetWorkspacePage() {
   const baseRows = (() => {
     if (currentSheet?.type === 'chart') {
       const firstGridView = datasetSheets.find(s => s.type === 'grid')
-      return firstGridView?.rows || currentDataset.rows || []
+      return sheetRowsCache[firstGridView?.id || ''] || firstGridView?.rows || currentDataset.rows || []
     }
-    return currentSheet?.rows || currentDataset.rows || []
+    return sheetRowsCache[currentSheet?.id || ''] || currentSheet?.rows || currentDataset.rows || []
   })()
 
   const getFilteredRows = () => {
