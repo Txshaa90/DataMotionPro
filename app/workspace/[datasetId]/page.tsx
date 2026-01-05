@@ -2570,7 +2570,19 @@ export default function DatasetWorkspacePage() {
         sheetId={currentSheet?.id || ''}
         onImportComplete={async () => {
           const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId)
-          if (viewsData) setSupabaseViews(viewsData)
+          if (viewsData) {
+            setSupabaseViews(viewsData)
+            
+            // Refetch rows for all views from sheet_rows table
+            const rowsCache: { [viewId: string]: any[] } = {}
+            await Promise.all(
+              viewsData.map(async (view: any) => {
+                const rows = await fetchSheetRows(view.id)
+                rowsCache[view.id] = rows
+              })
+            )
+            setSheetRowsCache(rowsCache)
+          }
           setImportDialogOpen(false)
         }}
       />
