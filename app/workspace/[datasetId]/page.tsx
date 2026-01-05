@@ -208,6 +208,7 @@ export default function DatasetWorkspacePage() {
   // Helper function to fetch rows from sheet_rows table
   const fetchSheetRows = async (viewId: string): Promise<any[]> => {
     try {
+      console.log(`🔍 Fetching rows for view: ${viewId}`)
       const { data, error } = await (supabase as any)
         .from('sheet_rows')
         .select('row_data, row_index')
@@ -215,13 +216,15 @@ export default function DatasetWorkspacePage() {
         .order('row_index', { ascending: true })
       
       if (error) {
-        console.error('Error fetching sheet rows:', error)
+        console.error('❌ Error fetching sheet rows:', error)
         return []
       }
       
-      return data?.map((r: any) => r.row_data) || []
+      const rows = data?.map((r: any) => r.row_data) || []
+      console.log(`✅ Fetched ${rows.length} rows for view ${viewId}`)
+      return rows
     } catch (error) {
-      console.error('Error fetching sheet rows:', error)
+      console.error('❌ Error fetching sheet rows:', error)
       return []
     }
   }
@@ -250,6 +253,7 @@ export default function DatasetWorkspacePage() {
         
         // Fetch rows for all views from sheet_rows table
         if (viewsData && viewsData.length > 0) {
+          console.log(`📊 Fetching rows for ${viewsData.length} views`)
           const rowsCache: { [viewId: string]: any[] } = {}
           await Promise.all(
             viewsData.map(async (view: any) => {
@@ -257,6 +261,7 @@ export default function DatasetWorkspacePage() {
               rowsCache[view.id] = rows
             })
           )
+          console.log('📦 Rows cache populated:', Object.keys(rowsCache).map(k => `${k}: ${rowsCache[k].length} rows`))
           setSheetRowsCache(rowsCache)
           
           if (!activeSheetId) {
@@ -1811,9 +1816,14 @@ export default function DatasetWorkspacePage() {
   const baseRows = (() => {
     if (currentSheet?.type === 'chart') {
       const firstGridView = datasetSheets.find(s => s.type === 'grid')
-      return sheetRowsCache[firstGridView?.id || ''] || firstGridView?.rows || currentDataset.rows || []
+      const rows = sheetRowsCache[firstGridView?.id || ''] || firstGridView?.rows || currentDataset.rows || []
+      console.log(`📊 baseRows (chart): ${rows.length} rows from cache/fallback`)
+      return rows
     }
-    return sheetRowsCache[currentSheet?.id || ''] || currentSheet?.rows || currentDataset.rows || []
+    const rows = sheetRowsCache[currentSheet?.id || ''] || currentSheet?.rows || currentDataset.rows || []
+    console.log(`📊 baseRows (${currentSheet?.type}): ${rows.length} rows from cache/fallback for sheet ${currentSheet?.id}`)
+    console.log(`📦 Current cache keys:`, Object.keys(sheetRowsCache))
+    return rows
   })()
 
   const getFilteredRows = () => {
@@ -2569,8 +2579,10 @@ export default function DatasetWorkspacePage() {
         datasetId={datasetId}
         sheetId={currentSheet?.id || ''}
         onImportComplete={async () => {
+          console.log('🔄 Import complete, refetching data...')
           const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId)
           if (viewsData) {
+            console.log(`📋 Found ${viewsData.length} views after import`)
             setSupabaseViews(viewsData)
             
             // Refetch rows for all views from sheet_rows table
@@ -2581,6 +2593,7 @@ export default function DatasetWorkspacePage() {
                 rowsCache[view.id] = rows
               })
             )
+            console.log('📦 Import complete - cache updated:', Object.keys(rowsCache).map(k => `${k}: ${rowsCache[k].length} rows`))
             setSheetRowsCache(rowsCache)
           }
           setImportDialogOpen(false)
