@@ -27,6 +27,46 @@ export function ImportDataDialog({
   sheetId,
   onImportComplete 
 }: ImportDataDialogProps) {
+  const BATCH_SIZE = 300 // Optimal batch size for Supabase
+  
+  // Helper function for chunked batch inserts
+  const insertRowsInBatches = async (rows: any[], viewId: string, onProgress?: (current: number, total: number) => void) => {
+    const totalBatches = Math.ceil(rows.length / BATCH_SIZE)
+    
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+      const batch = rows.slice(i, i + BATCH_SIZE)
+      const currentBatch = Math.floor(i / BATCH_SIZE) + 1
+      
+      // Update progress if callback provided
+      if (onProgress) {
+        onProgress(currentBatch, totalBatches)
+      }
+      
+      // Get existing rows from the view
+      const { data: viewData, error: fetchError } = await (supabase as any)
+        .from('views')
+        .select('rows')
+        .eq('id', viewId)
+        .single()
+      
+      if (fetchError) throw fetchError
+      
+      const existingRows = viewData?.rows || []
+      const updatedRows = [...existingRows, ...batch]
+      
+      // Update view with new batch
+      const { error: updateError } = await (supabase as any)
+        .from('views')
+        .update({ rows: updatedRows })
+        .eq('id', viewId)
+      
+      if (updateError) throw updateError
+      
+      // Small delay to prevent overwhelming Supabase
+      await new Promise(resolve => setTimeout(resolve, 150))
+    }
+  }
+  
   const [selectedSource, setSelectedSource] = useState<ImportSource>(null)
   const [file, setFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
@@ -34,7 +74,7 @@ export function ImportDataDialog({
   const [excelSheets, setExcelSheets] = useState<string[]>([])
   const [selectedExcelSheets, setSelectedExcelSheets] = useState<string[]>([])
   const [showSheetSelector, setShowSheetSelector] = useState(false)
-  const [importProgress, setImportProgress] = useState<{ current: number; total: number; sheetName?: string; rowCount?: number } | null>(null)
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number; sheetName: string; rowCount: number; batchInfo?: { current: number; total: number } } | null>(null)
 
   const importSources = [
     {
@@ -521,7 +561,7 @@ export function ImportDataDialog({
           console.log(`📋 Columns for "${sheetName}":`, columnIds)
           console.log(`📊 Sample row:`, rows[0])
           
-          // Create new sheet for each Excel sheet
+          // Create new sheet for each Excel sheet (initially empty)
           const { data: insertedData, error: insertError } = await (supabase as any)
             .from('views')
             .insert({
@@ -534,7 +574,7 @@ export function ImportDataDialog({
               sorts: [],
               color_rules: [],
               group_by: null,
-              rows: rows
+              rows: [] // Start with empty rows
             })
             .select()
           
@@ -542,6 +582,20 @@ export function ImportDataDialog({
             console.error(`❌ Error creating sheet "${sheetName}":`, insertError)
             throw new Error(`Failed to import sheet "${sheetName}": ${insertError.message}`)
           }
+          
+          const viewId = insertedData[0].id
+          console.log(`✅ Sheet "${sheetName}" created, now importing ${rows.length} rows in batches...`)
+          
+          // Import rows in batches to avoid Supabase limits
+          await insertRowsInBatches(rows, viewId, (currentBatch, totalBatches) => {
+            setImportProgress({ 
+              current: i + 1, 
+              total: totalSheets, 
+              sheetName, 
+              rowCount: rows.length,
+              batchInfo: { current: currentBatch, total: totalBatches }
+            })
+          })
           
           console.log(`✅ Sheet "${sheetName}" imported successfully with ${rows.length} rows`)
           
@@ -639,7 +693,7 @@ export function ImportDataDialog({
           rowCount: importedRows.length 
         })
 
-        // Create a new sheet for the imported data
+        // Create a new sheet for the imported data (initially empty)
         const sheetName = file.name.replace(/\.(csv|json)$/i, '') || 'Imported Data'
         
         const { data: insertedData, error: insertError } = await (supabase as any)
@@ -654,7 +708,7 @@ export function ImportDataDialog({
             sorts: [],
             color_rules: [],
             group_by: null,
-            rows: importedRows
+            rows: [] // Start with empty rows
           })
           .select()
 
@@ -663,7 +717,21 @@ export function ImportDataDialog({
           throw new Error(`Failed to import data: ${insertError.message}`)
         }
         
-        console.log(`✅ Sheet "${sheetName}" created successfully with ${importedRows.length} rows`)
+        const viewId = insertedData[0].id
+        console.log(`✅ Sheet "${sheetName}" created, now importing ${importedRows.length} rows in batches...`)
+        
+        // Import rows in batches to avoid Supabase limits
+        await insertRowsInBatches(importedRows, viewId, (currentBatch, totalBatches) => {
+          setImportProgress({ 
+            current: 3, 
+            total: 3, 
+            sheetName: file.name, 
+            rowCount: importedRows.length,
+            batchInfo: { current: currentBatch, total: totalBatches }
+          })
+        })
+        
+        console.log(`✅ Sheet "${sheetName}" imported successfully with ${importedRows.length} rows`)
       }
 
       // Success
@@ -840,6 +908,11 @@ export function ImportDataDialog({
                     {importProgress && (
                       <div className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                         {importProgress.rowCount?.toLocaleString() || 0} rows • Step {importProgress.current} of {importProgress.total}
+                        {importProgress.batchInfo && (
+                          <span className="ml-2">
+                            • Batch {importProgress.batchInfo.current} of {importProgress.batchInfo.total}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
