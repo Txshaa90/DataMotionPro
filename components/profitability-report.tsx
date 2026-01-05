@@ -201,27 +201,27 @@ export default function ProfitabilityReport({ columns, rows, sheets }: Profitabi
     // NET MARGINS SECTION
     // Calculate totals for each period
     const totalSalesByPeriod = {
-      ytd: Object.values(calculateMetrics.ytd.sales).reduce((sum: number, val: number) => sum + val, 0),
-      lastMonth: Object.values(calculateMetrics.lastMonth.sales).reduce((sum: number, val: number) => sum + val, 0),
-      mtd: Object.values(calculateMetrics.mtd.sales).reduce((sum: number, val: number) => sum + val, 0),
-      thisWeek: Object.values(calculateMetrics.thisWeek.sales).reduce((sum: number, val: number) => sum + val, 0),
-      lastWeek: Object.values(calculateMetrics.lastWeek.sales).reduce((sum: number, val: number) => sum + val, 0)
+      ytd: (Object.values(calculateMetrics.ytd.sales) as number[]).reduce((sum, val) => sum + val, 0),
+      lastMonth: (Object.values(calculateMetrics.lastMonth.sales) as number[]).reduce((sum, val) => sum + val, 0),
+      mtd: (Object.values(calculateMetrics.mtd.sales) as number[]).reduce((sum, val) => sum + val, 0),
+      thisWeek: (Object.values(calculateMetrics.thisWeek.sales) as number[]).reduce((sum, val) => sum + val, 0),
+      lastWeek: (Object.values(calculateMetrics.lastWeek.sales) as number[]).reduce((sum, val) => sum + val, 0)
     }
 
     const totalReturnsByPeriod = {
-      ytd: Object.values(calculateMetrics.ytd.returns).reduce((sum: number, val: number) => sum + val, 0),
-      lastMonth: Object.values(calculateMetrics.lastMonth.returns).reduce((sum: number, val: number) => sum + val, 0),
-      mtd: Object.values(calculateMetrics.mtd.returns).reduce((sum: number, val: number) => sum + val, 0),
-      thisWeek: Object.values(calculateMetrics.thisWeek.returns).reduce((sum: number, val: number) => sum + val, 0),
-      lastWeek: Object.values(calculateMetrics.lastWeek.returns).reduce((sum: number, val: number) => sum + val, 0)
+      ytd: (Object.values(calculateMetrics.ytd.returns) as number[]).reduce((sum, val) => sum + val, 0),
+      lastMonth: (Object.values(calculateMetrics.lastMonth.returns) as number[]).reduce((sum, val) => sum + val, 0),
+      mtd: (Object.values(calculateMetrics.mtd.returns) as number[]).reduce((sum, val) => sum + val, 0),
+      thisWeek: (Object.values(calculateMetrics.thisWeek.returns) as number[]).reduce((sum, val) => sum + val, 0),
+      lastWeek: (Object.values(calculateMetrics.lastWeek.returns) as number[]).reduce((sum, val) => sum + val, 0)
     }
 
     const totalFeesByPeriod = {
-      ytd: Object.values(calculateMetrics.ytd.fees).reduce((sum: number, val: number) => sum + val, 0),
-      lastMonth: Object.values(calculateMetrics.lastMonth.fees).reduce((sum: number, val: number) => sum + val, 0),
-      mtd: Object.values(calculateMetrics.mtd.fees).reduce((sum: number, val: number) => sum + val, 0),
-      thisWeek: Object.values(calculateMetrics.thisWeek.fees).reduce((sum: number, val: number) => sum + val, 0),
-      lastWeek: Object.values(calculateMetrics.lastWeek.fees).reduce((sum: number, val: number) => sum + val, 0)
+      ytd: (Object.values(calculateMetrics.ytd.fees) as number[]).reduce((sum, val) => sum + val, 0),
+      lastMonth: (Object.values(calculateMetrics.lastMonth.fees) as number[]).reduce((sum, val) => sum + val, 0),
+      mtd: (Object.values(calculateMetrics.mtd.fees) as number[]).reduce((sum, val) => sum + val, 0),
+      thisWeek: (Object.values(calculateMetrics.thisWeek.fees) as number[]).reduce((sum, val) => sum + val, 0),
+      lastWeek: (Object.values(calculateMetrics.lastWeek.fees) as number[]).reduce((sum, val) => sum + val, 0)
     }
 
     // 20% Projection
@@ -339,11 +339,11 @@ export default function ProfitabilityReport({ columns, rows, sheets }: Profitabi
 
     // PURCHASES SECTION
     const totalPurchasesByPeriod = {
-      ytd: Object.values(calculateMetrics.ytd.purchases).reduce((sum: number, val: number) => sum + val, 0),
-      lastMonth: Object.values(calculateMetrics.lastMonth.purchases).reduce((sum: number, val: number) => sum + val, 0),
-      mtd: Object.values(calculateMetrics.mtd.purchases).reduce((sum: number, val: number) => sum + val, 0),
-      thisWeek: Object.values(calculateMetrics.thisWeek.purchases).reduce((sum: number, val: number) => sum + val, 0),
-      lastWeek: Object.values(calculateMetrics.lastWeek.purchases).reduce((sum: number, val: number) => sum + val, 0)
+      ytd: (Object.values(calculateMetrics.ytd.purchases) as number[]).reduce((sum, val) => sum + val, 0),
+      lastMonth: (Object.values(calculateMetrics.lastMonth.purchases) as number[]).reduce((sum, val) => sum + val, 0),
+      mtd: (Object.values(calculateMetrics.mtd.purchases) as number[]).reduce((sum, val) => sum + val, 0),
+      thisWeek: (Object.values(calculateMetrics.thisWeek.purchases) as number[]).reduce((sum, val) => sum + val, 0),
+      lastWeek: (Object.values(calculateMetrics.lastWeek.purchases) as number[]).reduce((sum, val) => sum + val, 0)
     }
 
     channels.forEach(channel => {
