@@ -218,22 +218,36 @@ export default function DatasetWorkspacePage() {
       
       console.log(`📊 Total rows in database: ${count}`)
       
-      // Fetch all rows with increased limit (Supabase default is 1000)
-      const { data, error } = await (supabase as any)
-        .from('sheet_rows')
-        .select('row_data, row_index')
-        .eq('view_id', viewId)
-        .order('row_index', { ascending: true })
-        .limit(100000) // Set high limit to get all rows
-      
-      if (error) {
-        console.error('❌ Error fetching sheet rows:', error)
+      if (!count || count === 0) {
         return []
       }
       
-      const rows = data?.map((r: any) => r.row_data) || []
-      console.log(`✅ Fetched ${rows.length} rows for view ${viewId}`)
-      return rows
+      // Fetch all rows in batches if needed (Supabase max is ~100k per query)
+      const BATCH_SIZE = 50000
+      const allRows: any[] = []
+      
+      for (let offset = 0; offset < count; offset += BATCH_SIZE) {
+        const { data, error } = await (supabase as any)
+          .from('sheet_rows')
+          .select('row_data, row_index')
+          .eq('view_id', viewId)
+          .order('row_index', { ascending: true })
+          .range(offset, offset + BATCH_SIZE - 1)
+        
+        if (error) {
+          console.error('❌ Error fetching sheet rows:', error)
+          break
+        }
+        
+        if (data) {
+          allRows.push(...data.map((r: any) => r.row_data))
+        }
+        
+        console.log(`📥 Fetched batch: ${offset} to ${Math.min(offset + BATCH_SIZE, count)} (${allRows.length} total so far)`)
+      }
+      
+      console.log(`✅ Fetched ${allRows.length} rows for view ${viewId}`)
+      return allRows
     } catch (error) {
       console.error('❌ Error fetching sheet rows:', error)
       return []
