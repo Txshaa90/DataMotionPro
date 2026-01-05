@@ -43,12 +43,12 @@ interface ReportRow {
 }
 
 export default function ProfitabilityReport({ columns, rows, sheets }: ProfitabilityReportProps) {
-  const [sourceSheetId, setSourceSheetId] = useState<string>('')
+  const [sourceSheetId, setSourceSheetId] = useState<string>('__current__')
   const [asOfDate, setAsOfDate] = useState<Date>(new Date())
 
   // Get data from selected sheet or use current rows
   const displayRows = useMemo(() => {
-    if (sourceSheetId && sheets) {
+    if (sourceSheetId && sourceSheetId !== '__current__' && sheets) {
       const selectedSheet = sheets.find(s => s.id === sourceSheetId)
       return selectedSheet?.rows || []
     }
@@ -477,7 +477,7 @@ export default function ProfitabilityReport({ columns, rows, sheets }: Profitabi
                 <SelectValue placeholder="Select sheet..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Current Sheet</SelectItem>
+                <SelectItem value="__current__">Current Sheet</SelectItem>
                 {sheets.filter(s => s.type === 'grid').map(sheet => (
                   <SelectItem key={sheet.id} value={sheet.id}>
                     {sheet.name}
