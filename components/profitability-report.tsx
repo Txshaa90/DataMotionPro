@@ -458,14 +458,25 @@ export default function ProfitabilityReport({ columns, rows, sheets }: Profitabi
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Year to Date Profitability Report</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">As of {asOfDate.toLocaleDateString()}</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setAsOfDate(new Date())}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-gray-500" />
+              <input
+                type="date"
+                value={asOfDate.toISOString().split('T')[0]}
+                onChange={(e) => setAsOfDate(new Date(e.target.value))}
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAsOfDate(new Date())}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Today
+            </Button>
+          </div>
         </div>
 
         {/* Data Source Selection */}
