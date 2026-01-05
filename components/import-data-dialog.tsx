@@ -27,43 +27,39 @@ export function ImportDataDialog({
   sheetId,
   onImportComplete 
 }: ImportDataDialogProps) {
-  const BATCH_SIZE = 300 // Optimal batch size for Supabase
+  const MAX_ROWS_PER_INSERT = 5000 // Supabase JSON column limit
+  const MAX_RETRIES = 3
   
-  // Helper function for chunked batch inserts
+  // Helper function to insert all rows at once with retry logic
   const insertRowsInBatches = async (rows: any[], viewId: string, onProgress?: (current: number, total: number) => void) => {
-    const totalBatches = Math.ceil(rows.length / BATCH_SIZE)
-    
-    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-      const batch = rows.slice(i, i + BATCH_SIZE)
-      const currentBatch = Math.floor(i / BATCH_SIZE) + 1
+    // If dataset is small enough, insert all at once
+    if (rows.length <= MAX_ROWS_PER_INSERT) {
+      if (onProgress) onProgress(1, 1)
       
-      // Update progress if callback provided
-      if (onProgress) {
-        onProgress(currentBatch, totalBatches)
+      let retries = 0
+      while (retries < MAX_RETRIES) {
+        try {
+          const { error: updateError } = await (supabase as any)
+            .from('views')
+            .update({ rows: rows })
+            .eq('id', viewId)
+          
+          if (updateError) throw updateError
+          return
+        } catch (error: any) {
+          retries++
+          console.warn(`Import failed (attempt ${retries}/${MAX_RETRIES}):`, error.message)
+          
+          if (retries >= MAX_RETRIES) {
+            throw new Error(`Failed to import after ${MAX_RETRIES} attempts: ${error.message}`)
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 2000 * retries))
+        }
       }
-      
-      // Get existing rows from the view
-      const { data: viewData, error: fetchError } = await (supabase as any)
-        .from('views')
-        .select('rows')
-        .eq('id', viewId)
-        .single()
-      
-      if (fetchError) throw fetchError
-      
-      const existingRows = viewData?.rows || []
-      const updatedRows = [...existingRows, ...batch]
-      
-      // Update view with new batch
-      const { error: updateError } = await (supabase as any)
-        .from('views')
-        .update({ rows: updatedRows })
-        .eq('id', viewId)
-      
-      if (updateError) throw updateError
-      
-      // Small delay to prevent overwhelming Supabase
-      await new Promise(resolve => setTimeout(resolve, 150))
+    } else {
+      // For very large datasets, we need to warn the user
+      throw new Error(`Dataset too large: ${rows.length} rows exceeds the ${MAX_ROWS_PER_INSERT} row limit. Please split your data into smaller files or contact support for enterprise import options.`)
     }
   }
   
