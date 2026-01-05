@@ -27,40 +27,57 @@ export function ImportDataDialog({
   sheetId,
   onImportComplete 
 }: ImportDataDialogProps) {
-  const MAX_ROWS_PER_INSERT = 5000 // Supabase JSON column limit
+  const BATCH_SIZE = 500 // Rows per batch insert
   const MAX_RETRIES = 3
   
-  // Helper function to insert all rows at once with retry logic
+  // Helper function to insert rows using new sheet_rows table
   const insertRowsInBatches = async (rows: any[], viewId: string, onProgress?: (current: number, total: number) => void) => {
-    // If dataset is small enough, insert all at once
-    if (rows.length <= MAX_ROWS_PER_INSERT) {
-      if (onProgress) onProgress(1, 1)
+    const totalBatches = Math.ceil(rows.length / BATCH_SIZE)
+    
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+      const batch = rows.slice(i, i + BATCH_SIZE)
+      const currentBatch = Math.floor(i / BATCH_SIZE) + 1
       
+      if (onProgress) {
+        onProgress(currentBatch, totalBatches)
+      }
+      
+      // Prepare batch data for sheet_rows table
+      const batchData = batch.map((row, idx) => ({
+        view_id: viewId,
+        row_data: row,
+        row_index: i + idx
+      }))
+      
+      // Insert batch with retry logic
       let retries = 0
-      while (retries < MAX_RETRIES) {
+      let success = false
+      
+      while (!success && retries < MAX_RETRIES) {
         try {
-          const { error: updateError } = await (supabase as any)
-            .from('views')
-            .update({ rows: rows })
-            .eq('id', viewId)
+          const { error: insertError } = await (supabase as any)
+            .from('sheet_rows')
+            .insert(batchData)
           
-          if (updateError) throw updateError
-          return
+          if (insertError) throw insertError
+          success = true
         } catch (error: any) {
           retries++
-          console.warn(`Import failed (attempt ${retries}/${MAX_RETRIES}):`, error.message)
+          console.warn(`Batch ${currentBatch}/${totalBatches} failed (attempt ${retries}/${MAX_RETRIES}):`, error.message)
           
           if (retries >= MAX_RETRIES) {
-            throw new Error(`Failed to import after ${MAX_RETRIES} attempts: ${error.message}`)
+            throw new Error(`Failed to import batch ${currentBatch} after ${MAX_RETRIES} attempts: ${error.message}`)
           }
           
-          await new Promise(resolve => setTimeout(resolve, 2000 * retries))
+          await new Promise(resolve => setTimeout(resolve, 1000 * retries))
         }
       }
-    } else {
-      // For very large datasets, we need to warn the user
-      throw new Error(`Dataset too large: ${rows.length} rows exceeds the ${MAX_ROWS_PER_INSERT} row limit. Please split your data into smaller files or contact support for enterprise import options.`)
+      
+      // Small delay between batches
+      await new Promise(resolve => setTimeout(resolve, 100))
     }
+    
+    console.log(`✅ Successfully imported ${rows.length} rows in ${totalBatches} batches`)
   }
   
   const [selectedSource, setSelectedSource] = useState<ImportSource>(null)
