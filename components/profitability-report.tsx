@@ -109,7 +109,14 @@ export default function ProfitabilityReport({ columns, rows, sheets }: Profitabi
 
   // Calculate metrics for each time period
   const calculateMetrics = useMemo(() => {
-    const metrics = {
+    const metrics: {
+      [key: string]: {
+        sales: { [key: string]: number }
+        returns: { [key: string]: number }
+        fees: { [key: string]: number }
+        purchases: { [key: string]: number }
+      }
+    } = {
       ytd: { sales: {}, returns: {}, fees: {}, purchases: {} },
       lastMonth: { sales: {}, returns: {}, fees: {}, purchases: {} },
       mtd: { sales: {}, returns: {}, fees: {}, purchases: {} },
