@@ -222,31 +222,36 @@ export default function DatasetWorkspacePage() {
         return []
       }
       
-      // Fetch all rows in batches if needed (Supabase max is ~100k per query)
-      const BATCH_SIZE = 50000
+      // Fetch all rows in chunks of 1000 (Supabase default page size)
+      const PAGE_SIZE = 1000
       const allRows: any[] = []
+      const totalPages = Math.ceil(count / PAGE_SIZE)
       
-      for (let offset = 0; offset < count; offset += BATCH_SIZE) {
+      console.log(`📦 Fetching ${count} rows in ${totalPages} pages...`)
+      
+      for (let page = 0; page < totalPages; page++) {
+        const from = page * PAGE_SIZE
+        const to = from + PAGE_SIZE - 1
+        
         const { data, error } = await (supabase as any)
           .from('sheet_rows')
           .select('row_data, row_index')
           .eq('view_id', viewId)
           .order('row_index', { ascending: true })
-          .range(offset, offset + BATCH_SIZE - 1)
+          .range(from, to)
         
         if (error) {
-          console.error('❌ Error fetching sheet rows:', error)
+          console.error(`❌ Error fetching page ${page + 1}/${totalPages}:`, error)
           break
         }
         
-        if (data) {
+        if (data && data.length > 0) {
           allRows.push(...data.map((r: any) => r.row_data))
+          console.log(`📥 Page ${page + 1}/${totalPages}: fetched ${data.length} rows (${allRows.length}/${count} total)`)
         }
-        
-        console.log(`📥 Fetched batch: ${offset} to ${Math.min(offset + BATCH_SIZE, count)} (${allRows.length} total so far)`)
       }
       
-      console.log(`✅ Fetched ${allRows.length} rows for view ${viewId}`)
+      console.log(`✅ Fetched ${allRows.length} of ${count} rows for view ${viewId}`)
       return allRows
     } catch (error) {
       console.error('❌ Error fetching sheet rows:', error)
