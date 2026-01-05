@@ -62,7 +62,8 @@ import {
   ArrowUpAZ,
   ArrowDownZA,
   Type,
-  ListOrdered
+  ListOrdered,
+  TrendingUp
 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -74,6 +75,7 @@ import { ShareDialog } from '@/components/share-dialog'
 import ChartView from '@/components/chart-view'
 import ReturnsAnalysis from '@/components/returns-analysis'
 import DashboardView from '@/components/dashboard-view'
+import ProfitabilityReport from '@/components/profitability-report'
 
 export default function DatasetWorkspacePage() {
   const params = useParams<{ datasetId: string }>()
@@ -1558,13 +1560,14 @@ export default function DatasetWorkspacePage() {
     }
   }
 
-  const handleAddSheet = async (viewType: 'grid' | 'gallery' | 'form' | 'kanban' | 'calendar' | 'chart' | 'returns' | 'dashboard' = 'grid') => {
+  const handleAddSheet = async (viewType: 'grid' | 'gallery' | 'form' | 'kanban' | 'calendar' | 'chart' | 'returns' | 'dashboard' | 'profitability' = 'grid') => {
     if (!currentDataset) return
     const newSheet = {
       user_id: userId,
       table_id: currentDataset.id,
       name: viewType === 'chart' ? `Chart ${datasetSheets.filter(s => s.type === 'chart').length + 1}` : 
             viewType === 'returns' ? 'Returns Analysis' : 
+            viewType === 'profitability' ? 'Year to Date Profitability Report' :
             viewType === 'dashboard' ? `Dashboard ${datasetSheets.filter(s => s.type === 'dashboard').length + 1}` :
             `Sheet ${datasetSheets.length + 1}`,
       type: viewType,
@@ -2123,6 +2126,10 @@ export default function DatasetWorkspacePage() {
                       <FileText className="h-4 w-4 mr-2" />
                       Returns Analysis
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAddSheet('profitability')}>
+                      <TrendingUp className="h-4 w-4 mr-2" />
+                      Profitability Report
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleAddSheet('dashboard')}>
                       <LayoutDashboard className="h-4 w-4 mr-2" />
                       Dashboard
@@ -2191,6 +2198,14 @@ export default function DatasetWorkspacePage() {
           ) : currentSheet?.type === 'returns' ? (
             <div className="flex-1 overflow-auto">
               <ReturnsAnalysis
+                columns={currentDataset.columns || []}
+                rows={baseRows || []}
+                sheets={datasetSheets}
+              />
+            </div>
+          ) : currentSheet?.type === 'profitability' ? (
+            <div className="flex-1 overflow-auto">
+              <ProfitabilityReport
                 columns={currentDataset.columns || []}
                 rows={baseRows || []}
                 sheets={datasetSheets}
