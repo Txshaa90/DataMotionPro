@@ -1086,16 +1086,22 @@ export default function DatasetWorkspacePage() {
   const handleUpdateCell = async (rowId: string, columnId: string, value: any) => {
     if (!currentSheet) return
     
+    // Get current rows from cache
+    const currentRows = sheetRowsCache[currentSheet.id] || currentSheet.rows || []
+    
     // Store old value for undo
-    const oldRow = (currentSheet.rows || []).find((r: any) => r.id === rowId)
+    const oldRow = currentRows.find((r: any) => r.id === rowId)
     const oldValue = oldRow?.[columnId]
     
-    const updatedRows = (currentSheet.rows || []).map((r: any) => r.id === rowId ? { ...r, [columnId]: value } : r)
+    const updatedRows = currentRows.map((r: any) => r.id === rowId ? { ...r, [columnId]: value } : r)
     
-    // Update UI immediately for responsive typing
-    updateSupabaseView(currentSheet.id, { rows: updatedRows })
+    // Update cache immediately for responsive typing
+    setSheetRowsCache(prev => ({
+      ...prev,
+      [currentSheet.id]: updatedRows
+    }))
     
-    // Debounce database write - only save after user stops typing for 500ms
+    // Debounce database write - only save after user stops typing for 300ms
     const cellKey = `${currentSheet.id}-${rowId}-${columnId}`
     
     // Clear existing timer for this cell
@@ -1106,7 +1112,25 @@ export default function DatasetWorkspacePage() {
     // Set new timer to save after 300ms of no typing
     saveTimerRef.current[cellKey] = setTimeout(async () => {
       try {
-        await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
+        // Find the row in sheet_rows table and update it
+        const rowToUpdate = currentRows.find((r: any) => r.id === rowId)
+        if (!rowToUpdate) return
+        
+        const rowIndex = currentRows.findIndex((r: any) => r.id === rowId)
+        const updatedRowData = { ...rowToUpdate, [columnId]: value }
+        
+        // Update in sheet_rows table
+        const { error } = await (supabase as any)
+          .from('sheet_rows')
+          .update({ row_data: updatedRowData })
+          .eq('view_id', currentSheet.id)
+          .eq('row_index', rowIndex)
+        
+        if (error) {
+          console.error('Error updating cell in sheet_rows:', error)
+          // Fallback to updating views.rows for legacy datasets
+          await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
+        }
         
         // Add to undo stack only after successful save
         setUndoStack(prev => [...prev, {
