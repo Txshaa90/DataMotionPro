@@ -1093,15 +1093,22 @@ export default function DatasetWorkspacePage() {
     const oldRow = currentRows.find((r: any) => r.id === rowId)
     const oldValue = oldRow?.[columnId]
     
-    const updatedRows = currentRows.map((r: any) => r.id === rowId ? { ...r, [columnId]: value } : r)
+    // Update the specific row immediately in cache for responsive typing
+    const updatedRows = currentRows.map((r: any) => 
+      r.id === rowId ? { ...r, [columnId]: value } : r
+    )
     
-    // Update cache immediately for responsive typing
-    setSheetRowsCache(prev => ({
-      ...prev,
-      [currentSheet.id]: updatedRows
-    }))
+    // Batch update: only update cache, don't trigger full re-render
+    setSheetRowsCache(prev => {
+      // Only update if the value actually changed
+      if (prev[currentSheet.id] === updatedRows) return prev
+      return {
+        ...prev,
+        [currentSheet.id]: updatedRows
+      }
+    })
     
-    // Debounce database write - only save after user stops typing for 300ms
+    // Debounce database write only - UI updates immediately
     const cellKey = `${currentSheet.id}-${rowId}-${columnId}`
     
     // Clear existing timer for this cell
@@ -1109,15 +1116,11 @@ export default function DatasetWorkspacePage() {
       clearTimeout(saveTimerRef.current[cellKey])
     }
     
-    // Set new timer to save after 300ms of no typing
+    // Set new timer to save to database after 500ms of no typing
     saveTimerRef.current[cellKey] = setTimeout(async () => {
       try {
-        // Find the row in sheet_rows table and update it
-        const rowToUpdate = currentRows.find((r: any) => r.id === rowId)
-        if (!rowToUpdate) return
-        
         const rowIndex = currentRows.findIndex((r: any) => r.id === rowId)
-        const updatedRowData = { ...rowToUpdate, [columnId]: value }
+        const updatedRowData = { ...oldRow, [columnId]: value }
         
         // Update in sheet_rows table
         const { error } = await (supabase as any)
@@ -1143,7 +1146,7 @@ export default function DatasetWorkspacePage() {
       } catch (error) {
         console.error('Error updating cell:', error)
       }
-    }, 300)
+    }, 500)
   }
 
   const handleCopyCell = (rowId: string, columnId: string, value: any) => {
