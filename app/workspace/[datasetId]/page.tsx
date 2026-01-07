@@ -103,6 +103,8 @@ export default function DatasetWorkspacePage() {
   const [rowsPerPage, setRowsPerPage] = useState(100)
   const [globalSearch, setGlobalSearch] = useState('')
   const [rowHeight, setRowHeight] = useState<'compact' | 'comfortable'>('comfortable')
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
+  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set())
   const [globalFontColor, setGlobalFontColor] = useState('#000000')
   const [globalBgColor, setGlobalBgColor] = useState('#ffffff')
   const [globalBold, setGlobalBold] = useState(false)
@@ -1137,6 +1139,121 @@ export default function DatasetWorkspacePage() {
     } catch (error) {
       console.error('Error deleting row:', error)
     }
+  }
+
+  const handleBulkDeleteRows = async () => {
+    if (!currentSheet || selectedRows.size === 0) return
+    
+    const confirmed = confirm(`Delete ${selectedRows.size} selected row(s)?`)
+    if (!confirmed) return
+    
+    try {
+      // Get current rows from cache
+      const currentRows = sheetRowsCache[currentSheet.id] || currentSheet.rows || []
+      
+      // Filter out selected rows
+      const updatedRows = currentRows.filter((r: any) => !selectedRows.has(r.id))
+      
+      // Delete from sheet_rows table
+      const { error: deleteError } = await (supabase as any)
+        .from('sheet_rows')
+        .delete()
+        .eq('view_id', currentSheet.id)
+        .in('row_data->id', Array.from(selectedRows))
+      
+      if (deleteError) {
+        console.error('Error deleting rows from sheet_rows:', deleteError)
+        // Fallback to views.rows update
+        await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
+      }
+      
+      // Update cache
+      setSheetRowsCache(prev => ({
+        ...prev,
+        [currentSheet.id]: updatedRows
+      }))
+      
+      // Clear selection
+      setSelectedRows(new Set())
+      
+      alert(`Successfully deleted ${selectedRows.size} row(s)`)
+    } catch (error) {
+      console.error('Error bulk deleting rows:', error)
+      alert('Failed to delete rows')
+    }
+  }
+
+  const handleBulkDeleteColumns = async () => {
+    if (!currentDataset || selectedColumns.size === 0) return
+    
+    const confirmed = confirm(`Delete ${selectedColumns.size} selected column(s)?`)
+    if (!confirmed) return
+    
+    try {
+      // Filter out selected columns
+      const updatedColumns = currentDataset.columns.filter((col: any) => !selectedColumns.has(col.id))
+      
+      // Update database
+      await (supabase as any).from('tables').update({ 
+        columns: updatedColumns 
+      }).eq('id', currentDataset.id)
+      
+      // Update local state
+      setSupabaseDataset({ ...currentDataset, columns: updatedColumns })
+      
+      // Update all views to remove columns from visible_columns
+      const viewUpdates = supabaseViews.map(async (view) => {
+        const updatedVisibleColumns = (view.visible_columns || []).filter((id: string) => !selectedColumns.has(id))
+        await (supabase as any).from('views').update({
+          visible_columns: updatedVisibleColumns
+        }).eq('id', view.id)
+        return { ...view, visible_columns: updatedVisibleColumns }
+      })
+      
+      const updatedViews = await Promise.all(viewUpdates)
+      setSupabaseViews(updatedViews)
+      
+      // Clear selection
+      setSelectedColumns(new Set())
+      
+      alert(`Successfully deleted ${selectedColumns.size} column(s)`)
+    } catch (error) {
+      console.error('Error bulk deleting columns:', error)
+      alert('Failed to delete columns')
+    }
+  }
+
+  const toggleRowSelection = (rowId: string) => {
+    setSelectedRows(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(rowId)) {
+        newSet.delete(rowId)
+      } else {
+        newSet.add(rowId)
+      }
+      return newSet
+    })
+  }
+
+  const toggleAllRowsSelection = () => {
+    const currentRows = sheetRowsCache[currentSheet?.id || ''] || currentSheet?.rows || []
+    if (selectedRows.size === currentRows.length) {
+      setSelectedRows(new Set())
+    } else {
+      setSelectedRows(new Set(currentRows.map((r: any) => r.id)))
+    }
+  }
+
+  const toggleColumnSelection = (columnId: string) => {
+    setSelectedColumns(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(columnId)) {
+        newSet.delete(columnId)
+      } else {
+        newSet.add(columnId)
+      }
+      return newSet
+    })
   }
 
   const openDeleteColumnDialog = (columnId: string, columnName: string) => {
@@ -2290,6 +2407,30 @@ export default function DatasetWorkspacePage() {
                   <Undo className="h-4 w-4 mr-1" />
                   Undo
                 </Button>
+
+                {selectedRows.size > 0 && (
+                  <Button 
+                    size="sm" 
+                    variant="destructive" 
+                    onClick={handleBulkDeleteRows}
+                    title={`Delete ${selectedRows.size} selected row(s)`}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete {selectedRows.size} Row{selectedRows.size > 1 ? 's' : ''}
+                  </Button>
+                )}
+
+                {selectedColumns.size > 0 && (
+                  <Button 
+                    size="sm" 
+                    variant="destructive" 
+                    onClick={handleBulkDeleteColumns}
+                    title={`Delete ${selectedColumns.size} selected column(s)`}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete {selectedColumns.size} Column{selectedColumns.size > 1 ? 's' : ''}
+                  </Button>
+                )}
                 <Button size="sm" variant="outline" onClick={() => setImportDialogOpen(true)}>
                   <Upload className="h-4 w-4 mr-1" />
                   Import
@@ -2467,7 +2608,16 @@ export default function DatasetWorkspacePage() {
                 <table className="border border-gray-300 dark:border-gray-600" style={{ borderCollapse: 'collapse', width: 'max-content' }}>
                     <thead className="bg-white dark:bg-gray-800">
                       <tr className="sticky top-0 z-20 bg-white dark:bg-gray-800 shadow-sm">
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-0 z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}>#</th>
+                        <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-0 z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ width: '40px', minWidth: '40px', maxWidth: '40px' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedRows.size > 0 && selectedRows.size === (sheetRowsCache[currentSheet?.id || ''] || currentSheet?.rows || []).length}
+                            onChange={toggleAllRowsSelection}
+                            className="cursor-pointer"
+                            title="Select all rows"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-[40px] z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}>#</th>
                         {finalVisibleColumns.map((column: any, index: number) => (
                           <th 
                             key={column.id} 
@@ -2477,11 +2627,13 @@ export default function DatasetWorkspacePage() {
                             onDrop={(e) => handleColumnDrop(e, column.id)}
                             onDragEnd={handleColumnDragEnd}
                             className={`px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 group border border-gray-300 dark:border-gray-600 cursor-move ${
-                              index === 0 ? 'sticky left-[60px] z-[25] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-white dark:bg-gray-800' : ''
+                              index === 0 ? 'sticky left-[100px] z-[25] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-white dark:bg-gray-800' : ''
                             } ${
                               draggedColumn === column.id ? 'opacity-50' : ''
                             } ${
                               dragOverColumn === column.id && draggedColumn !== column.id ? 'border-l-4 border-l-blue-500' : ''
+                            } ${
+                              selectedColumns.has(column.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                             }`} 
                             style={{ 
                               width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : 'auto',
@@ -2490,6 +2642,14 @@ export default function DatasetWorkspacePage() {
                             }}
                           >
                             <div className="flex items-center gap-2 w-full overflow-hidden">
+                              <input 
+                                type="checkbox" 
+                                checked={selectedColumns.has(column.id)}
+                                onChange={() => toggleColumnSelection(column.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="cursor-pointer flex-shrink-0"
+                                title="Select column"
+                              />
                               <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 flex-shrink-0">
                                 {getColumnLetter(index)}
                               </span>
@@ -2579,7 +2739,16 @@ export default function DatasetWorkspacePage() {
                             }`} 
                             style={{ backgroundColor: isNewlyAdded ? undefined : row.rowColor }}
                           >
-                            <td className={`px-2 ${cellPaddingClass} text-center text-sm text-gray-500 dark:text-gray-400 font-medium sticky left-0 z-10 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`} style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}>
+                            <td className={`px-2 ${cellPaddingClass} text-center text-sm text-gray-500 dark:text-gray-400 font-medium sticky left-0 z-10 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`} style={{ width: '40px', minWidth: '40px', maxWidth: '40px' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={selectedRows.has(row.id)}
+                                onChange={() => toggleRowSelection(row.id)}
+                                className="cursor-pointer"
+                                title="Select row"
+                              />
+                            </td>
+                            <td className={`px-2 ${cellPaddingClass} text-center text-sm text-gray-500 dark:text-gray-400 font-medium sticky left-[40px] z-10 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`} style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}>
                               <div className="flex items-center justify-center gap-1">
                                 <Button 
                                   variant="ghost" 
