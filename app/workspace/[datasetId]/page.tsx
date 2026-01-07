@@ -497,12 +497,53 @@ export default function DatasetWorkspacePage() {
       )
       .subscribe()
 
+    // Subscribe to sheet_rows changes for real-time collaboration
+    const sheetRowsChannel = supabase
+      .channel(`sheet-rows-${datasetId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sheet_rows',
+        },
+        async (payload) => {
+          console.log('Sheet rows update received:', payload)
+          // Don't refetch if user is actively editing - prevents overwriting current input
+          if (editingCell) {
+            console.log('Skipping sync - user is editing')
+            return
+          }
+          
+          // Refetch rows for all views when sheet_rows changes
+          const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId)
+          if (viewsData && viewsData.length > 0) {
+            const rowsCache: { [viewId: string]: any[] } = {}
+            await Promise.all(
+              viewsData.map(async (view: any) => {
+                const rows = await fetchSheetRows(view.id)
+                // Fallback to views.rows if sheet_rows is empty
+                if (rows.length === 0 && view.rows && Array.isArray(view.rows) && view.rows.length > 0) {
+                  rowsCache[view.id] = view.rows
+                } else {
+                  rowsCache[view.id] = rows
+                }
+              })
+            )
+            console.log('🔄 Real-time sync: Updated rows cache from sheet_rows changes')
+            setSheetRowsCache(rowsCache)
+          }
+        }
+      )
+      .subscribe()
+
     // Cleanup subscriptions on unmount
     return () => {
       supabase.removeChannel(channel)
       supabase.removeChannel(viewChannel)
+      supabase.removeChannel(sheetRowsChannel)
     }
-  }, [datasetId])
+  }, [datasetId, editingCell])
 
   // Global keyboard shortcut for undo
   useEffect(() => {
