@@ -3445,7 +3445,7 @@ export default function DatasetWorkspacePage() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex-1 overflow-auto space-y-3">
+          <div className="flex-1 overflow-y-auto space-y-3">
             {/* Info banner */}
             <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
               <ClipboardPaste className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -3461,7 +3461,7 @@ export default function DatasetWorkspacePage() {
 
             {/* Table preview with editable data cells */}
             <div className="border rounded-lg overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-w-full">
                 <table className="w-full text-sm border-collapse">
                   <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
                     <tr>
