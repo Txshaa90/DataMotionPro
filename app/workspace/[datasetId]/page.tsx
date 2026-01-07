@@ -177,7 +177,7 @@ export default function DatasetWorkspacePage() {
     setMounted(true)
   }, [])
   const [undoStack, setUndoStack] = useState<Array<{
-    type: 'cell_edit' | 'row_add' | 'row_delete' | 'column_add' | 'column_delete'
+    type: 'cell_edit' | 'row_add' | 'row_delete' | 'column_add' | 'column_delete' | 'paste'
     data: any
   }>>([])
   const [addColumnDialogOpen, setAddColumnDialogOpen] = useState(false)
@@ -745,6 +745,31 @@ export default function DatasetWorkspacePage() {
         
         const updatedViews = await Promise.all(viewUpdates)
         setSupabaseViews(updatedViews)
+      } else if (lastAction.type === 'paste') {
+        const { rowIds, sheetId } = lastAction.data
+        
+        // Get current rows from cache
+        const currentRows = sheetRowsCache[sheetId] || []
+        
+        // Remove pasted rows by filtering out the row IDs
+        const updatedRows = currentRows.filter((r: any) => !rowIds.includes(r.id))
+        
+        // Delete from sheet_rows table
+        const { error: deleteError } = await (supabase as any)
+          .from('sheet_rows')
+          .delete()
+          .eq('view_id', sheetId)
+          .in('row_data->id', rowIds)
+        
+        if (deleteError) {
+          console.error('Error deleting pasted rows:', deleteError)
+        }
+        
+        // Update cache
+        setSheetRowsCache(prev => ({
+          ...prev,
+          [sheetId]: updatedRows
+        }))
       }
       
       // Remove the action from undo stack
@@ -1070,6 +1095,16 @@ export default function DatasetWorkspacePage() {
           [currentSheet.id]: updatedRows
         }))
       }
+      
+      // Add to undo stack
+      setUndoStack(prev => [...prev, {
+        type: 'paste',
+        data: { 
+          rowIds: newRows.map(r => r.id), 
+          sheetId: currentSheet.id,
+          rowCount: newRows.length 
+        }
+      }])
       
       setPastePreviewDialog(false)
       alert(`Successfully added ${newRows.length} row(s) from clipboard!`)
@@ -2713,11 +2748,17 @@ export default function DatasetWorkspacePage() {
                     <span className="text-sm text-gray-600 dark:text-gray-400">
                       Page {currentPage} of {totalPages}
                     </span>
+                    <Button size="sm" variant="outline" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>
+                      First
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}>
                       Previous
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages}>
                       Next
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}>
+                      Last
                     </Button>
                   </div>
                 </div>
