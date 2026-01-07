@@ -1906,10 +1906,16 @@ export default function DatasetWorkspacePage() {
     
     for (const filter of activeFilters) {
       const beforeCount = rows.length
+      console.log(`🔍 Applying filter:`, filter)
       rows = rows.filter((row: any) => {
         const rawValue = row[filter.columnId] || ''
         const cellValue = String(rawValue).toLowerCase()
         const filterValue = String(filter.value).toLowerCase()
+        
+        // Debug first few rows
+        if (rows.indexOf(row) < 3) {
+          console.log(`  Row ${rows.indexOf(row)}: columnId="${filter.columnId}", rawValue="${rawValue}", cellValue="${cellValue}", filterValue="${filterValue}"`)
+        }
         
         switch (filter.operator) {
           case 'is':
