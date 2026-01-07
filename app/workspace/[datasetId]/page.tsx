@@ -1017,6 +1017,7 @@ export default function DatasetWorkspacePage() {
     if (!currentDataset || !currentSheet) return
     
     try {
+      console.log('📋 Starting paste operation...')
       const newRows: any[] = []
       
       for (const rowData of pastePreviewData) {
@@ -1033,9 +1034,12 @@ export default function DatasetWorkspacePage() {
         newRows.push(newRow)
       }
       
+      console.log(`📋 Prepared ${newRows.length} rows to paste`)
+      
       // Get current rows from cache
       const currentRows = sheetRowsCache[currentSheet.id] || currentSheet.rows || []
       const currentRowCount = currentRows.length
+      console.log(`📋 Current row count: ${currentRowCount}`)
       
       // Insert new rows into sheet_rows table
       const rowsToInsert = newRows.map((row, index) => ({
@@ -1044,19 +1048,23 @@ export default function DatasetWorkspacePage() {
         row_index: currentRowCount + index
       }))
       
+      console.log(`📋 Inserting ${rowsToInsert.length} rows into sheet_rows table...`)
       const { error: insertError } = await (supabase as any)
         .from('sheet_rows')
         .insert(rowsToInsert)
       
       if (insertError) {
-        console.error('Error inserting into sheet_rows:', insertError)
+        console.error('❌ Error inserting into sheet_rows:', insertError)
         // Fallback to old method for legacy datasets
+        console.log('📋 Falling back to views.rows update...')
         const updatedRows = [...currentRows, ...newRows]
         await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
         updateSupabaseView(currentSheet.id, { rows: updatedRows })
       } else {
+        console.log('✅ Successfully inserted into sheet_rows table')
         // Update cache with new rows
         const updatedRows = [...currentRows, ...newRows]
+        console.log(`📋 Updating cache: ${currentRows.length} → ${updatedRows.length} rows`)
         setSheetRowsCache(prev => ({
           ...prev,
           [currentSheet.id]: updatedRows
@@ -1065,8 +1073,9 @@ export default function DatasetWorkspacePage() {
       
       setPastePreviewDialog(false)
       alert(`Successfully added ${newRows.length} row(s) from clipboard!`)
+      console.log('✅ Paste operation completed')
     } catch (error) {
-      console.error('Error confirming paste:', error)
+      console.error('❌ Error confirming paste:', error)
       alert('Failed to paste data')
     }
   }
