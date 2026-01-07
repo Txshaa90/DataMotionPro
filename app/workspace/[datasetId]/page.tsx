@@ -992,9 +992,35 @@ export default function DatasetWorkspacePage() {
         newRows.push(newRow)
       }
       
-      const updatedRows = [...(currentSheet.rows || []), ...newRows]
-      await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
-      updateSupabaseView(currentSheet.id, { rows: updatedRows })
+      // Get current rows from cache
+      const currentRows = sheetRowsCache[currentSheet.id] || currentSheet.rows || []
+      const currentRowCount = currentRows.length
+      
+      // Insert new rows into sheet_rows table
+      const rowsToInsert = newRows.map((row, index) => ({
+        view_id: currentSheet.id,
+        row_data: row,
+        row_index: currentRowCount + index
+      }))
+      
+      const { error: insertError } = await (supabase as any)
+        .from('sheet_rows')
+        .insert(rowsToInsert)
+      
+      if (insertError) {
+        console.error('Error inserting into sheet_rows:', insertError)
+        // Fallback to old method for legacy datasets
+        const updatedRows = [...currentRows, ...newRows]
+        await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
+        updateSupabaseView(currentSheet.id, { rows: updatedRows })
+      } else {
+        // Update cache with new rows
+        const updatedRows = [...currentRows, ...newRows]
+        setSheetRowsCache(prev => ({
+          ...prev,
+          [currentSheet.id]: updatedRows
+        }))
+      }
       
       setPastePreviewDialog(false)
       alert(`Successfully added ${newRows.length} row(s) from clipboard!`)
