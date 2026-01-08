@@ -1180,12 +1180,27 @@ export default function DatasetWorkspacePage() {
       // Filter out selected rows
       const updatedRows = currentRows.filter((r: any) => !selectedRows.has(r.id))
       
-      // Delete from sheet_rows table
-      const { error: deleteError } = await (supabase as any)
-        .from('sheet_rows')
-        .delete()
-        .eq('view_id', currentSheet.id)
-        .in('row_data->id', Array.from(selectedRows))
+      // Delete from sheet_rows table in batches to avoid URL length limits
+      const rowIdsArray = Array.from(selectedRows)
+      const BATCH_SIZE = 50 // Delete 50 rows at a time to avoid URL length issues
+      let deleteError = null
+      
+      for (let i = 0; i < rowIdsArray.length; i += BATCH_SIZE) {
+        const batch = rowIdsArray.slice(i, i + BATCH_SIZE)
+        console.log(`🗑️ Deleting batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(rowIdsArray.length / BATCH_SIZE)} (${batch.length} rows)`)
+        
+        const { error } = await (supabase as any)
+          .from('sheet_rows')
+          .delete()
+          .eq('view_id', currentSheet.id)
+          .in('row_data->id', batch)
+        
+        if (error) {
+          deleteError = error
+          console.error('Error deleting batch:', error)
+          break
+        }
+      }
       
       if (deleteError) {
         console.error('Error deleting rows from sheet_rows:', deleteError)
