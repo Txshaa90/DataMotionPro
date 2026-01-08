@@ -1180,30 +1180,38 @@ export default function DatasetWorkspacePage() {
       // Filter out selected rows
       const updatedRows = currentRows.filter((r: any) => !selectedRows.has(r.id))
       
-      // Delete from sheet_rows table in batches to avoid URL length limits
+      // Delete from sheet_rows table - delete each row individually since JSONB filters don't support .in()
       const rowIdsArray = Array.from(selectedRows)
-      const BATCH_SIZE = 50 // Delete 50 rows at a time to avoid URL length issues
       let deleteError = null
+      let deletedCount = 0
       
-      for (let i = 0; i < rowIdsArray.length; i += BATCH_SIZE) {
-        const batch = rowIdsArray.slice(i, i + BATCH_SIZE)
-        console.log(`🗑️ Deleting batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(rowIdsArray.length / BATCH_SIZE)} (${batch.length} rows)`)
-        
+      console.log(`🗑️ Deleting ${rowIdsArray.length} rows from sheet_rows...`)
+      
+      for (const rowId of rowIdsArray) {
         const { error } = await (supabase as any)
           .from('sheet_rows')
           .delete()
           .eq('view_id', currentSheet.id)
-          .in('row_data->id', batch)
+          .eq('row_data->>id', rowId)
         
         if (error) {
           deleteError = error
-          console.error('Error deleting batch:', error)
+          console.error(`Error deleting row ${rowId}:`, error)
           break
+        }
+        
+        deletedCount++
+        
+        // Log progress every 50 rows
+        if (deletedCount % 50 === 0) {
+          console.log(`🗑️ Deleted ${deletedCount}/${rowIdsArray.length} rows...`)
         }
       }
       
       if (deleteError) {
         console.error('Error deleting rows from sheet_rows:', deleteError)
+      } else {
+        console.log(`✅ Successfully deleted ${deletedCount} rows from sheet_rows`)
       }
       
       // Always update views.rows as backup/fallback for legacy support
