@@ -138,6 +138,7 @@ export default function DatasetWorkspacePage() {
   const [columnHighlights, setColumnHighlights] = useState<Record<string, string>>({})
   const [highlightColumnDialog, setHighlightColumnDialog] = useState(false)
   const [successNotification, setSuccessNotification] = useState<{ message: string; count: number } | null>(null)
+  const [confirmDeleteDialog, setConfirmDeleteDialog] = useState<{ type: 'rows' | 'columns'; count: number } | null>(null)
   const [highlightColumnId, setHighlightColumnId] = useState<string | null>(null)
   const [highlightColor, setHighlightColor] = useState('#fef08a')
   const [formatCellsDialog, setFormatCellsDialog] = useState(false)
@@ -1054,13 +1055,16 @@ export default function DatasetWorkspacePage() {
         // Map values using the column mapping
         Object.entries(pasteColumnMapping).forEach(([dataIndex, columnId]) => {
           const value = rowData[parseInt(dataIndex)]
-          if (value !== undefined) {
+          if (value !== undefined && value !== null && value !== '') {
+            // Preserve the value as-is, including dates
             newRow[columnId] = value
           }
         })
         
         newRows.push(newRow)
       }
+      
+      console.log('📋 Sample row data:', newRows[0])
       
       console.log(`📋 Prepared ${newRows.length} rows to paste`)
       
@@ -1069,7 +1073,7 @@ export default function DatasetWorkspacePage() {
       const currentRowCount = currentRows.length
       console.log(`📋 Current row count: ${currentRowCount}`)
       
-      // Insert new rows into sheet_rows table
+      // Insert new rows into sheet_rows table in batches to handle large pastes
       const rowsToInsert = newRows.map((row, index) => ({
         view_id: currentSheet.id,
         row_data: row,
@@ -1077,9 +1081,24 @@ export default function DatasetWorkspacePage() {
       }))
       
       console.log(`📋 Inserting ${rowsToInsert.length} rows into sheet_rows table...`)
-      const { error: insertError } = await (supabase as any)
-        .from('sheet_rows')
-        .insert(rowsToInsert)
+      
+      // Insert in batches of 500 rows to avoid payload size limits
+      const BATCH_SIZE = 500
+      let insertError = null
+      
+      for (let i = 0; i < rowsToInsert.length; i += BATCH_SIZE) {
+        const batch = rowsToInsert.slice(i, i + BATCH_SIZE)
+        console.log(`📋 Inserting batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(rowsToInsert.length / BATCH_SIZE)} (${batch.length} rows)`)
+        
+        const { error } = await (supabase as any)
+          .from('sheet_rows')
+          .insert(batch)
+        
+        if (error) {
+          insertError = error
+          break
+        }
+      }
       
       if (insertError) {
         console.error('❌ Error inserting into sheet_rows:', insertError)
@@ -1146,8 +1165,13 @@ export default function DatasetWorkspacePage() {
   const handleBulkDeleteRows = async () => {
     if (!currentSheet || selectedRows.size === 0) return
     
-    const confirmed = confirm(`Delete ${selectedRows.size} selected row(s)?`)
-    if (!confirmed) return
+    setConfirmDeleteDialog({ type: 'rows', count: selectedRows.size })
+  }
+
+  const confirmBulkDeleteRows = async () => {
+    if (!currentSheet || selectedRows.size === 0) return
+    
+    setConfirmDeleteDialog(null)
     
     try {
       // Get current rows from cache
@@ -1191,8 +1215,13 @@ export default function DatasetWorkspacePage() {
   const handleBulkDeleteColumns = async () => {
     if (!currentDataset || selectedColumns.size === 0) return
     
-    const confirmed = confirm(`Delete ${selectedColumns.size} selected column(s)?`)
-    if (!confirmed) return
+    setConfirmDeleteDialog({ type: 'columns', count: selectedColumns.size })
+  }
+
+  const confirmBulkDeleteColumns = async () => {
+    if (!currentDataset || selectedColumns.size === 0) return
+    
+    setConfirmDeleteDialog(null)
     
     try {
       // Filter out selected columns
@@ -3097,6 +3126,39 @@ export default function DatasetWorkspacePage() {
             >
               <Plus className="h-4 w-4 mr-2" />
               Insert Column
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={!!confirmDeleteDialog} onOpenChange={() => setConfirmDeleteDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              {confirmDeleteDialog?.type === 'rows' 
+                ? `Are you sure you want to delete ${confirmDeleteDialog.count} selected row(s)? This action cannot be undone.`
+                : `Are you sure you want to delete ${confirmDeleteDialog?.count} selected column(s)? This action cannot be undone and will remove all data in these columns.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteDialog(null)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => {
+                if (confirmDeleteDialog?.type === 'rows') {
+                  confirmBulkDeleteRows()
+                } else {
+                  confirmBulkDeleteColumns()
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete {confirmDeleteDialog?.count} {confirmDeleteDialog?.type === 'rows' ? 'Row(s)' : 'Column(s)'}
             </Button>
           </DialogFooter>
         </DialogContent>
