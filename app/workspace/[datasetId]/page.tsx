@@ -1229,7 +1229,6 @@ export default function DatasetWorkspacePage() {
       }))
       
       // Clear selection
-      const deletedCount = selectedRows.size
       setSelectedRows(new Set())
       
       setSuccessNotification({ message: 'Successfully deleted rows', count: deletedCount })
