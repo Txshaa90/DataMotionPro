@@ -2207,6 +2207,24 @@ export default function DatasetWorkspacePage() {
   
   // Final visible columns computed
 
+  // Helper function to get cell value with case-insensitive column matching
+  const getCellValue = (row: any, columnId: string): any => {
+    // First try exact match
+    if (row[columnId] !== undefined) {
+      return row[columnId]
+    }
+    
+    // Try case-insensitive match
+    const rowKeys = Object.keys(row)
+    const matchingKey = rowKeys.find(key => key.toLowerCase() === columnId.toLowerCase())
+    
+    if (matchingKey) {
+      return row[matchingKey]
+    }
+    
+    return undefined
+  }
+
   const baseRows = (() => {
     if (currentSheet?.type === 'chart') {
       const firstGridView = datasetSheets.find(s => s.type === 'grid')
@@ -2972,12 +2990,12 @@ export default function DatasetWorkspacePage() {
                                     <Input
                                       type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
                                       value={editingCell?.rowId === row.id && editingCell?.columnId === column.id 
-                                        ? String(row[column.id] ?? '') 
-                                        : String(formatCellValue(row[column.id], column.id) ?? '')}
+                                        ? String(getCellValue(row, column.id) ?? '') 
+                                        : String(formatCellValue(getCellValue(row, column.id), column.id) ?? '')}
                                       onChange={(e) => handleUpdateCell(row.id, column.id, e.target.value)}
                                       onFocus={() => setEditingCell({ rowId: row.id, columnId: column.id })}
                                       onBlur={() => setEditingCell(null)}
-                                      onKeyDown={(e: any) => handleKeyDown(e, row.id, column.id, row[column.id])}
+                                      onKeyDown={(e: any) => handleKeyDown(e, row.id, column.id, getCellValue(row, column.id))}
                                       className={`border-0 focus:ring-1 focus:ring-primary bg-transparent w-full px-2 ${inputHeightClass} text-sm`}
                                       style={{ 
                                         backgroundColor: 'transparent',
