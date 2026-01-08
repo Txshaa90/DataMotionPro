@@ -366,6 +366,10 @@ export default function DatasetWorkspacePage() {
     }
     
     // Column widths reset removed - using fixed 250px default
+    
+    // Clear row and column selections when switching sheets
+    setSelectedRows(new Set())
+    setSelectedColumns(new Set())
   }, [currentSheet?.id, currentDataset?.columns])
 
   // Reapply cell color rules when rules or sheet rows change
