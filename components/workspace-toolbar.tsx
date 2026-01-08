@@ -489,8 +489,8 @@ export function WorkspaceToolbar({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-96" align="start">
-          <div className="space-y-3 max-h-[500px] overflow-y-auto">
+        <PopoverContent className="w-96 max-h-[600px]" align="start">
+          <div className="space-y-3 max-h-[550px] overflow-y-auto p-1">
             <h4 className="font-semibold text-sm">Filter by Date Range</h4>
             
             {/* Current Date Range Filter */}
