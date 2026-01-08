@@ -94,6 +94,7 @@ export default function DatasetWorkspacePage() {
   const [supabaseViews, setSupabaseViews] = useState<any[]>([])
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [sidebarColor, setSidebarColor] = useState('#22c55e')
 
   const [localVisibleColumns, setLocalVisibleColumns] = useState<string[]>([])
   const [localGroupBy, setLocalGroupBy] = useState<string | null>(null)
@@ -372,6 +373,24 @@ export default function DatasetWorkspacePage() {
     setSelectedRows(new Set())
     setSelectedColumns(new Set())
   }, [currentSheet?.id, currentDataset?.columns])
+
+  // Load sidebar color from localStorage
+  useEffect(() => {
+    const savedColor = localStorage.getItem('datamotionpro-sidebar-color')
+    if (savedColor) {
+      setSidebarColor(savedColor)
+    }
+    
+    // Listen for storage changes to sync across tabs
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'datamotionpro-sidebar-color' && e.newValue) {
+        setSidebarColor(e.newValue)
+      }
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   // Reapply cell color rules when rules or sheet rows change
   useEffect(() => {
@@ -2538,7 +2557,7 @@ export default function DatasetWorkspacePage() {
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm">
+                    <Button size="sm" style={{ backgroundColor: sidebarColor, color: 'white' }} className="hover:opacity-90">
                       <Plus className="h-4 w-4 mr-1" />
                       Add Row
                       <ChevronDown className="h-3 w-3 ml-1" />
@@ -2555,7 +2574,7 @@ export default function DatasetWorkspacePage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button size="sm" variant="outline" onClick={() => setAddColumnDialogOpen(true)}>
+                <Button size="sm" style={{ backgroundColor: sidebarColor, color: 'white' }} className="hover:opacity-90" onClick={() => setAddColumnDialogOpen(true)}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Column
                 </Button>
