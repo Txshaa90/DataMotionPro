@@ -3923,15 +3923,19 @@ export default function DatasetWorkspacePage() {
                             {newRowNumber}
                           </td>
                           {currentDataset?.columns.map((col: any, colIndex: number) => {
-                            const cellValue = row[colIndex] || ''
+                            // Find which data column index maps to this dataset column
+                            const dataColIndex = Object.entries(pasteColumnMapping).find(([_, columnId]) => columnId === col.id)?.[0]
+                            const cellValue = dataColIndex !== undefined ? (row[parseInt(dataColIndex)] || '') : ''
                             return (
                               <td key={col.id} className="px-2 py-1 border-r">
                                 <Input
                                   value={cellValue}
                                   onChange={(e) => {
-                                    const newData = [...pastePreviewData]
-                                    newData[rowIndex][colIndex] = e.target.value
-                                    setPastePreviewData(newData)
+                                    if (dataColIndex !== undefined) {
+                                      const newData = [...pastePreviewData]
+                                      newData[rowIndex][parseInt(dataColIndex)] = e.target.value
+                                      setPastePreviewData(newData)
+                                    }
                                   }}
                                   className="h-8 text-sm border-0 focus:ring-1 focus:ring-primary bg-white dark:bg-gray-900"
                                   placeholder="empty"
