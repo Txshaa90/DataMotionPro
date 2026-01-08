@@ -1048,13 +1048,23 @@ export default function DatasetWorkspacePage() {
         return
       }
       
+      console.log('📋 Pasted data info:')
+      console.log(`   - Rows: ${parsedData.length}`)
+      console.log(`   - Columns in paste: ${parsedData[0].length}`)
+      console.log(`   - Columns in dataset: ${currentDataset.columns.length}`)
+      console.log(`   - First row sample:`, parsedData[0])
+      
       // Set up default column mapping (index to column id)
+      // Maps each pasted column index to a dataset column id
       const defaultMapping: Record<number, string> = {}
-      currentDataset.columns.forEach((col: any, index: number) => {
-        if (index < parsedData[0].length) {
-          defaultMapping[index] = col.id
-        }
-      })
+      
+      // Map as many columns as we can (up to the smaller of the two)
+      const maxColumns = Math.min(parsedData[0].length, currentDataset.columns.length)
+      for (let i = 0; i < maxColumns; i++) {
+        defaultMapping[i] = currentDataset.columns[i].id
+      }
+      
+      console.log('📋 Column mapping:', defaultMapping)
       
       // Show preview dialog
       setPastePreviewData(parsedData)
