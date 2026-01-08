@@ -1204,9 +1204,11 @@ export default function DatasetWorkspacePage() {
       
       if (deleteError) {
         console.error('Error deleting rows from sheet_rows:', deleteError)
-        // Fallback to views.rows update
-        await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
       }
+      
+      // Always update views.rows as backup/fallback for legacy support
+      await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', currentSheet.id)
+      updateSupabaseView(currentSheet.id, { rows: updatedRows })
       
       // Update cache
       setSheetRowsCache(prev => ({
