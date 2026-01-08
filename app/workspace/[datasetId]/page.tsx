@@ -2207,6 +2207,9 @@ export default function DatasetWorkspacePage() {
     const rows = sheetRowsCache[currentSheet?.id || ''] || currentSheet?.rows || currentDataset.rows || []
     console.log(`📊 baseRows (${currentSheet?.type}): ${rows.length} rows from cache/fallback for sheet ${currentSheet?.id}`)
     console.log(`📦 Current cache keys:`, Object.keys(sheetRowsCache))
+    if (rows.length > 0) {
+      console.log(`📋 Sample row data:`, rows[0])
+    }
     return rows
   })()
 
