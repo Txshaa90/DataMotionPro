@@ -137,6 +137,7 @@ export default function DatasetWorkspacePage() {
   const [cellColorRulesSaved, setCellColorRulesSaved] = useState(false)
   const [columnHighlights, setColumnHighlights] = useState<Record<string, string>>({})
   const [highlightColumnDialog, setHighlightColumnDialog] = useState(false)
+  const [successNotification, setSuccessNotification] = useState<{ message: string; count: number } | null>(null)
   const [highlightColumnId, setHighlightColumnId] = useState<string | null>(null)
   const [highlightColor, setHighlightColor] = useState('#fef08a')
   const [formatCellsDialog, setFormatCellsDialog] = useState(false)
@@ -1109,7 +1110,8 @@ export default function DatasetWorkspacePage() {
       }])
       
       setPastePreviewDialog(false)
-      alert(`Successfully added ${newRows.length} row(s) from clipboard!`)
+      setSuccessNotification({ message: 'Successfully added rows from clipboard', count: newRows.length })
+      setTimeout(() => setSuccessNotification(null), 5000)
       console.log('✅ Paste operation completed')
     } catch (error) {
       console.error('❌ Error confirming paste:', error)
@@ -1174,12 +1176,15 @@ export default function DatasetWorkspacePage() {
       }))
       
       // Clear selection
+      const deletedCount = selectedRows.size
       setSelectedRows(new Set())
       
-      alert(`Successfully deleted ${selectedRows.size} row(s)`)
+      setSuccessNotification({ message: 'Successfully deleted rows', count: deletedCount })
+      setTimeout(() => setSuccessNotification(null), 5000)
     } catch (error) {
       console.error('Error bulk deleting rows:', error)
-      alert('Failed to delete rows')
+      setSuccessNotification({ message: 'Failed to delete rows', count: 0 })
+      setTimeout(() => setSuccessNotification(null), 5000)
     }
   }
 
@@ -1214,12 +1219,15 @@ export default function DatasetWorkspacePage() {
       setSupabaseViews(updatedViews)
       
       // Clear selection
+      const deletedCount = selectedColumns.size
       setSelectedColumns(new Set())
       
-      alert(`Successfully deleted ${selectedColumns.size} column(s)`)
+      setSuccessNotification({ message: 'Successfully deleted columns', count: deletedCount })
+      setTimeout(() => setSuccessNotification(null), 5000)
     } catch (error) {
       console.error('Error bulk deleting columns:', error)
-      alert('Failed to delete columns')
+      setSuccessNotification({ message: 'Failed to delete columns', count: 0 })
+      setTimeout(() => setSuccessNotification(null), 5000)
     }
   }
 
@@ -2271,6 +2279,37 @@ export default function DatasetWorkspacePage() {
 
   return (
     <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden" suppressHydrationWarning>
+      {/* Success Notification Toast */}
+      {successNotification && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 fade-in duration-300">
+          <div className={`${successNotification.count > 0 ? 'bg-green-600' : 'bg-red-600'} text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[320px]`}>
+            <div className="flex-shrink-0 w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+              {successNotification.count > 0 ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-sm">{successNotification.message}</p>
+              {successNotification.count > 0 && (
+                <p className="text-xs text-green-100 mt-1">{successNotification.count} {successNotification.message.includes('row') ? 'row(s)' : 'column(s)'}</p>
+              )}
+            </div>
+            <button 
+              onClick={() => setSuccessNotification(null)}
+              className="flex-shrink-0 text-white/80 hover:text-white transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
         <IconSidebar 
           isExpanded={!sidebarCollapsed}
