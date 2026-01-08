@@ -1,5 +1,6 @@
 'use client'
 
+// Workspace page with bulk delete and import features
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
