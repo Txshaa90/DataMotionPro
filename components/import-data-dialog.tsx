@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { FileUp, FileSpreadsheet, FileJson, ChevronRight, Upload, FileType, Check } from 'lucide-react'
+import { FileUp, FileSpreadsheet, FileJson, ChevronRight, Upload, FileType, Check, Plus, FileText } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { supabase } from '@/lib/supabase'
 import * as XLSX from 'xlsx'
 import ExcelJS from 'exceljs'
@@ -88,6 +90,31 @@ export function ImportDataDialog({
   const [selectedExcelSheets, setSelectedExcelSheets] = useState<string[]>([])
   const [showSheetSelector, setShowSheetSelector] = useState(false)
   const [importProgress, setImportProgress] = useState<{ current: number; total: number; sheetName: string; rowCount: number; batchInfo?: { current: number; total: number } } | null>(null)
+  const [importMode, setImportMode] = useState<'new' | 'existing'>('new')
+  const [availableSheets, setAvailableSheets] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedTargetSheet, setSelectedTargetSheet] = useState<string>('')
+
+  // Fetch available sheets when dialog opens
+  useEffect(() => {
+    const fetchSheets = async () => {
+      if (open && datasetId) {
+        const { data, error } = await (supabase as any)
+          .from('views')
+          .select('id, name')
+          .eq('table_id', datasetId)
+          .order('created_at', { ascending: true })
+        
+        if (!error && data) {
+          setAvailableSheets(data)
+          if (data.length > 0 && !selectedTargetSheet) {
+            setSelectedTargetSheet(data[0].id)
+          }
+        }
+      }
+    }
+    
+    fetchSheets()
+  }, [open, datasetId])
 
   const importSources = [
     {
@@ -711,45 +738,80 @@ export function ImportDataDialog({
           rowCount: importedRows.length 
         })
 
-        // Create a new sheet for the imported data (initially empty)
-        const sheetName = file.name.replace(/\.(csv|json)$/i, '') || 'Imported Data'
+        let viewId: string
         
-        const { data: insertedData, error: insertError } = await (supabase as any)
-          .from('views')
-          .insert({
-            user_id: userId,
-            table_id: datasetId,
-            name: sheetName,
-            type: 'grid',
-            visible_columns: columnKeys,
-            filters: [],
-            sorts: [],
-            color_rules: [],
-            group_by: null,
-            rows: [] // Start with empty rows
+        if (importMode === 'existing' && selectedTargetSheet) {
+          // Import to existing sheet
+          viewId = selectedTargetSheet
+          console.log(`📥 Importing ${importedRows.length} rows to existing sheet ${viewId}...`)
+          
+          // Get current row count for proper indexing
+          const { count } = await (supabase as any)
+            .from('sheet_rows')
+            .select('*', { count: 'exact', head: true })
+            .eq('view_id', viewId)
+          
+          const currentRowCount = count || 0
+          
+          // Adjust row indices for appending
+          const adjustedRows = importedRows.map((row, idx) => ({
+            ...row,
+            _rowIndex: currentRowCount + idx
+          }))
+          
+          // Import rows in batches
+          await insertRowsInBatches(adjustedRows, viewId, (currentBatch, totalBatches) => {
+            setImportProgress({ 
+              current: 3, 
+              total: 3, 
+              sheetName: file.name, 
+              rowCount: importedRows.length,
+              batchInfo: { current: currentBatch, total: totalBatches }
+            })
           })
-          .select()
+          
+          console.log(`✅ Appended ${importedRows.length} rows to existing sheet`)
+        } else {
+          // Create a new sheet for the imported data (initially empty)
+          const sheetName = file.name.replace(/\.(csv|json)$/i, '') || 'Imported Data'
+          
+          const { data: insertedData, error: insertError } = await (supabase as any)
+            .from('views')
+            .insert({
+              user_id: userId,
+              table_id: datasetId,
+              name: sheetName,
+              type: 'grid',
+              visible_columns: columnKeys,
+              filters: [],
+              sorts: [],
+              color_rules: [],
+              group_by: null,
+              rows: [] // Start with empty rows
+            })
+            .select()
 
-        if (insertError) {
-          console.error(`❌ Error creating sheet "${sheetName}":`, insertError)
-          throw new Error(`Failed to import data: ${insertError.message}`)
-        }
-        
-        const viewId = insertedData[0].id
-        console.log(`✅ Sheet "${sheetName}" created, now importing ${importedRows.length} rows in batches...`)
-        
-        // Import rows in batches to avoid Supabase limits
-        await insertRowsInBatches(importedRows, viewId, (currentBatch, totalBatches) => {
-          setImportProgress({ 
-            current: 3, 
-            total: 3, 
-            sheetName: file.name, 
-            rowCount: importedRows.length,
-            batchInfo: { current: currentBatch, total: totalBatches }
+          if (insertError) {
+            console.error(`❌ Error creating sheet "${sheetName}":`, insertError)
+            throw new Error(`Failed to import data: ${insertError.message}`)
+          }
+          
+          viewId = insertedData[0].id
+          console.log(`✅ Sheet "${sheetName}" created, now importing ${importedRows.length} rows in batches...`)
+          
+          // Import rows in batches to avoid Supabase limits
+          await insertRowsInBatches(importedRows, viewId, (currentBatch, totalBatches) => {
+            setImportProgress({ 
+              current: 3, 
+              total: 3, 
+              sheetName: file.name, 
+              rowCount: importedRows.length,
+              batchInfo: { current: currentBatch, total: totalBatches }
+            })
           })
-        })
-        
-        console.log(`✅ Sheet "${sheetName}" imported successfully with ${importedRows.length} rows`)
+          
+          console.log(`✅ Sheet "${sheetName}" imported successfully with ${importedRows.length} rows`)
+        }
       }
 
       // Success
@@ -847,6 +909,50 @@ export function ImportDataDialog({
                 </div>
               )}
             </div>
+
+            {/* Import Mode Selector - Only for CSV/JSON (not multi-sheet Excel) */}
+            {file && selectedSource !== 'excel' && availableSheets.length > 0 && (
+              <div className="space-y-3 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <Label>Import Destination</Label>
+                <RadioGroup value={importMode} onValueChange={(value: 'new' | 'existing') => setImportMode(value)}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="new" id="new" />
+                    <Label htmlFor="new" className="font-normal cursor-pointer flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Create new sheet
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="existing" id="existing" />
+                    <Label htmlFor="existing" className="font-normal cursor-pointer flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Add to existing sheet
+                    </Label>
+                  </div>
+                </RadioGroup>
+
+                {importMode === 'existing' && (
+                  <div className="space-y-2 mt-3">
+                    <Label htmlFor="target-sheet">Select Sheet</Label>
+                    <Select value={selectedTargetSheet} onValueChange={setSelectedTargetSheet}>
+                      <SelectTrigger id="target-sheet">
+                        <SelectValue placeholder="Choose a sheet" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableSheets.map((sheet) => (
+                          <SelectItem key={sheet.id} value={sheet.id}>
+                            {sheet.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Data will be appended to the selected sheet
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Excel Sheet Selector */}
             {selectedSource === 'excel' && showSheetSelector && excelSheets.length > 1 && (
