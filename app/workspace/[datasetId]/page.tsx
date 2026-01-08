@@ -1048,26 +1048,56 @@ export default function DatasetWorkspacePage() {
         return
       }
       
-      console.log('📋 Pasted data info:')
-      console.log(`   - Rows: ${parsedData.length}`)
-      console.log(`   - Columns in paste: ${parsedData[0].length}`)
-      console.log(`   - Columns in dataset: ${currentDataset.columns.length}`)
-      console.log(`   - First row sample:`, parsedData[0])
+      // Check if first row looks like headers (contains mostly text, no numbers that look like data)
+      const firstRow = parsedData[0]
+      const hasHeaders = firstRow.some((val: string) => 
+        val && isNaN(Number(val)) && val.length > 0 && !val.match(/^\d+$/)
+      )
       
-      // Set up default column mapping (index to column id)
-      // Maps each pasted column index to a dataset column id
+      let headers: string[] = []
+      let dataRows: any[] = []
+      
+      if (hasHeaders && parsedData.length > 1) {
+        // First row is headers, rest are data
+        headers = firstRow
+        dataRows = parsedData.slice(1)
+        console.log('📋 Detected headers in first row:', headers)
+      } else {
+        // No headers, all rows are data
+        dataRows = parsedData
+        console.log('📋 No headers detected, using dataset columns')
+      }
+      
+      console.log('📋 Pasted data info:')
+      console.log(`   - Data rows: ${dataRows.length}`)
+      console.log(`   - Columns in paste: ${headers.length || dataRows[0]?.length || 0}`)
+      console.log(`   - Columns in dataset: ${currentDataset.columns.length}`)
+      
+      // Set up column mapping
       const defaultMapping: Record<number, string> = {}
       
-      // Map as many columns as we can (up to the smaller of the two)
-      const maxColumns = Math.min(parsedData[0].length, currentDataset.columns.length)
-      for (let i = 0; i < maxColumns; i++) {
-        defaultMapping[i] = currentDataset.columns[i].id
+      if (headers.length > 0) {
+        // Map by matching header names to dataset column names (case-insensitive)
+        headers.forEach((header, index) => {
+          const matchingCol = currentDataset.columns.find((col: any) => 
+            col.name.toLowerCase() === header.toLowerCase() || col.id.toLowerCase() === header.toLowerCase()
+          )
+          if (matchingCol) {
+            defaultMapping[index] = matchingCol.id
+          }
+        })
+      } else {
+        // Map by position
+        const maxColumns = Math.min(dataRows[0]?.length || 0, currentDataset.columns.length)
+        for (let i = 0; i < maxColumns; i++) {
+          defaultMapping[i] = currentDataset.columns[i].id
+        }
       }
       
       console.log('📋 Column mapping:', defaultMapping)
       
-      // Show preview dialog
-      setPastePreviewData(parsedData)
+      // Show preview dialog with data rows only
+      setPastePreviewData(dataRows)
       setPasteColumnMapping(defaultMapping)
       setPastePreviewDialog(true)
     } catch (error) {
