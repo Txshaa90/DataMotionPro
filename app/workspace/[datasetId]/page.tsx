@@ -2219,6 +2219,8 @@ export default function DatasetWorkspacePage() {
     console.log(`📦 Current cache keys:`, Object.keys(sheetRowsCache))
     if (rows.length > 0) {
       console.log(`📋 Sample row data:`, rows[0])
+      console.log(`📋 Row data keys:`, Object.keys(rows[0]))
+      console.log(`📋 Dataset columns:`, currentDataset?.columns?.map((c: any) => c.id))
     }
     return rows
   })()
