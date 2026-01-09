@@ -3952,7 +3952,7 @@ export default function DatasetWorkspacePage() {
                   Pasting {pastePreviewData.length} row(s) into your table
                 </p>
                 <p className="text-xs text-blue-700 dark:text-blue-300">
-                  Edit any data values below before pasting
+                  Edit column mappings and data values below before pasting
                 </p>
               </div>
             </div>
@@ -3966,11 +3966,48 @@ export default function DatasetWorkspacePage() {
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-r w-20">
                         Row #
                       </th>
-                      {currentDataset?.columns.map((col: any) => (
-                        <th key={col.id} className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 border-b border-r min-w-[150px]">
-                          {col.name}
-                        </th>
-                      ))}
+                      {currentDataset?.columns.map((col: any, colIndex: number) => {
+                        // Find which pasted column index maps to this dataset column
+                        const mappedDataIndex = Object.entries(pasteColumnMapping).find(([_, columnId]) => columnId === col.id)?.[0]
+                        return (
+                          <th key={col.id} className="px-2 py-2 border-b border-r min-w-[150px]">
+                            <Select
+                              value={mappedDataIndex || 'none'}
+                              onValueChange={(value) => {
+                                const newMapping = { ...pasteColumnMapping }
+                                // Remove this column from any existing mapping
+                                Object.keys(newMapping).forEach(key => {
+                                  if (newMapping[parseInt(key)] === col.id) {
+                                    delete newMapping[parseInt(key)]
+                                  }
+                                })
+                                // Add new mapping if not 'none'
+                                if (value !== 'none') {
+                                  newMapping[parseInt(value)] = col.id
+                                }
+                                setPasteColumnMapping(newMapping)
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs font-semibold border-0 focus:ring-1 focus:ring-primary">
+                                <SelectValue placeholder="Select column..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">
+                                  <span className="text-gray-400 italic">Skip column</span>
+                                </SelectItem>
+                                {pastePreviewData[0]?.map((_: any, idx: number) => (
+                                  <SelectItem key={idx} value={String(idx)}>
+                                    Column {idx + 1} {pastePreviewData[0][idx] ? `(${String(pastePreviewData[0][idx]).substring(0, 20)}...)` : ''}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-normal">
+                              → {col.name}
+                            </div>
+                          </th>
+                        )
+                      })}
                     </tr>
                   </thead>
                   <tbody>
