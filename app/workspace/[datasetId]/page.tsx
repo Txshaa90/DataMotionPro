@@ -4063,7 +4063,7 @@ export default function DatasetWorkspacePage() {
                               <SelectTrigger className="h-8 text-xs font-semibold border-0 focus:ring-1 focus:ring-primary">
                                 <SelectValue placeholder="Select column..." />
                               </SelectTrigger>
-                              <SelectContent position="item" className="w-auto min-w-[300px] max-w-[600px]">
+                              <SelectContent position="item-aligned" className="w-auto min-w-[300px] max-w-[600px]">
                                 <SelectItem value="none">
                                   <span className="text-gray-400 italic">Skip column</span>
                                 </SelectItem>
