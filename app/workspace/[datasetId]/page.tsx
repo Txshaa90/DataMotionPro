@@ -1110,6 +1110,7 @@ export default function DatasetWorkspacePage() {
       console.log(`   - Data rows: ${dataRows.length}`)
       console.log(`   - Columns in paste: ${headers.length || dataRows[0]?.length || 0}`)
       console.log(`   - Columns in dataset: ${currentDataset.columns.length}`)
+      console.log('📋 First 10 dataset columns:', currentDataset.columns.slice(0, 10).map((c: any) => `${c.name} (${c.id})`).join(', '))
       
       // Set up column mapping
       const defaultMapping: Record<number, string> = {}
