@@ -4008,9 +4008,9 @@ export default function DatasetWorkspacePage() {
                                 <SelectItem value="none">
                                   <span className="text-gray-400 italic">Skip column</span>
                                 </SelectItem>
-                                {pastePreviewData[0]?.map((_: any, idx: number) => {
+                                {Array.from({ length: pasteHeaders.length || pastePreviewData[0]?.length || 0 }).map((_, idx) => {
                                   const headerName = pasteHeaders[idx] || `Column ${idx + 1}`
-                                  const dataPreview = pastePreviewData[0][idx] ? ` (${String(pastePreviewData[0][idx]).substring(0, 20)}...)` : ''
+                                  const dataPreview = pastePreviewData[0]?.[idx] ? ` (${String(pastePreviewData[0][idx]).substring(0, 20)}...)` : ''
                                   return (
                                     <SelectItem key={idx} value={String(idx)}>
                                       {headerName}{dataPreview}
