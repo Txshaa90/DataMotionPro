@@ -1112,6 +1112,12 @@ export default function DatasetWorkspacePage() {
       console.log(`   - Columns in dataset: ${currentDataset.columns.length}`)
       console.log('📋 First 10 dataset columns:', currentDataset.columns.slice(0, 10).map((c: any) => `${c.name} (${c.id})`).join(', '))
       
+      // Check if ORDER DATE and RETURN REQUEST DATE columns exist
+      const orderDateCol = currentDataset.columns.find((c: any) => c.name.toLowerCase().includes('order') && c.name.toLowerCase().includes('date'))
+      const returnDateCol = currentDataset.columns.find((c: any) => c.name.toLowerCase().includes('return') && c.name.toLowerCase().includes('request') && c.name.toLowerCase().includes('date'))
+      console.log('📋 Found ORDER DATE column:', orderDateCol ? `${orderDateCol.name} (${orderDateCol.id})` : 'NOT FOUND')
+      console.log('📋 Found RETURN REQUEST DATE column:', returnDateCol ? `${returnDateCol.name} (${returnDateCol.id})` : 'NOT FOUND')
+      
       // Set up column mapping
       const defaultMapping: Record<number, string> = {}
       
