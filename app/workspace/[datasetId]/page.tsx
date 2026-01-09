@@ -4063,7 +4063,7 @@ export default function DatasetWorkspacePage() {
                               <SelectTrigger className="h-8 text-xs font-semibold border-0 focus:ring-1 focus:ring-primary">
                                 <SelectValue placeholder="Select column..." />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="max-w-md">
                                 <SelectItem value="none">
                                   <span className="text-gray-400 italic">Skip column</span>
                                 </SelectItem>
@@ -4071,8 +4071,10 @@ export default function DatasetWorkspacePage() {
                                   const headerName = pasteHeaders[idx] || `Column ${idx + 1}`
                                   const dataPreview = pastePreviewData[0]?.[idx] ? ` (${String(pastePreviewData[0][idx]).substring(0, 20)}...)` : ''
                                   return (
-                                    <SelectItem key={idx} value={String(idx)}>
-                                      {headerName}{dataPreview}
+                                    <SelectItem key={idx} value={String(idx)} className="max-w-md">
+                                      <div className="truncate" title={`${headerName}${dataPreview}`}>
+                                        {headerName}{dataPreview}
+                                      </div>
                                     </SelectItem>
                                   )
                                 })}
