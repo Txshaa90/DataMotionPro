@@ -172,6 +172,7 @@ export default function DatasetWorkspacePage() {
   const [pastePreviewDialog, setPastePreviewDialog] = useState(false)
   const [pastePreviewData, setPastePreviewData] = useState<any[]>([])
   const [pasteColumnMapping, setPasteColumnMapping] = useState<Record<number, string>>({})
+  const [pasteHeaders, setPasteHeaders] = useState<string[]>([])
   const [resizeStartWidth, setResizeStartWidth] = useState(0)
 
   const [dateRangeFilter, setDateRangeFilter] = useState<{ columnId: string; startDate: string; endDate: string } | null>(null)
@@ -1110,6 +1111,7 @@ export default function DatasetWorkspacePage() {
       // Show preview dialog with data rows only
       setPastePreviewData(dataRows)
       setPasteColumnMapping(defaultMapping)
+      setPasteHeaders(headers)
       setPastePreviewDialog(true)
     } catch (error) {
       console.error('Error pasting from clipboard:', error)
@@ -4006,11 +4008,15 @@ export default function DatasetWorkspacePage() {
                                 <SelectItem value="none">
                                   <span className="text-gray-400 italic">Skip column</span>
                                 </SelectItem>
-                                {pastePreviewData[0]?.map((_: any, idx: number) => (
-                                  <SelectItem key={idx} value={String(idx)}>
-                                    Column {idx + 1} {pastePreviewData[0][idx] ? `(${String(pastePreviewData[0][idx]).substring(0, 20)}...)` : ''}
-                                  </SelectItem>
-                                ))}
+                                {pastePreviewData[0]?.map((_: any, idx: number) => {
+                                  const headerName = pasteHeaders[idx] || `Column ${idx + 1}`
+                                  const dataPreview = pastePreviewData[0][idx] ? ` (${String(pastePreviewData[0][idx]).substring(0, 20)}...)` : ''
+                                  return (
+                                    <SelectItem key={idx} value={String(idx)}>
+                                      {headerName}{dataPreview}
+                                    </SelectItem>
+                                  )
+                                })}
                               </SelectContent>
                             </Select>
                             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-normal">
