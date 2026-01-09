@@ -1096,6 +1096,9 @@ export default function DatasetWorkspacePage() {
           )
           if (matchingCol) {
             defaultMapping[index] = matchingCol.id
+            console.log(`   ✓ Mapped header "${header}" (index ${index}) → column "${matchingCol.name}" (${matchingCol.id})`)
+          } else {
+            console.log(`   ✗ No match found for header "${header}" (index ${index})`)
           }
         })
       } else {
@@ -1106,7 +1109,7 @@ export default function DatasetWorkspacePage() {
         }
       }
       
-      console.log('📋 Column mapping:', defaultMapping)
+      console.log('📋 Column mapping result:', JSON.stringify(defaultMapping, null, 2))
       
       // Show preview dialog with data rows only
       setPastePreviewData(dataRows)
