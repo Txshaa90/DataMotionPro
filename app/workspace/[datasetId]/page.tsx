@@ -1135,10 +1135,33 @@ export default function DatasetWorkspacePage() {
           }
         })
       } else {
-        // Map by position
+        // Map by position, but use smart mapping for known columns
         const maxColumns = Math.min(dataRows[0]?.length || 0, currentDataset.columns.length)
+        
+        // Create a map of expected column positions based on visible columns in UI
+        const knownColumnMapping: Record<number, string> = {}
+        
+        // Try to find Order ID column (should be at position 0)
+        const orderIdCol = currentDataset.columns.find((c: any) => 
+          c.name.toLowerCase().includes('order') && c.name.toLowerCase().includes('id')
+        )
+        if (orderIdCol) knownColumnMapping[0] = orderIdCol.id
+        
+        // Try to find Order Date column (should be at position 1)
+        if (orderDateCol) knownColumnMapping[1] = orderDateCol.id
+        
+        // Try to find Return Request Date column (should be at position 2)
+        if (returnDateCol) knownColumnMapping[2] = returnDateCol.id
+        
+        // For remaining columns, use positional mapping but skip the ones we've already mapped
         for (let i = 0; i < maxColumns; i++) {
-          defaultMapping[i] = currentDataset.columns[i].id
+          if (knownColumnMapping[i]) {
+            // Use the smart mapping
+            defaultMapping[i] = knownColumnMapping[i]
+          } else {
+            // Use positional mapping for unknown columns
+            defaultMapping[i] = currentDataset.columns[i].id
+          }
         }
       }
       
