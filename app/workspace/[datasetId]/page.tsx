@@ -1079,8 +1079,14 @@ export default function DatasetWorkspacePage() {
           )
         ).length
         
-        // If at least 20% of first row values match dataset columns, it's likely headers
-        if (matchCount >= Math.max(2, firstRow.length * 0.2)) {
+        // If match rate is very high (>80%), it's likely data values matching column names created from previous pastes
+        // In this case, treat as data, not headers
+        const matchRate = matchCount / firstRow.length
+        
+        // Only treat as headers if match rate is moderate (20-80%)
+        // Too high = data values matching column names from previous imports
+        // Too low = no headers present
+        if (matchCount >= Math.max(2, firstRow.length * 0.2) && matchRate < 0.8) {
           hasHeaders = true
         }
       }
