@@ -388,8 +388,19 @@ export default function DatasetWorkspacePage() {
       }
     }
     
+    // Listen for custom event from icon sidebar (same tab)
+    const handleColorChange = (e: any) => {
+      if (e.detail?.color) {
+        setSidebarColor(e.detail.color)
+      }
+    }
+    
     window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    window.addEventListener('sidebar-color-change', handleColorChange)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('sidebar-color-change', handleColorChange)
+    }
   }, [])
 
   // Reapply cell color rules when rules or sheet rows change

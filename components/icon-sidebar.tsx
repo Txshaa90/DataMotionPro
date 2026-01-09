@@ -70,6 +70,8 @@ export function IconSidebar({ isExpanded, onToggle, datasetName, onAddSheet, onS
   const handleColorChange = (color: string) => {
     setSidebarColor(color)
     localStorage.setItem('datamotionpro-sidebar-color', color)
+    // Dispatch custom event to notify other components in the same page
+    window.dispatchEvent(new CustomEvent('sidebar-color-change', { detail: { color } }))
   }
   
   const presetColors = [
