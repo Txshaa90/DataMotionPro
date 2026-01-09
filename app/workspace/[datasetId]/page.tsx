@@ -1060,20 +1060,40 @@ export default function DatasetWorkspacePage() {
         return
       }
       
-      // Check if first row looks like headers (contains mostly text, no numbers that look like data)
+      // Improved header detection: Check if first row looks like descriptive headers
+      // Headers typically have:
+      // - Descriptive names (not just single values)
+      // - Different pattern from data rows (less numbers, more descriptive text)
+      // - Match existing dataset column names
       const firstRow = parsedData[0]
-      const hasHeaders = firstRow.some((val: string) => 
-        val && isNaN(Number(val)) && val.length > 0 && !val.match(/^\d+$/)
-      )
+      const secondRow = parsedData[1]
+      
+      let hasHeaders = false
+      
+      if (parsedData.length > 1) {
+        // Check if first row values match any dataset column names (strong indicator of headers)
+        const matchCount = firstRow.filter((val: string) => 
+          currentDataset.columns.some((col: any) => 
+            col.name.toLowerCase() === String(val).toLowerCase() || 
+            col.id.toLowerCase() === String(val).toLowerCase()
+          )
+        ).length
+        
+        // If at least 20% of first row values match dataset columns, it's likely headers
+        if (matchCount >= Math.max(2, firstRow.length * 0.2)) {
+          hasHeaders = true
+        }
+      }
       
       let headers: string[] = []
       let dataRows: any[] = []
       
-      if (hasHeaders && parsedData.length > 1) {
+      if (hasHeaders) {
         // First row is headers, rest are data
         headers = firstRow
         dataRows = parsedData.slice(1)
         console.log('📋 Detected headers in first row:', headers)
+        console.log(`📋 Matched ${headers.filter((h: string) => currentDataset.columns.some((c: any) => c.name.toLowerCase() === h.toLowerCase())).length} headers to dataset columns`)
       } else {
         // No headers, all rows are data
         dataRows = parsedData
