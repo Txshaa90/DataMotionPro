@@ -597,10 +597,10 @@ export default function Dashboard() {
       }))
     : tables
 
-  // Filter tables and folders based on search
-  const filteredFolders = displayFolders.filter((folder) =>
-    folder.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Filter tables and folders based on search, then sort folders alphabetically
+  const filteredFolders = displayFolders
+    .filter((folder) => folder.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   const filteredTables = displayTables.filter((table) =>
     table.name.toLowerCase().includes(searchQuery.toLowerCase())
