@@ -3197,9 +3197,10 @@ export default function DatasetWorkspacePage() {
         sheetId={currentSheet?.id || ''}
         onImportComplete={async () => {
           console.log('🔄 Import complete, refetching data...')
-          const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId)
+          const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId).order('created_at', { ascending: true })
           if (viewsData) {
             console.log(`📋 Found ${viewsData.length} views after import`)
+            console.log('📋 View names:', viewsData.map((v: any) => v.name).join(', '))
             setSupabaseViews(viewsData)
             
             // Refetch rows for all views from sheet_rows table
@@ -3208,10 +3209,18 @@ export default function DatasetWorkspacePage() {
               viewsData.map(async (view: any) => {
                 const rows = await fetchSheetRows(view.id)
                 rowsCache[view.id] = rows
+                console.log(`📊 Sheet "${view.name}": ${rows.length} rows`)
               })
             )
             console.log('📦 Import complete - cache updated:', Object.keys(rowsCache).map(k => `${k}: ${rowsCache[k].length} rows`))
             setSheetRowsCache(rowsCache)
+            
+            // Switch to the last imported sheet (most recently created)
+            const lastView = viewsData[viewsData.length - 1]
+            if (lastView) {
+              console.log(`🔄 Switching to imported sheet: ${lastView.name}`)
+              setCurrentSheet(lastView)
+            }
           }
           setImportDialogOpen(false)
         }}
