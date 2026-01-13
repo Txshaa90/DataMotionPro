@@ -139,6 +139,8 @@ export function ImportDataDialog({
       color: 'text-blue-600'
     }
   ]
+  
+  console.log('📋 Import sources available:', importSources.length, importSources.map(s => s.name))
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
