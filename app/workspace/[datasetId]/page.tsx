@@ -3219,7 +3219,8 @@ export default function DatasetWorkspacePage() {
             const lastView = viewsData[viewsData.length - 1]
             if (lastView) {
               console.log(`🔄 Switching to imported sheet: ${lastView.name}`)
-              setCurrentSheet(lastView)
+              setActiveSheetId(lastView.id)
+              setActiveView(lastView.id)
             }
           }
           setImportDialogOpen(false)
