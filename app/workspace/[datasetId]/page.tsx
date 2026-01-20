@@ -40,12 +40,14 @@ import {
   LayoutGrid,
   LayoutDashboard,
   FileText,
+  FileSpreadsheet,
   Columns,
   Settings,
   Undo,
   Menu as MenuIcon,
   Trash2,
   Upload,
+  Download,
   BarChart3,
   X,
   Maximize2,
@@ -77,6 +79,7 @@ import ChartView from '@/components/chart-view'
 import ReturnsAnalysis from '@/components/returns-analysis'
 import DashboardView from '@/components/dashboard-view'
 import ProfitabilityReport from '@/components/profitability-report'
+import * as XLSX from 'xlsx'
 
 export default function DatasetWorkspacePage() {
   const params = useParams<{ datasetId: string }>()
@@ -1939,6 +1942,71 @@ export default function DatasetWorkspacePage() {
     }
   }
 
+  // Export to CSV
+  const handleExportToCSV = () => {
+    if (!currentSheet || !currentDataset) return
+    
+    const rows = sheetRowsCache[currentSheet.id] || currentSheet.rows || []
+    const columns = visibleColumns
+    
+    // Create CSV header
+    const headers = columns.map((col: any) => col.name).join(',')
+    
+    // Create CSV rows
+    const csvRows = rows.map((row: any) => {
+      return columns.map((col: any) => {
+        const value = row[col.id] || ''
+        // Escape commas and quotes
+        const escaped = String(value).replace(/"/g, '""')
+        return escaped.includes(',') || escaped.includes('"') || escaped.includes('\n') 
+          ? `"${escaped}"` 
+          : escaped
+      }).join(',')
+    })
+    
+    const csvContent = [headers, ...csvRows].join('\n')
+    
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `${currentSheet.name || 'export'}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    console.log(`✅ Exported ${rows.length} rows to CSV`)
+  }
+
+  // Export to Excel
+  const handleExportToExcel = () => {
+    if (!currentSheet || !currentDataset) return
+    
+    const rows = sheetRowsCache[currentSheet.id] || currentSheet.rows || []
+    const columns = visibleColumns
+    
+    // Prepare data for Excel
+    const excelData = rows.map((row: any) => {
+      const excelRow: any = {}
+      columns.forEach((col: any) => {
+        excelRow[col.name] = row[col.id] || ''
+      })
+      return excelRow
+    })
+    
+    // Create workbook and worksheet
+    const worksheet = XLSX.utils.json_to_sheet(excelData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, currentSheet.name || 'Sheet1')
+    
+    // Download file
+    XLSX.writeFile(workbook, `${currentSheet.name || 'export'}.xlsx`)
+    
+    console.log(`✅ Exported ${rows.length} rows to Excel`)
+  }
+
   const handleOpenFormatCellsDialog = (columnId: string) => {
     setFormatColumnId(columnId)
     const existingFormat = columnFormats[columnId]
@@ -2689,6 +2757,25 @@ export default function DatasetWorkspacePage() {
                   <Upload className="h-4 w-4 mr-1" />
                   Import
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <Download className="h-4 w-4 mr-1" />
+                      Download
+                      <ChevronDown className="h-3 w-3 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={handleExportToCSV}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Download as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportToExcel}>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Download as Excel
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button size="sm" variant="outline" onClick={handleOpenManualCellColorDialog} title="Set color for cells matching a value">
                   <Palette className="h-4 w-4 mr-1" />
                   Set Cell Color
