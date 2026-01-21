@@ -417,7 +417,9 @@ export function ImportDataDialog({
           if (cell.isMerged) {
             const master = cell.master || cell
             // Check if merge spans more than 2 columns
-            if (master.col && cell.col && (cell.col - master.col > 1)) {
+            const masterCol = typeof master.col === 'number' ? master.col : 0
+            const cellCol = typeof cell.col === 'number' ? cell.col : 0
+            if (masterCol && cellCol && (cellCol - masterCol > 1)) {
               hasMergedAcrossMany = true
             }
           }
