@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Database, Table, Zap, Lock, Users, Globe, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Database, Table, Zap, Lock, Users, Globe, ArrowRight, CheckCircle2, Upload, FileSpreadsheet, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 
 export default function Home() {
@@ -17,6 +17,7 @@ export default function Home() {
           <div className="hidden md:flex items-center space-x-8">
             <a href="#features" className="text-green-200 hover:text-white">Features</a>
             <Link href="/pricing" className="text-green-200 hover:text-white">Pricing</Link>
+            <a href="#" className="text-green-200 hover:text-white">Documentation</a>
             <a href="#about" className="text-green-200 hover:text-white">About</a>
           </div>
           <div className="flex items-center space-x-4">
@@ -38,22 +39,22 @@ export default function Home() {
             <span className="text-sm font-medium text-primary">No-code database platform</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-green-200 to-emerald-400">
-            Build Databases<br />Like Spreadsheets
+            Import Any Spreadsheet<br />Get an Instant Database
           </h1>
           <p className="text-xl text-green-100 mb-12 max-w-2xl mx-auto">
-            Create powerful databases, APIs, and workflows without writing code. 
-            The simplicity of a spreadsheet with the power of a database.
+            Upload Excel, CSV, or JSON files and instantly turn them into collaborative, 
+            API-powered databases. No code required.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/auth/signup">
               <Button size="lg" className="text-lg px-8">
-                Start Building Free
+                Upload Your First Sheet
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Link href="/auth/signin">
+            <Link href="#features">
               <Button size="lg" variant="outline" className="text-lg px-8 border-green-400 text-green-100 hover:bg-green-800">
-                Sign In
+                See How It Works
               </Button>
             </Link>
           </div>
@@ -70,29 +71,93 @@ export default function Home() {
         </div>
       </section>
 
+      {/* How Import Works Section */}
+      <section className="py-20 px-4 bg-green-800">
+        <div className="container mx-auto max-w-5xl">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4 text-white">How Import Works</h2>
+            <p className="text-xl text-green-200">From messy spreadsheet to clean database in 3 steps</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="bg-green-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <Upload className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3 text-white">1. Upload Your File</h3>
+              <p className="text-green-100">
+                Drag and drop Excel, CSV, JSON, or XML files. We support complex templates with merged cells and multiple sheets.
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-green-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3 text-white">2. Auto-Clean Data</h3>
+              <p className="text-green-100">
+                Our smart parser detects headers, skips section labels, validates data types, and filters out junk rows automatically.
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-green-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <FileSpreadsheet className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3 text-white">3. Start Working</h3>
+              <p className="text-green-100">
+                Your data appears in a collaborative spreadsheet interface, backed by a real database with instant APIs.
+              </p>
+            </div>
+          </div>
+          
+          <div className="mt-12 bg-green-900/50 border border-green-700 rounded-lg p-8">
+            <h3 className="text-2xl font-semibold mb-4 text-white text-center">Handles Real-World Complexity</h3>
+            <div className="grid md:grid-cols-2 gap-4 text-green-100">
+              <div className="flex items-start">
+                <CheckCircle2 className="h-5 w-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                <span>Merged cells and section headers</span>
+              </div>
+              <div className="flex items-start">
+                <CheckCircle2 className="h-5 w-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                <span>Multiple sheets in one file</span>
+              </div>
+              <div className="flex items-start">
+                <CheckCircle2 className="h-5 w-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                <span>Date and number formatting</span>
+              </div>
+              <div className="flex items-start">
+                <CheckCircle2 className="h-5 w-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                <span>Cell colors and styling preserved</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section id="features" className="py-20 px-4 bg-green-900">
         <div className="container mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4 text-white">Everything you need</h2>
-            <p className="text-xl text-green-200">Powerful features for modern teams</p>
+            <h2 className="text-4xl font-bold mb-4 text-white">Everything You Need</h2>
+            <p className="text-xl text-green-200">Built for teams that need more than spreadsheets</p>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <FeatureCard
               icon={<Table className="h-8 w-8" />}
-              title="Spreadsheet Interface"
-              description="Familiar spreadsheet-like interface that anyone can use. No learning curve."
+              title="Smart Import"
+              description="Upload Excel, CSV, JSON, or XML. Auto-detect headers, skip junk rows, and import clean data in seconds."
             />
             <FeatureCard
               icon={<Database className="h-8 w-8" />}
               title="Real Database Power"
-              description="Behind the scenes, it's a real database with relationships, validations, and more."
+              description="Your spreadsheet becomes a real PostgreSQL database with relationships, validations, and real-time sync."
             />
             <FeatureCard
               icon={<Zap className="h-8 w-8" />}
-              title="Instant APIs"
-              description="Automatically generate REST APIs for your data. No backend coding required."
+              title="Instant REST APIs"
+              description="Every dataset automatically gets a REST API. Query, filter, and integrate with any tool instantly."
             />
             <FeatureCard
               icon={<Lock className="h-8 w-8" />}
@@ -117,8 +182,8 @@ export default function Home() {
       <section className="py-20 px-4 bg-green-950">
         <div className="container mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4 text-white">Built for every team</h2>
-            <p className="text-xl text-green-200">From startups to enterprises</p>
+            <h2 className="text-4xl font-bold mb-4 text-white">Solve real business problems</h2>
+            <p className="text-xl text-green-200">From inventory tracking to CRM - no coding required</p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
@@ -201,12 +266,12 @@ export default function Home() {
       {/* CTA Section */}
       <section className="py-20 px-4 bg-green-600 text-white">
         <div className="container mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-6">Ready to get started?</h2>
-          <p className="text-xl mb-8 opacity-90">Join thousands of teams building with DataMotionPro</p>
+          <h2 className="text-4xl font-bold mb-6">Ready to transform your spreadsheets?</h2>
+          <p className="text-xl mb-8 opacity-90">Start free - no credit card required</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/auth/signup">
               <Button size="lg" variant="secondary" className="text-lg px-8">
-                Create Free Account
+                Try Import Demo
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
