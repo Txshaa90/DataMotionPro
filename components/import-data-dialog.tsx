@@ -347,27 +347,74 @@ export function ImportDataDialog({
       
       const rows: any[] = []
       const headers: string[] = []
+      let headerRowIndex = -1
       
-      // Get headers from first row
-      const headerRow = worksheet.getRow(1)
-      headerRow.eachCell((cell, colNumber) => {
-        headers[colNumber - 1] = String(cell.value || `Column${colNumber}`)
-      })
+      // Find the actual header row (look for row with multiple non-empty cells)
+      // Skip merged title rows and find the row with column headers
+      for (let i = 1; i <= Math.min(10, worksheet.rowCount); i++) {
+        const row = worksheet.getRow(i)
+        let nonEmptyCells = 0
+        row.eachCell(() => nonEmptyCells++)
+        
+        // If we find a row with multiple cells, it's likely the header
+        if (nonEmptyCells >= 3) {
+          headerRowIndex = i
+          break
+        }
+      }
       
-      // Process data rows
+      // If no header found, use first row
+      if (headerRowIndex === -1) headerRowIndex = 1
+      
+      // Get headers from detected header row
+      const headerRow = worksheet.getRow(headerRowIndex)
+      const maxCol = worksheet.columnCount || 20
+      
+      for (let colNumber = 1; colNumber <= maxCol; colNumber++) {
+        const cell = headerRow.getCell(colNumber)
+        let headerValue = cell.value
+        
+        // Handle rich text in headers
+        if (headerValue && typeof headerValue === 'object' && 'richText' in headerValue) {
+          headerValue = (headerValue as any).richText.map((t: any) => t.text).join('')
+        }
+        
+        const headerName = headerValue ? String(headerValue).trim() : ''
+        if (headerName) {
+          headers[colNumber - 1] = headerName
+        }
+      }
+      
+      console.log(`📋 Found ${headers.filter(h => h).length} headers in sheet "${sheetName}":`, headers.filter(h => h))
+      
+      // Process data rows (skip rows up to and including header)
       worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return // Skip header row
+        if (rowNumber <= headerRowIndex) return // Skip title and header rows
+        
+        // Check if row has any data
+        let hasData = false
+        row.eachCell(() => hasData = true)
+        if (!hasData) return
         
         // Build rowData with id first, then columns in header order
         const rowData: any = { id: crypto.randomUUID() }
         const cellColors: any = {}
         const cellValues: any = {}
         
-        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        for (let colNumber = 1; colNumber <= maxCol; colNumber++) {
+          const cell = row.getCell(colNumber)
           const header = headers[colNumber - 1]
-          if (!header) return
+          
+          // Skip columns without headers
+          if (!header) continue
           
           let value = cell.value
+          
+          // Handle merged cells - use the master cell's value
+          if (cell.isMerged) {
+            const master = cell.master || cell
+            value = master.value
+          }
           
           // Handle date values
           if (value instanceof Date) {
@@ -382,7 +429,7 @@ export function ImportDataDialog({
             value = (value as any).richText.map((t: any) => t.text).join('')
           }
           
-          cellValues[header] = value
+          cellValues[header] = value !== null && value !== undefined ? value : ''
           
           // Extract cell background color
           if (cell.fill && cell.fill.type === 'pattern') {
@@ -408,11 +455,13 @@ export function ImportDataDialog({
               }
             }
           }
-        })
+        }
         
         // Add columns in header order to preserve column sequence
         headers.forEach(header => {
-          rowData[header] = cellValues[header] !== undefined ? cellValues[header] : ''
+          if (header) {
+            rowData[header] = cellValues[header] !== undefined ? cellValues[header] : ''
+          }
         })
         
         // Store cell colors if any were found
@@ -423,6 +472,7 @@ export function ImportDataDialog({
         rows.push(rowData)
       })
       
+      console.log(`📊 Parsed ${rows.length} data rows from sheet "${sheetName}"`)
       result[sheetName] = rows
     }
     
