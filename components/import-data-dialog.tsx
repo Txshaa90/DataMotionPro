@@ -351,17 +351,27 @@ export function ImportDataDialog({
       
       // Find the actual header row (look for row with multiple non-empty cells)
       // Skip merged title rows and find the row with column headers
+      // Look for the row with the MOST non-empty cells (likely the header)
+      let maxCells = 0
       for (let i = 1; i <= Math.min(10, worksheet.rowCount); i++) {
         const row = worksheet.getRow(i)
         let nonEmptyCells = 0
-        row.eachCell(() => nonEmptyCells++)
+        row.eachCell((cell) => {
+          // Count cells with actual text content (not just formatting)
+          const value = cell.value
+          if (value !== null && value !== undefined && String(value).trim() !== '') {
+            nonEmptyCells++
+          }
+        })
         
-        // If we find a row with multiple cells, it's likely the header
-        if (nonEmptyCells >= 3) {
+        // Track the row with the most cells - that's likely the header
+        if (nonEmptyCells > maxCells) {
+          maxCells = nonEmptyCells
           headerRowIndex = i
-          break
         }
       }
+      
+      console.log(`🔍 Detected header row at index ${headerRowIndex} with ${maxCells} columns`)
       
       // If no header found, use first row
       if (headerRowIndex === -1) headerRowIndex = 1
