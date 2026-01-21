@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { FileUp, FileSpreadsheet, FileJson, ChevronRight, Upload, FileType, Check, Plus, FileText } from 'lucide-react'
+import { FileUp, FileSpreadsheet, FileJson, ChevronRight, Upload, FileType, Check, Plus, FileText, FileCode } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { supabase } from '@/lib/supabase'
@@ -20,7 +20,7 @@ interface ImportDataDialogProps {
   onImportComplete: () => void
 }
 
-type ImportSource = 'csv' | 'json' | 'excel' | null
+type ImportSource = 'csv' | 'json' | 'excel' | 'xml' | null
 
 export function ImportDataDialog({ 
   open, 
@@ -137,6 +137,13 @@ export function ImportDataDialog({
       description: 'Import from JSON file',
       icon: FileJson,
       color: 'text-blue-600'
+    },
+    {
+      id: 'xml' as const,
+      name: 'XML',
+      description: 'Import from XML file',
+      icon: FileCode,
+      color: 'text-orange-600'
     }
   ]
   
@@ -243,6 +250,86 @@ export function ImportDataDialog({
       return []
     } catch (err) {
       throw new Error('Invalid JSON format')
+    }
+  }
+
+  const parseXML = (text: string): any[] => {
+    try {
+      const parser = new DOMParser()
+      const xmlDoc = parser.parseFromString(text, 'text/xml')
+      
+      // Check for parsing errors
+      const parserError = xmlDoc.querySelector('parsererror')
+      if (parserError) {
+        throw new Error('Invalid XML format')
+      }
+
+      const rows: any[] = []
+      
+      // Try to find repeating elements (common patterns: <row>, <item>, <record>, or root's children)
+      let elements: Element[] = []
+      const possibleRowTags = ['row', 'item', 'record', 'entry', 'data']
+      
+      for (const tag of possibleRowTags) {
+        elements = Array.from(xmlDoc.getElementsByTagName(tag))
+        if (elements.length > 0) break
+      }
+      
+      // If no common tags found, use direct children of root
+      if (elements.length === 0) {
+        const root = xmlDoc.documentElement
+        if (root && root.children.length > 0) {
+          // If all children have the same tag name, use them as rows
+          const firstChildTag = root.children[0].tagName
+          const allSameTag = Array.from(root.children).every(child => child.tagName === firstChildTag)
+          if (allSameTag) {
+            elements = Array.from(root.children)
+          }
+        }
+      }
+
+      // Parse each element into a row object
+      for (const element of elements) {
+        const row: any = { id: crypto.randomUUID() }
+        
+        // Extract attributes
+        for (const attr of Array.from(element.attributes)) {
+          row[attr.name] = attr.value
+        }
+        
+        // Extract child elements
+        for (const child of Array.from(element.children)) {
+          const tagName = child.tagName
+          const textContent = child.textContent?.trim() || ''
+          
+          // If child has no children, use its text content
+          if (child.children.length === 0) {
+            row[tagName] = textContent
+          } else {
+            // If child has children, try to extract them as nested object
+            const nestedObj: any = {}
+            for (const nestedChild of Array.from(child.children)) {
+              nestedObj[nestedChild.tagName] = nestedChild.textContent?.trim() || ''
+            }
+            row[tagName] = JSON.stringify(nestedObj)
+          }
+        }
+        
+        // If element has no children, use its text content directly
+        if (element.children.length === 0 && Object.keys(row).length === 1) {
+          row['value'] = element.textContent?.trim() || ''
+        }
+        
+        rows.push(row)
+      }
+
+      if (rows.length === 0) {
+        throw new Error('No data rows found in XML file')
+      }
+
+      return rows
+    } catch (err: any) {
+      throw new Error(err.message || 'Failed to parse XML file')
     }
   }
 
@@ -661,6 +748,9 @@ export function ImportDataDialog({
         } else if (selectedSource === 'json') {
           const text = await file.text()
           importedRows = parseJSON(text)
+        } else if (selectedSource === 'xml') {
+          const text = await file.text()
+          importedRows = parseXML(text)
         }
 
         if (importedRows.length === 0) {
@@ -895,7 +985,9 @@ export function ImportDataDialog({
                       ? '.csv' 
                       : selectedSource === 'excel' 
                         ? '.xlsx,.xls' 
-                        : '.json'
+                        : selectedSource === 'json'
+                          ? '.json'
+                          : '.xml'
                   }
                   onChange={handleFileChange}
                   className="flex-1"
