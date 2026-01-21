@@ -397,7 +397,75 @@ export function ImportDataDialog({
       
       console.log(`📋 Found ${headers.filter(h => h).length} headers in sheet "${sheetName}":`, headers.filter(h => h))
       
+      // Row classification function - distinguishes data rows from structure rows
+      const isDataRow = (rowData: any, row: ExcelJS.Row, headers: string[]): boolean => {
+        let score = 0
+        
+        // Rule 1: Fill ratio - real data rows have many filled columns
+        const filledCells = headers.filter(h => {
+          const val = rowData[h]
+          return val !== null && val !== undefined && String(val).trim() !== ''
+        }).length
+        const fillRatio = filledCells / headers.length
+        
+        if (fillRatio >= 0.5) score += 3  // ≥50% filled = likely data
+        else if (fillRatio < 0.3) return false  // <30% filled = definitely not data
+        
+        // Rule 2: Merged cells spanning many columns = structural rows
+        let hasMergedAcrossMany = false
+        row.eachCell((cell) => {
+          if (cell.isMerged) {
+            const master = cell.master || cell
+            // Check if merge spans more than 2 columns
+            if (master.col && cell.col && (cell.col - master.col > 1)) {
+              hasMergedAcrossMany = true
+            }
+          }
+        })
+        
+        if (!hasMergedAcrossMany) score += 2
+        else return false  // Large merged cells = section header
+        
+        // Rule 3: Validate year columns if they exist
+        const yearColumns = ['Start Year', 'End Year', 'Year', 'start_year', 'end_year']
+        let hasValidYears = true
+        
+        yearColumns.forEach(col => {
+          if (headers.includes(col)) {
+            const yearVal = rowData[col]
+            if (yearVal && yearVal !== '') {
+              const year = Number(yearVal)
+              // Valid year range: 1900-2100
+              if (!isNaN(year) && year >= 1900 && year <= 2100) {
+                score += 2
+              } else {
+                hasValidYears = false
+              }
+            }
+          }
+        })
+        
+        if (!hasValidYears) return false
+        
+        // Rule 4: First column should not be empty for data rows
+        const firstHeader = headers[0]
+        if (firstHeader && rowData[firstHeader] && String(rowData[firstHeader]).trim() !== '') {
+          score += 2
+        }
+        
+        // Rule 5: Check if it looks like a label/category (single word, all caps, etc.)
+        const firstValue = String(rowData[firstHeader] || '').trim()
+        if (firstValue && filledCells === 1) {
+          // Only one cell filled - likely a section header
+          return false
+        }
+        
+        // Final decision: score >= 6 = data row
+        return score >= 6
+      }
+      
       // Process data rows (skip rows up to and including header)
+      let skippedRows = 0
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber <= headerRowIndex) return // Skip title and header rows
         
@@ -479,10 +547,15 @@ export function ImportDataDialog({
           rowData._cellColors = cellColors
         }
         
-        rows.push(rowData)
+        // ✅ ROW CLASSIFICATION - only add if it's a real data row
+        if (isDataRow(rowData, row, headers.filter(h => h))) {
+          rows.push(rowData)
+        } else {
+          skippedRows++
+        }
       })
       
-      console.log(`📊 Parsed ${rows.length} data rows from sheet "${sheetName}"`)
+      console.log(`📊 Parsed ${rows.length} data rows from sheet "${sheetName}" (skipped ${skippedRows} structural rows)`)
       result[sheetName] = rows
     }
     
