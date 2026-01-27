@@ -5,12 +5,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { FileUp, FileSpreadsheet, FileJson, ChevronRight, Upload, FileType, Check, Plus, FileText, FileCode } from 'lucide-react'
+import { FileUp, FileSpreadsheet, FileJson, ChevronRight, Upload, FileType, Check, Plus, FileText, FileCode, Sparkles } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { supabase } from '@/lib/supabase'
 import * as XLSX from 'xlsx'
 import ExcelJS from 'exceljs'
+import AIExtractDialog from './ai-extract-dialog'
 
 interface ImportDataDialogProps {
   open: boolean
@@ -20,7 +21,7 @@ interface ImportDataDialogProps {
   onImportComplete: () => void
 }
 
-type ImportSource = 'csv' | 'json' | 'excel' | 'xml' | null
+type ImportSource = 'csv' | 'json' | 'excel' | 'xml' | 'ai' | null
 
 export function ImportDataDialog({ 
   open, 
@@ -93,6 +94,7 @@ export function ImportDataDialog({
   const [importMode, setImportMode] = useState<'new' | 'existing'>('new')
   const [availableSheets, setAvailableSheets] = useState<Array<{ id: string; name: string }>>([])
   const [selectedTargetSheet, setSelectedTargetSheet] = useState<string>('')
+  const [showAIExtractDialog, setShowAIExtractDialog] = useState(false)
 
   // Fetch available sheets when dialog opens
   useEffect(() => {
@@ -117,6 +119,13 @@ export function ImportDataDialog({
   }, [open, datasetId])
 
   const importSources = [
+    {
+      id: 'ai' as const,
+      name: 'AI Extract',
+      description: 'Extract data from text using AI',
+      icon: Sparkles,
+      color: 'text-purple-600'
+    },
     {
       id: 'csv' as const,
       name: 'CSV',
@@ -1064,8 +1073,77 @@ export function ImportDataDialog({
     setError(null)
   }
 
+  const handleAIExtractComplete = async (extractedData: any[]) => {
+    if (extractedData.length === 0) return
+
+    setImporting(true)
+    setError(null)
+
+    try {
+      console.log('📊 AI extracted data:', extractedData.length, 'rows')
+
+      // Extract column names from extracted data
+      const columnKeys = Object.keys(extractedData[0]).filter(key => key !== 'id')
+      
+      // Add IDs if not present
+      const dataWithIds = extractedData.map(row => ({
+        id: row.id || crypto.randomUUID(),
+        ...row
+      }))
+
+      // Update dataset columns
+      const { data: tableData, error: tableError } = await (supabase as any)
+        .from('tables')
+        .select('columns')
+        .eq('id', datasetId)
+        .single()
+      
+      if (!tableError && tableData) {
+        const existingColumns = tableData.columns || []
+        const existingColumnIds = new Set(existingColumns.map((c: any) => c.id))
+        
+        const newColumns = columnKeys
+          .filter(key => !existingColumnIds.has(key))
+          .map(key => ({
+            id: key,
+            name: key,
+            type: 'text',
+            width: 200
+          }))
+        
+        if (newColumns.length > 0 || existingColumns.length === 0) {
+          const updatedColumns = [...existingColumns, ...newColumns]
+          
+          await (supabase as any)
+            .from('tables')
+            .update({ columns: updatedColumns })
+            .eq('id', datasetId)
+        }
+      }
+
+      // Insert rows
+      await insertRowsInBatches(dataWithIds, sheetId)
+
+      console.log('✅ AI extracted data imported successfully')
+      onImportComplete()
+      onOpenChange(false)
+    } catch (err: any) {
+      console.error('Import error:', err)
+      setError(err.message || 'Failed to import extracted data')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <AIExtractDialog
+        open={showAIExtractDialog}
+        onOpenChange={setShowAIExtractDialog}
+        onExtractComplete={handleAIExtractComplete}
+      />
+      
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -1087,7 +1165,13 @@ export function ImportDataDialog({
               return (
                 <button
                   key={source.id}
-                  onClick={() => setSelectedSource(source.id)}
+                  onClick={() => {
+                    if (source.id === 'ai') {
+                      setShowAIExtractDialog(true)
+                    } else {
+                      setSelectedSource(source.id)
+                    }
+                  }}
                   className="w-full flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="flex items-center gap-3">
@@ -1340,5 +1424,6 @@ export function ImportDataDialog({
         )}
       </DialogContent>
     </Dialog>
+    </>
   )
 }
