@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Initialize OpenAI client only when needed (runtime)
+// This prevents build-time errors when API key is not set
+let openai: OpenAI | null = null
+
+function getOpenAIClient() {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+    openai = new OpenAI({ apiKey })
+  }
+  return openai
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,7 +52,8 @@ ${text}`,
 
     const prompt = prompts[extractionType] || prompts.general
 
-    const completion = await openai.chat.completions.create({
+    const client = getOpenAIClient()
+    const completion = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
