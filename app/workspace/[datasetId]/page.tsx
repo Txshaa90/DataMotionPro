@@ -341,7 +341,9 @@ export default function DatasetWorkspacePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || !datasetId) return
 
-      await (supabase as any)
+      console.log('👁️ Updating presence for user:', user.email, 'on dataset:', datasetId)
+
+      const { error } = await (supabase as any)
         .from('dataset_presence')
         .upsert({
           table_id: datasetId,
@@ -352,6 +354,12 @@ export default function DatasetWorkspacePage() {
         }, {
           onConflict: 'table_id,user_id'
         })
+
+      if (error) {
+        console.error('❌ Error updating presence:', error)
+      } else {
+        console.log('✅ Presence updated successfully')
+      }
     } catch (error) {
       console.error('Error updating presence:', error)
     }

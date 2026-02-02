@@ -267,13 +267,22 @@ export default function Dashboard() {
       const tableIds = tables.map(t => t.id)
       if (tableIds.length === 0) return
 
+      console.log('👀 Fetching viewer presence for', tableIds.length, 'datasets')
+
       const { data, error } = await (supabase as any)
         .from('dataset_presence')
         .select('table_id, user_email, user_name, last_seen')
         .in('table_id', tableIds)
         .gte('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString()) // Last 5 minutes
 
-      if (!error && data) {
+      if (error) {
+        console.error('❌ Error fetching presence:', error)
+        return
+      }
+
+      console.log('👥 Active viewers found:', data?.length || 0, data)
+
+      if (data) {
         const viewersMap = new Map<string, Array<{ user_email: string; user_name?: string }>>()
         data.forEach((presence: any) => {
           if (!viewersMap.has(presence.table_id)) {
@@ -284,6 +293,7 @@ export default function Dashboard() {
             user_name: presence.user_name
           })
         })
+        console.log('📊 Viewers map:', Array.from(viewersMap.entries()).map(([id, viewers]) => ({ id, count: viewers.length })))
         setDatasetViewers(viewersMap)
       }
     } catch (error) {
