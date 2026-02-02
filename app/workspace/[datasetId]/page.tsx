@@ -323,6 +323,9 @@ export default function DatasetWorkspacePage() {
             setActiveView(viewsData[0].id)
           }
         }
+
+        // Update presence to show user is viewing this dataset
+        await updatePresence()
       } catch (error) {
         console.error('Error fetching dataset:', error)
       } finally {
@@ -330,6 +333,39 @@ export default function DatasetWorkspacePage() {
       }
     }
     fetchData()
+  }, [datasetId])
+
+  // Update user presence when viewing dataset
+  const updatePresence = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || !datasetId) return
+
+      await (supabase as any)
+        .from('dataset_presence')
+        .upsert({
+          table_id: datasetId,
+          user_id: user.id,
+          user_email: user.email,
+          user_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+          last_seen: new Date().toISOString()
+        }, {
+          onConflict: 'table_id,user_id'
+        })
+    } catch (error) {
+      console.error('Error updating presence:', error)
+    }
+  }
+
+  // Update presence every 2 minutes while viewing
+  useEffect(() => {
+    if (!datasetId) return
+
+    const interval = setInterval(() => {
+      updatePresence()
+    }, 120000) // 2 minutes
+
+    return () => clearInterval(interval)
   }, [datasetId])
 
   // Removed redundant effect - activeSheetId is now set in fetchData

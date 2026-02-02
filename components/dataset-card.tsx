@@ -1,6 +1,6 @@
 'use client'
 
-import { Database, MoreVertical, Trash2, Edit2, FolderInput } from 'lucide-react'
+import { Database, MoreVertical, Trash2, Edit2, FolderInput, Eye, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+
 interface DatasetCardProps {
   table: {
     id: string
@@ -18,10 +19,29 @@ interface DatasetCardProps {
   colorRulesCount?: number
   filtersCount?: number
   viewMode?: 'grid' | 'list'
+  viewers?: Array<{ user_email: string; user_name?: string }>
   onClick?: () => void
   onRename?: () => void
   onDelete?: () => void
   onMoveToFolder?: () => void
+}
+
+// Helper function to format relative time
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`
+  return `${Math.floor(diffDays / 365)}y ago`
 }
 
 export function DatasetCard({
@@ -29,6 +49,7 @@ export function DatasetCard({
   colorRulesCount = 0,
   filtersCount = 0,
   viewMode = 'grid',
+  viewers = [],
   onClick,
   onRename,
   onDelete,
@@ -52,9 +73,16 @@ export function DatasetCard({
               <span>{table.rows.length} rows</span>
               {colorRulesCount > 0 && <span>{colorRulesCount} color rules</span>}
               {filtersCount > 0 && <span>{filtersCount} filters</span>}
-              <span className="text-xs">
-                Updated {new Date(table.updatedAt).toLocaleDateString()}
+              <span className="flex items-center gap-1 text-xs">
+                <Clock className="h-3 w-3" />
+                {formatRelativeTime(table.updatedAt)}
               </span>
+              {viewers.length > 0 && (
+                <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                  <Eye className="h-3 w-3" />
+                  {viewers.length} viewing
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -177,10 +205,33 @@ export function DatasetCard({
         </span>
       </div>
 
-      {/* Date */}
-      <p className="text-xs text-gray-500 dark:text-gray-400">
-        {new Date(table.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-      </p>
+      {/* Date and Viewers */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          {formatRelativeTime(table.updatedAt)}
+        </p>
+        {viewers.length > 0 && (
+          <div className="flex items-center gap-1">
+            <div className="flex -space-x-2">
+              {viewers.slice(0, 3).map((viewer, idx) => (
+                <div
+                  key={idx}
+                  className="w-6 h-6 rounded-full bg-green-500 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs text-white font-medium"
+                  title={viewer.user_name || viewer.user_email}
+                >
+                  {(viewer.user_name || viewer.user_email).charAt(0).toUpperCase()}
+                </div>
+              ))}
+              {viewers.length > 3 && (
+                <div className="w-6 h-6 rounded-full bg-gray-400 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs text-white font-medium">
+                  +{viewers.length - 3}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Actions Menu */}
       <div className="absolute top-3 right-3">

@@ -119,6 +119,7 @@ export default function Dashboard() {
   const [moveSharedDialog, setMoveSharedDialog] = useState(false)
   const [movingSharedTableId, setMovingSharedTableId] = useState<string | null>(null)
   const [selectedSharedFolderId, setSelectedSharedFolderId] = useState<string | null>(null)
+  const [datasetViewers, setDatasetViewers] = useState<Map<string, Array<{ user_email: string; user_name?: string }>>>(new Map())
 
   const {
     tables,
@@ -245,6 +246,9 @@ export default function Dashboard() {
           const allFolderIds = new Set(foldersData.map((f: SupabaseFolder) => f.id))
           setExpandedFolders(allFolderIds)
         }
+
+        // Fetch viewer presence for all tables
+        await fetchViewerPresence([...tablesData, ...sharedData])
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -256,6 +260,73 @@ export default function Dashboard() {
       fetchData()
     }
   }, [mounted])
+
+  // Fetch viewer presence for datasets
+  const fetchViewerPresence = async (tables: SupabaseTable[]) => {
+    try {
+      const tableIds = tables.map(t => t.id)
+      if (tableIds.length === 0) return
+
+      const { data, error } = await (supabase as any)
+        .from('dataset_presence')
+        .select('table_id, user_email, user_name, last_seen')
+        .in('table_id', tableIds)
+        .gte('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString()) // Last 5 minutes
+
+      if (!error && data) {
+        const viewersMap = new Map<string, Array<{ user_email: string; user_name?: string }>>()
+        data.forEach((presence: any) => {
+          if (!viewersMap.has(presence.table_id)) {
+            viewersMap.set(presence.table_id, [])
+          }
+          viewersMap.get(presence.table_id)!.push({
+            user_email: presence.user_email,
+            user_name: presence.user_name
+          })
+        })
+        setDatasetViewers(viewersMap)
+      }
+    } catch (error) {
+      console.error('Error fetching viewer presence:', error)
+    }
+  }
+
+  // Set up real-time subscription for presence updates
+  useEffect(() => {
+    if (!mounted) return
+
+    const channel = supabase
+      .channel('dataset_presence_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'dataset_presence'
+        },
+        () => {
+          // Refetch presence when changes occur
+          const allTables = [...supabaseTables, ...sharedTables]
+          if (allTables.length > 0) {
+            fetchViewerPresence(allTables)
+          }
+        }
+      )
+      .subscribe()
+
+    // Refresh presence every 30 seconds
+    const interval = setInterval(() => {
+      const allTables = [...supabaseTables, ...sharedTables]
+      if (allTables.length > 0) {
+        fetchViewerPresence(allTables)
+      }
+    }, 30000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(interval)
+    }
+  }, [mounted, supabaseTables, sharedTables])
 
   useEffect(() => {
     // Auto-expand all folders when folders are loaded (for local store)
@@ -910,6 +981,7 @@ export default function Dashboard() {
                       colorRulesCount={colorRulesCount}
                       filtersCount={filtersCount}
                       viewMode={viewMode}
+                      viewers={datasetViewers.get(table.id) || []}
                       onClick={() => window.open(`/workspace/${table.id}`, '_blank')}
                       onRename={() => {
                         setRenamingItem({ type: 'table', id: table.id, name: table.name })
@@ -953,6 +1025,7 @@ export default function Dashboard() {
                     colorRulesCount={colorRulesCount}
                     filtersCount={filtersCount}
                     viewMode={viewMode}
+                    viewers={datasetViewers.get(table.id) || []}
                     onClick={() => window.open(`/workspace/${table.id}`, '_blank')}
                     onRename={() => {
                       setRenamingItem({ type: 'table', id: table.id, name: table.name })
@@ -1028,6 +1101,7 @@ export default function Dashboard() {
                           colorRulesCount={colorRulesCount}
                           filtersCount={filtersCount}
                           viewMode={viewMode}
+                          viewers={datasetViewers.get(table.id) || []}
                           onClick={() => window.open(`/workspace/${table.id}`, '_blank')}
                           onRename={undefined}
                           onDelete={undefined}
@@ -1072,6 +1146,7 @@ export default function Dashboard() {
                     colorRulesCount={colorRulesCount}
                     filtersCount={filtersCount}
                     viewMode={viewMode}
+                    viewers={datasetViewers.get(table.id) || []}
                     onClick={() => window.open(`/workspace/${table.id}`, '_blank')}
                     onRename={undefined}
                     onDelete={undefined}
