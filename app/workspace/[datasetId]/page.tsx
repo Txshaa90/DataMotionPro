@@ -4399,18 +4399,25 @@ export default function DatasetWorkspacePage() {
                                     )}
                                   </SelectValue>
                                 </SelectTrigger>
-                                <SelectContent position="item-aligned" className="w-auto min-w-[300px] max-w-[600px]">
+                                <SelectContent position="item-aligned" className="w-auto min-w-[400px] max-w-[700px]">
                                   <SelectItem value="none">
                                     <span className="text-gray-400 italic">Skip column</span>
                                   </SelectItem>
                                   {Array.from({ length: pasteHeaders.length || pastePreviewData[0]?.length || 0 }).map((_, idx) => {
                                     const headerName = pasteHeaders[idx] || `Column ${idx + 1}`
-                                    const dataPreview = pastePreviewData[0]?.[idx] ? ` (${String(pastePreviewData[0][idx]).substring(0, 30)}...)` : ''
+                                    const dataPreview = pastePreviewData[0]?.[idx] ? String(pastePreviewData[0][idx]).substring(0, 40) : ''
                                     return (
                                       <SelectItem key={idx} value={String(idx)}>
-                                        <span title={`${headerName}${dataPreview}`}>
-                                          {headerName}{dataPreview}
-                                        </span>
+                                        <div className="flex flex-col gap-0.5 py-1">
+                                          <div className="font-semibold text-xs text-gray-900 dark:text-gray-100">
+                                            {headerName}
+                                          </div>
+                                          {dataPreview && (
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                              Preview: {dataPreview}...
+                                            </div>
+                                          )}
+                                        </div>
                                       </SelectItem>
                                     )
                                   })}
