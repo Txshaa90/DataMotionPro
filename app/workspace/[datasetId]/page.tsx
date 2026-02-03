@@ -147,6 +147,8 @@ export default function DatasetWorkspacePage() {
   const [highlightColumnId, setHighlightColumnId] = useState<string | null>(null)
   const [highlightColor, setHighlightColor] = useState('#fef08a')
   const [formatCellsDialog, setFormatCellsDialog] = useState(false)
+  const [activeViewers, setActiveViewers] = useState<Array<{ user_email: string; user_name?: string }>>([])
+
   const [formatColumnId, setFormatColumnId] = useState<string | null>(null)
   const [columnFormats, setColumnFormats] = useState<Record<string, any>>({})
   const [formatType, setFormatType] = useState<'number' | 'currency' | 'percentage' | 'date' | 'text'>('text')
@@ -374,6 +376,69 @@ export default function DatasetWorkspacePage() {
     }, 120000) // 2 minutes
 
     return () => clearInterval(interval)
+  }, [datasetId])
+
+  // Fetch active viewers for this dataset
+  const fetchActiveViewers = async () => {
+    if (!datasetId) return
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data, error } = await (supabase as any)
+        .from('dataset_presence')
+        .select('user_email, user_name, last_seen')
+        .eq('table_id', datasetId)
+        .gte('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString()) // Last 5 minutes
+        .neq('user_id', user.id) // Exclude current user
+
+      if (!error && data) {
+        console.log('👥 Active viewers on this spreadsheet:', data.length, data)
+        setActiveViewers(data.map((v: any) => ({
+          user_email: v.user_email,
+          user_name: v.user_name
+        })))
+      }
+    } catch (error) {
+      console.error('Error fetching active viewers:', error)
+    }
+  }
+
+  // Fetch viewers on mount and set up real-time updates
+  useEffect(() => {
+    if (!datasetId) return
+
+    // Initial fetch
+    fetchActiveViewers()
+
+    // Subscribe to presence changes
+    const channel = supabase
+      .channel(`presence_${datasetId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'dataset_presence',
+          filter: `table_id=eq.${datasetId}`
+        },
+        () => {
+          console.log('👁️ Presence changed, refetching viewers')
+          fetchActiveViewers()
+        }
+      )
+      .subscribe()
+
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchActiveViewers()
+    }, 30000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(interval)
+    }
   }, [datasetId])
 
   // Removed redundant effect - activeSheetId is now set in fetchData
@@ -2849,6 +2914,31 @@ export default function DatasetWorkspacePage() {
                 </Button>
               </div>
               <div className="flex items-center gap-2">
+                {/* Active Viewers */}
+                {activeViewers.length > 0 && (
+                  <div className="flex items-center gap-1 mr-2">
+                    <div className="flex -space-x-2">
+                      {activeViewers.slice(0, 3).map((viewer, idx) => (
+                        <div
+                          key={idx}
+                          className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs text-white font-medium shadow-sm"
+                          title={viewer.user_name || viewer.user_email}
+                        >
+                          {(viewer.user_name || viewer.user_email).charAt(0).toUpperCase()}
+                        </div>
+                      ))}
+                      {activeViewers.length > 3 && (
+                        <div className="w-8 h-8 rounded-full bg-gray-400 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs text-white font-medium shadow-sm">
+                          +{activeViewers.length - 3}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                      {activeViewers.length} viewing
+                    </span>
+                  </div>
+                )}
+
                 {currentSheet && datasetSheets.length > 1 && (
                   <Button
                     size="sm"
