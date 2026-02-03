@@ -3331,7 +3331,7 @@ export default function DatasetWorkspacePage() {
                                 >
                                   <Maximize2 className="h-3 w-3" />
                                 </Button>
-                                <span>{(currentPage - 1) * rowsPerPage + index + 1}</span>
+                                <span>{(currentPage - 1) * rowsPerPage + index + 2}</span>
                               </div>
                             </td>
                             {finalVisibleColumns.map((column: any, colIndex: number) => {
