@@ -189,7 +189,7 @@ export default function DatasetWorkspacePage() {
     setMounted(true)
   }, [])
   const [undoStack, setUndoStack] = useState<Array<{
-    type: 'cell_edit' | 'row_add' | 'row_delete' | 'column_add' | 'column_delete' | 'paste'
+    type: 'cell_edit' | 'row_add' | 'row_delete' | 'column_add' | 'column_delete' | 'paste' | 'bulk_row_delete' | 'bulk_column_delete'
     data: any
   }>>([])
   const [addColumnDialogOpen, setAddColumnDialogOpen] = useState(false)
@@ -922,6 +922,66 @@ export default function DatasetWorkspacePage() {
           ...prev,
           [sheetId]: updatedRows
         }))
+      } else if (lastAction.type === 'bulk_row_delete') {
+        const { deletedRows, sheetId } = lastAction.data
+        
+        // Get current rows from cache
+        const currentRows = sheetRowsCache[sheetId] || []
+        
+        // Re-insert the deleted rows at their original positions
+        const updatedRows = [...currentRows]
+        deletedRows.forEach((deletedRow: any) => {
+          updatedRows.splice(deletedRow.index, 0, deletedRow.row)
+        })
+        
+        // Re-insert into sheet_rows table
+        const rowsToInsert = deletedRows.map((dr: any) => ({
+          view_id: sheetId,
+          row_data: dr.row,
+          row_index: dr.index
+        }))
+        
+        const { error: insertError } = await (supabase as any)
+          .from('sheet_rows')
+          .insert(rowsToInsert)
+        
+        if (insertError) {
+          console.error('Error re-inserting deleted rows:', insertError)
+        }
+        
+        // Update cache
+        setSheetRowsCache(prev => ({
+          ...prev,
+          [sheetId]: updatedRows
+        }))
+        
+        // Update views.rows as backup
+        await (supabase as any).from('views').update({ rows: updatedRows }).eq('id', sheetId)
+        updateSupabaseView(sheetId, { rows: updatedRows })
+      } else if (lastAction.type === 'bulk_column_delete') {
+        const { deletedColumns, oldColumns, datasetId } = lastAction.data
+        
+        // Restore old columns
+        await (supabase as any).from('tables').update({ 
+          columns: oldColumns
+        }).eq('id', datasetId)
+        
+        // Update local dataset state
+        if (currentDataset) {
+          setSupabaseDataset({ ...currentDataset, columns: oldColumns })
+        }
+        
+        // Restore visible_columns in all views
+        const viewUpdates = supabaseViews.map(async (view) => {
+          const restoredVisibleColumns = [...(view.visible_columns || []), ...deletedColumns.map((c: any) => c.id)]
+          await (supabase as any).from('views').update({
+            visible_columns: restoredVisibleColumns
+          }).eq('id', view.id)
+          return { ...view, visible_columns: restoredVisibleColumns }
+        })
+        
+        const updatedViews = await Promise.all(viewUpdates)
+        setSupabaseViews(updatedViews)
       }
       
       // Remove the action from undo stack
@@ -1428,6 +1488,11 @@ export default function DatasetWorkspacePage() {
       // Get current rows from cache
       const currentRows = sheetRowsCache[currentSheet.id] || currentSheet.rows || []
       
+      // Store deleted rows with their indices for undo
+      const deletedRows = currentRows
+        .map((row: any, index: number) => ({ row, index }))
+        .filter((item: any) => selectedRows.has(item.row.id))
+      
       // Filter out selected rows
       const updatedRows = currentRows.filter((r: any) => !selectedRows.has(r.id))
       
@@ -1475,6 +1540,15 @@ export default function DatasetWorkspacePage() {
         [currentSheet.id]: updatedRows
       }))
       
+      // Add to undo stack
+      setUndoStack(prev => [...prev, {
+        type: 'bulk_row_delete',
+        data: { 
+          deletedRows, 
+          sheetId: currentSheet.id 
+        }
+      }])
+      
       // Clear selection
       setSelectedRows(new Set())
       
@@ -1499,6 +1573,10 @@ export default function DatasetWorkspacePage() {
     setConfirmDeleteDialog(null)
     
     try {
+      // Store deleted columns and old columns for undo
+      const deletedColumns = currentDataset.columns.filter((col: any) => selectedColumns.has(col.id))
+      const oldColumns = [...currentDataset.columns]
+      
       // Filter out selected columns
       const updatedColumns = currentDataset.columns.filter((col: any) => !selectedColumns.has(col.id))
       
@@ -1521,6 +1599,16 @@ export default function DatasetWorkspacePage() {
       
       const updatedViews = await Promise.all(viewUpdates)
       setSupabaseViews(updatedViews)
+      
+      // Add to undo stack
+      setUndoStack(prev => [...prev, {
+        type: 'bulk_column_delete',
+        data: { 
+          deletedColumns, 
+          oldColumns,
+          datasetId: currentDataset.id 
+        }
+      }])
       
       // Clear selection
       const deletedCount = selectedColumns.size
