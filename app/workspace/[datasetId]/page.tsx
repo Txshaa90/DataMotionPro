@@ -1233,17 +1233,17 @@ export default function DatasetWorkspacePage() {
       }
       
       // Improved header detection: Check if first row looks like descriptive headers
-      // Headers typically have:
-      // - Descriptive names (not just single values)
-      // - Different pattern from data rows (less numbers, more descriptive text)
-      // - Match existing dataset column names
       const firstRow = parsedData[0]
       const secondRow = parsedData[1]
       
       let hasHeaders = false
+      let headers: string[] = []
+      let dataRows: any[] = []
       
       if (parsedData.length > 1) {
-        // Check if first row values match any dataset column names (strong indicator of headers)
+        // Check multiple indicators that first row contains headers:
+        
+        // 1. Check if first row values match any dataset column names
         const matchCount = firstRow.filter((val: string) => 
           currentDataset.columns.some((col: any) => 
             col.name.toLowerCase() === String(val).toLowerCase() || 
@@ -1251,31 +1251,40 @@ export default function DatasetWorkspacePage() {
           )
         ).length
         
-        // If match rate is very high (>80%), it's likely data values matching column names created from previous pastes
-        // In this case, treat as data, not headers
-        const matchRate = matchCount / firstRow.length
+        // 2. Check if first row has more text and less numbers than second row
+        const firstRowTextCount = firstRow.filter((val: string) => isNaN(Number(val)) && val.length > 2).length
+        const secondRowTextCount = secondRow ? secondRow.filter((val: string) => isNaN(Number(val)) && val.length > 2).length : 0
         
-        // Only treat as headers if match rate is moderate (20-80%)
-        // Too high = data values matching column names from previous imports
-        // Too low = no headers present
-        if (matchCount >= Math.max(2, firstRow.length * 0.2) && matchRate < 0.8) {
+        // 3. Check if first row values are shorter (headers are usually concise)
+        const firstRowAvgLength = firstRow.reduce((sum: number, val: string) => sum + String(val).length, 0) / firstRow.length
+        const secondRowAvgLength = secondRow ? secondRow.reduce((sum: number, val: string) => sum + String(val).length, 0) / secondRow.length : 100
+        
+        console.log('📋 Header detection analysis:')
+        console.log(`   - Column name matches: ${matchCount}/${firstRow.length}`)
+        console.log(`   - First row text count: ${firstRowTextCount}, Second row: ${secondRowTextCount}`)
+        console.log(`   - First row avg length: ${firstRowAvgLength.toFixed(1)}, Second row: ${secondRowAvgLength.toFixed(1)}`)
+        
+        // Decide if first row is headers based on multiple factors
+        const hasColumnMatches = matchCount >= Math.max(1, firstRow.length * 0.15)
+        const hasMoreText = firstRowTextCount >= secondRowTextCount
+        const isShorter = firstRowAvgLength < secondRowAvgLength * 0.8
+        
+        // If any strong indicator is present, treat first row as headers
+        if (hasColumnMatches || (hasMoreText && isShorter)) {
           hasHeaders = true
+          headers = firstRow.map((val: string) => String(val).trim())
+          dataRows = parsedData.slice(1)
+          console.log('✅ Detected headers in first row:', headers)
+          console.log(`   Reason: ${hasColumnMatches ? 'Column matches' : 'Text pattern analysis'}`)
+        } else {
+          // No clear headers detected, treat all as data
+          dataRows = parsedData
+          console.log('📋 No headers detected, treating all rows as data')
         }
-      }
-      
-      let headers: string[] = []
-      let dataRows: any[] = []
-      
-      if (hasHeaders) {
-        // First row is headers, rest are data
-        headers = firstRow
-        dataRows = parsedData.slice(1)
-        console.log('📋 Detected headers in first row:', headers)
-        console.log(`📋 Matched ${headers.filter((h: string) => currentDataset.columns.some((c: any) => c.name.toLowerCase() === h.toLowerCase())).length} headers to dataset columns`)
       } else {
-        // No headers, all rows are data
+        // Only one row, treat as data
         dataRows = parsedData
-        console.log('📋 No headers detected, using dataset columns')
+        console.log('📋 Single row paste, treating as data')
       }
       
       console.log('📋 Pasted data info:')
