@@ -1241,46 +1241,16 @@ export default function DatasetWorkspacePage() {
       let dataRows: any[] = []
       
       if (parsedData.length > 1) {
-        // Check multiple indicators that first row contains headers:
+        // Always treat first row as headers when pasting multiple rows
+        // This matches Excel/Google Sheets behavior where users typically include headers
+        hasHeaders = true
+        headers = firstRow.map((val: string) => String(val).trim())
+        dataRows = parsedData.slice(1)
         
-        // 1. Check if first row values match any dataset column names
-        const matchCount = firstRow.filter((val: string) => 
-          currentDataset.columns.some((col: any) => 
-            col.name.toLowerCase() === String(val).toLowerCase() || 
-            col.id.toLowerCase() === String(val).toLowerCase()
-          )
-        ).length
-        
-        // 2. Check if first row has more text and less numbers than second row
-        const firstRowTextCount = firstRow.filter((val: string) => isNaN(Number(val)) && val.length > 2).length
-        const secondRowTextCount = secondRow ? secondRow.filter((val: string) => isNaN(Number(val)) && val.length > 2).length : 0
-        
-        // 3. Check if first row values are shorter (headers are usually concise)
-        const firstRowAvgLength = firstRow.reduce((sum: number, val: string) => sum + String(val).length, 0) / firstRow.length
-        const secondRowAvgLength = secondRow ? secondRow.reduce((sum: number, val: string) => sum + String(val).length, 0) / secondRow.length : 100
-        
-        console.log('📋 Header detection analysis:')
-        console.log(`   - Column name matches: ${matchCount}/${firstRow.length}`)
-        console.log(`   - First row text count: ${firstRowTextCount}, Second row: ${secondRowTextCount}`)
-        console.log(`   - First row avg length: ${firstRowAvgLength.toFixed(1)}, Second row: ${secondRowAvgLength.toFixed(1)}`)
-        
-        // Decide if first row is headers based on multiple factors
-        const hasColumnMatches = matchCount >= Math.max(1, firstRow.length * 0.15)
-        const hasMoreText = firstRowTextCount >= secondRowTextCount
-        const isShorter = firstRowAvgLength < secondRowAvgLength * 0.8
-        
-        // If any strong indicator is present, treat first row as headers
-        if (hasColumnMatches || (hasMoreText && isShorter)) {
-          hasHeaders = true
-          headers = firstRow.map((val: string) => String(val).trim())
-          dataRows = parsedData.slice(1)
-          console.log('✅ Detected headers in first row:', headers)
-          console.log(`   Reason: ${hasColumnMatches ? 'Column matches' : 'Text pattern analysis'}`)
-        } else {
-          // No clear headers detected, treat all as data
-          dataRows = parsedData
-          console.log('📋 No headers detected, treating all rows as data')
-        }
+        console.log('📋 Header detection:')
+        console.log(`   ✅ Treating first row as headers (${headers.length} columns)`)
+        console.log(`   📊 Headers:`, headers)
+        console.log(`   📝 Data rows: ${dataRows.length}`)
       } else {
         // Only one row, treat as data
         dataRows = parsedData
