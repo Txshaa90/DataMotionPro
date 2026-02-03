@@ -3189,7 +3189,7 @@ export default function DatasetWorkspacePage() {
                             title="Select all rows"
                           />
                         </th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-[40px] z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}>#</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase sticky left-[40px] z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}>1</th>
                         {finalVisibleColumns.map((column: any, index: number) => (
                           <th 
                             key={column.id} 
