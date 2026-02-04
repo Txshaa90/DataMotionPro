@@ -4371,16 +4371,12 @@ export default function DatasetWorkspacePage() {
                                     <span className="text-gray-400 italic">Skip column</span>
                                   </SelectItem>
                                   {Array.from({ length: pastePreviewData[0]?.length || 0 }).map((_, pasteColIdx) => {
-                                    // Find matching dataset column name by trying to match with data
                                     const dataPreview = pastePreviewData[0]?.[pasteColIdx] ? String(pastePreviewData[0][pasteColIdx]).substring(0, 50) : ''
-                                    // Try to find a matching dataset column by name similarity or use the column at same index
-                                    const matchingCol = currentDataset?.columns[pasteColIdx] || null
-                                    const displayName = matchingCol ? matchingCol.name : `Column ${pasteColIdx + 1}`
                                     
                                     return (
                                       <SelectItem key={pasteColIdx} value={String(pasteColIdx)}>
                                         <div className="text-xs">
-                                          <span className="font-semibold text-gray-900 dark:text-gray-100">{displayName}</span>
+                                          <span className="font-semibold text-gray-900 dark:text-gray-100">Column {pasteColIdx + 1}</span>
                                           {dataPreview && (
                                             <span className="text-gray-500 dark:text-gray-400"> ({dataPreview})</span>
                                           )}
