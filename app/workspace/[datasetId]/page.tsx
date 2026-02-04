@@ -4381,15 +4381,20 @@ export default function DatasetWorkspacePage() {
                                     <span className="text-gray-400 italic">Skip column</span>
                                   </SelectItem>
                                   {Array.from({ length: pasteHeaders.length || pastePreviewData[0]?.length || 0 }).map((_, idx) => {
-                                    const headerName = pasteHeaders[idx] || `Column ${idx + 1}`
+                                    const pastedHeaderName = pasteHeaders[idx] || `Column ${idx + 1}`
                                     const dataPreview = pastePreviewData[0]?.[idx] ? String(pastePreviewData[0][idx]).substring(0, 50) : ''
                                     return (
                                       <SelectItem key={idx} value={String(idx)}>
-                                        <div className="text-xs">
-                                          <span className="font-semibold text-gray-900 dark:text-gray-100">{headerName}</span>
-                                          {dataPreview && (
-                                            <span className="text-gray-500 dark:text-gray-400"> ({dataPreview})</span>
-                                          )}
+                                        <div className="flex flex-col gap-0.5 py-1">
+                                          <div className="text-xs">
+                                            <span className="font-semibold text-gray-900 dark:text-gray-100">{col.name}</span>
+                                            {dataPreview && (
+                                              <span className="text-gray-500 dark:text-gray-400"> ({dataPreview})</span>
+                                            )}
+                                          </div>
+                                          <div className="text-xs text-blue-600 dark:text-blue-400">
+                                            ← from: {pastedHeaderName}
+                                          </div>
                                         </div>
                                       </SelectItem>
                                     )
