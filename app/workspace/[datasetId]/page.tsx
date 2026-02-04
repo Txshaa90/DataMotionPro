@@ -4380,29 +4380,20 @@ export default function DatasetWorkspacePage() {
                                   <SelectItem value="none">
                                     <span className="text-gray-400 italic">Skip column</span>
                                   </SelectItem>
-                                  {(() => {
-                                    console.log('🔍 Dropdown rendering - pasteHeaders:', pasteHeaders)
-                                    console.log('🔍 Dropdown rendering - pasteHeaders.length:', pasteHeaders.length)
-                                    return Array.from({ length: pasteHeaders.length || pastePreviewData[0]?.length || 0 }).map((_, idx) => {
-                                      const headerName = pasteHeaders[idx] || `Column ${idx + 1}`
-                                      const dataPreview = pastePreviewData[0]?.[idx] ? String(pastePreviewData[0][idx]).substring(0, 40) : ''
-                                      console.log(`🔍 Dropdown option ${idx}: headerName="${headerName}", dataPreview="${dataPreview}"`)
-                                      return (
-                                        <SelectItem key={idx} value={String(idx)}>
-                                          <div className="flex flex-col gap-0.5 py-1">
-                                            <div className="font-semibold text-xs text-gray-900 dark:text-gray-100">
-                                              {headerName}
-                                            </div>
-                                            {dataPreview && (
-                                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                                Preview: {dataPreview}...
-                                              </div>
-                                            )}
-                                          </div>
-                                        </SelectItem>
-                                      )
-                                    })
-                                  })()}
+                                  {Array.from({ length: pasteHeaders.length || pastePreviewData[0]?.length || 0 }).map((_, idx) => {
+                                    const headerName = pasteHeaders[idx] || `Column ${idx + 1}`
+                                    const dataPreview = pastePreviewData[0]?.[idx] ? String(pastePreviewData[0][idx]).substring(0, 50) : ''
+                                    return (
+                                      <SelectItem key={idx} value={String(idx)}>
+                                        <div className="text-xs">
+                                          <span className="font-semibold text-gray-900 dark:text-gray-100">{headerName}</span>
+                                          {dataPreview && (
+                                            <span className="text-gray-500 dark:text-gray-400"> ({dataPreview})</span>
+                                          )}
+                                        </div>
+                                      </SelectItem>
+                                    )
+                                  })}
                                 </SelectContent>
                               </Select>
                             </div>
