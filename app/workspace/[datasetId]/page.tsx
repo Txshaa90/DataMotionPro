@@ -1232,28 +1232,18 @@ export default function DatasetWorkspacePage() {
         return
       }
       
-      // Always treat first row as headers for paste preview
-      // This allows users to see and map column names regardless of how many rows they paste
-      const firstRow = parsedData[0]
+      // Treat all pasted data as data rows (no header detection)
+      // User will manually map columns based on data preview
+      const dataRows = parsedData
+      const numColumns = parsedData[0]?.length || 0
       
-      let headers: string[] = []
-      let dataRows: any[] = []
-      
-      // Always use first row as headers
-      headers = firstRow.map((val: string) => String(val).trim())
-      
-      // If there are more rows, they are data. If only 1 row, we have no data to preview.
-      if (parsedData.length > 1) {
-        dataRows = parsedData.slice(1)
-      } else {
-        // Single row: treat it as headers with no data rows
-        dataRows = []
-      }
+      // Generate generic column labels for dropdown
+      const headers: string[] = Array.from({ length: numColumns }, (_, i) => `Column ${i + 1}`)
       
       console.log('📋 Paste preview:')
-      console.log(`   📊 Headers (${headers.length} columns):`, headers)
+      console.log(`   📊 Pasted columns: ${numColumns}`)
       console.log(`   📝 Data rows: ${dataRows.length}`)
-      console.log(`   💡 First row is always treated as column headers for mapping`)
+      console.log(`   💡 All rows treated as data - user will manually map columns`)
       
       console.log('📋 Pasted data info:')
       console.log(`   - Data rows: ${dataRows.length}`)
