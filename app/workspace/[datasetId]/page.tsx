@@ -4370,13 +4370,17 @@ export default function DatasetWorkspacePage() {
                                   <SelectItem value="none">
                                     <span className="text-gray-400 italic">Skip column</span>
                                   </SelectItem>
-                                  {Array.from({ length: pasteHeaders.length || pastePreviewData[0]?.length || 0 }).map((_, idx) => {
-                                    const pastedHeaderName = pasteHeaders[idx] || `Column ${idx + 1}`
-                                    const dataPreview = pastePreviewData[0]?.[idx] ? String(pastePreviewData[0][idx]).substring(0, 50) : ''
+                                  {Array.from({ length: pastePreviewData[0]?.length || 0 }).map((_, pasteColIdx) => {
+                                    // Find matching dataset column name by trying to match with data
+                                    const dataPreview = pastePreviewData[0]?.[pasteColIdx] ? String(pastePreviewData[0][pasteColIdx]).substring(0, 50) : ''
+                                    // Try to find a matching dataset column by name similarity or use the column at same index
+                                    const matchingCol = currentDataset?.columns[pasteColIdx] || null
+                                    const displayName = matchingCol ? matchingCol.name : `Column ${pasteColIdx + 1}`
+                                    
                                     return (
-                                      <SelectItem key={idx} value={String(idx)}>
+                                      <SelectItem key={pasteColIdx} value={String(pasteColIdx)}>
                                         <div className="text-xs">
-                                          <span className="font-semibold text-gray-900 dark:text-gray-100">{pastedHeaderName}</span>
+                                          <span className="font-semibold text-gray-900 dark:text-gray-100">{displayName}</span>
                                           {dataPreview && (
                                             <span className="text-gray-500 dark:text-gray-400"> ({dataPreview})</span>
                                           )}
