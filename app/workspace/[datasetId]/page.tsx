@@ -4372,11 +4372,15 @@ export default function DatasetWorkspacePage() {
                                   </SelectItem>
                                   {Array.from({ length: pastePreviewData[0]?.length || 0 }).map((_, pasteColIdx) => {
                                     const dataPreview = pastePreviewData[0]?.[pasteColIdx] ? String(pastePreviewData[0][pasteColIdx]).substring(0, 50) : ''
+                                    // Find the dataset column that this pasted column is mapped to
+                                    const mappedColumnId = pasteColumnMapping[pasteColIdx]
+                                    const mappedColumn = mappedColumnId ? currentDataset?.columns.find((c: any) => c.id === mappedColumnId) : null
+                                    const columnName = mappedColumn ? mappedColumn.name : `Column ${pasteColIdx + 1}`
                                     
                                     return (
                                       <SelectItem key={pasteColIdx} value={String(pasteColIdx)}>
                                         <div className="text-xs">
-                                          <span className="font-semibold text-gray-900 dark:text-gray-100">Column {pasteColIdx + 1}</span>
+                                          <span className="font-semibold text-gray-900 dark:text-gray-100">{columnName}</span>
                                           {dataPreview && (
                                             <span className="text-gray-500 dark:text-gray-400"> ({dataPreview})</span>
                                           )}
