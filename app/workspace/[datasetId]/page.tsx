@@ -1232,30 +1232,28 @@ export default function DatasetWorkspacePage() {
         return
       }
       
-      // Improved header detection: Check if first row looks like descriptive headers
+      // Always treat first row as headers for paste preview
+      // This allows users to see and map column names regardless of how many rows they paste
       const firstRow = parsedData[0]
-      const secondRow = parsedData[1]
       
-      let hasHeaders = false
       let headers: string[] = []
       let dataRows: any[] = []
       
+      // Always use first row as headers
+      headers = firstRow.map((val: string) => String(val).trim())
+      
+      // If there are more rows, they are data. If only 1 row, we have no data to preview.
       if (parsedData.length > 1) {
-        // Always treat first row as headers when pasting multiple rows
-        // This matches Excel/Google Sheets behavior where users typically include headers
-        hasHeaders = true
-        headers = firstRow.map((val: string) => String(val).trim())
         dataRows = parsedData.slice(1)
-        
-        console.log('📋 Header detection:')
-        console.log(`   ✅ Treating first row as headers (${headers.length} columns)`)
-        console.log(`   📊 Headers:`, headers)
-        console.log(`   📝 Data rows: ${dataRows.length}`)
       } else {
-        // Only one row, treat as data
-        dataRows = parsedData
-        console.log('📋 Single row paste, treating as data')
+        // Single row: treat it as headers with no data rows
+        dataRows = []
       }
+      
+      console.log('📋 Paste preview:')
+      console.log(`   📊 Headers (${headers.length} columns):`, headers)
+      console.log(`   📝 Data rows: ${dataRows.length}`)
+      console.log(`   💡 First row is always treated as column headers for mapping`)
       
       console.log('📋 Pasted data info:')
       console.log(`   - Data rows: ${dataRows.length}`)
