@@ -178,6 +178,8 @@ export default function DatasetWorkspacePage() {
   const [pastePreviewData, setPastePreviewData] = useState<any[]>([])
   const [pasteColumnMapping, setPasteColumnMapping] = useState<Record<number, string>>({})
   const [pasteHeaders, setPasteHeaders] = useState<string[]>([])
+  const [firstRowContainsHeaders, setFirstRowContainsHeaders] = useState(true)
+  const [originalPasteData, setOriginalPasteData] = useState<any[]>([]) // Store original data for reprocessing
   const [resizeStartWidth, setResizeStartWidth] = useState(0)
 
   const [dateRangeFilter, setDateRangeFilter] = useState<{ columnId: string; startDate: string; endDate: string } | null>(null)
@@ -1232,18 +1234,28 @@ export default function DatasetWorkspacePage() {
         return
       }
       
-      // Treat all pasted data as data rows (no header detection)
-      // User will manually map columns based on data preview
-      const dataRows = parsedData
-      const numColumns = parsedData[0]?.length || 0
+      // Handle headers based on user preference
+      let headers: string[] = []
+      let dataRows: any[] = []
       
-      // Generate generic column labels for dropdown
-      const headers: string[] = Array.from({ length: numColumns }, (_, i) => `Column ${i + 1}`)
-      
-      console.log('📋 Paste preview:')
-      console.log(`   📊 Pasted columns: ${numColumns}`)
-      console.log(`   📝 Data rows: ${dataRows.length}`)
-      console.log(`   💡 All rows treated as data - user will manually map columns`)
+      if (firstRowContainsHeaders && parsedData.length > 1) {
+        // First row contains headers - use them for mapping but don't save as data
+        headers = parsedData[0].map((val: string) => String(val).trim())
+        dataRows = parsedData.slice(1) // Skip the header row
+        console.log('📋 Paste preview (header-aware mode):')
+        console.log(`   📊 Headers detected: ${headers.length}`)
+        console.log(`   📝 Data rows: ${dataRows.length}`)
+        console.log(`   💡 Headers used for mapping, not saved as data`)
+      } else {
+        // No headers - treat all rows as data
+        const numColumns = parsedData[0]?.length || 0
+        headers = Array.from({ length: numColumns }, (_, i) => `Column ${i + 1}`)
+        dataRows = parsedData
+        console.log('📋 Paste preview (raw mode):')
+        console.log(`   📊 Pasted columns: ${numColumns}`)
+        console.log(`   📝 Data rows: ${dataRows.length}`)
+        console.log(`   💡 All rows treated as data - user will manually map columns`)
+      }
       
       console.log('📋 Pasted data info:')
       console.log(`   - Data rows: ${dataRows.length}`)
@@ -1309,7 +1321,8 @@ export default function DatasetWorkspacePage() {
       
       console.log('📋 Column mapping result:', JSON.stringify(defaultMapping, null, 2))
       
-      // Show preview dialog with data rows only
+      // Store original data and show preview dialog
+      setOriginalPasteData(parsedData) // Store all original data including headers
       setPastePreviewData(dataRows)
       setPasteColumnMapping(defaultMapping)
       setPasteHeaders(headers)
@@ -1318,6 +1331,54 @@ export default function DatasetWorkspacePage() {
       console.error('Error pasting from clipboard:', error)
       alert('Failed to paste from clipboard. Make sure you have copied data from Excel or a spreadsheet.')
     }
+  }
+
+  // Re-process paste data when header detection setting changes
+  const reprocessPasteData = () => {
+    if (originalPasteData.length === 0) return
+    
+    let headers: string[] = []
+    let dataRows: any[] = []
+    const defaultMapping: Record<number, string> = {}
+    
+    if (firstRowContainsHeaders && originalPasteData.length > 1) {
+      // First row contains headers - use them for mapping but don't save as data
+      headers = originalPasteData[0].map((val: string) => String(val).trim())
+      dataRows = originalPasteData.slice(1) // Skip the header row
+      
+      // Map by matching header names to dataset column names (case-insensitive)
+      headers.forEach((header, index) => {
+        const matchingCol = currentDataset?.columns.find((col: any) => 
+          col.name.toLowerCase() === header.toLowerCase() || col.id.toLowerCase() === header.toLowerCase()
+        )
+        if (matchingCol) {
+          defaultMapping[index] = matchingCol.id
+        }
+      })
+    } else {
+      // No headers - treat all rows as data
+      const numColumns = originalPasteData[0]?.length || 0
+      headers = Array.from({ length: numColumns }, (_, i) => `Column ${i + 1}`)
+      dataRows = originalPasteData
+      
+      // Map by position
+      const maxColumns = Math.min(dataRows[0]?.length || 0, currentDataset?.columns.length || 0)
+      for (let i = 0; i < maxColumns; i++) {
+        defaultMapping[i] = currentDataset?.columns[i]?.id || `col-${i}`
+      }
+    }
+    
+    // Update states
+    setPasteHeaders(headers)
+    setPastePreviewData(dataRows)
+    setPasteColumnMapping(defaultMapping)
+    
+    console.log('🔄 Re-processed paste data:', {
+      headerMode: firstRowContainsHeaders,
+      headers: headers.length,
+      dataRows: dataRows.length,
+      mapping: Object.keys(defaultMapping).length
+    })
   }
 
   const handleConfirmPaste = async () => {
@@ -4318,6 +4379,29 @@ export default function DatasetWorkspacePage() {
               </div>
             </div>
 
+            {/* Header detection checkbox */}
+            <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <input
+                type="checkbox"
+                id="firstRowContainsHeaders"
+                checked={firstRowContainsHeaders}
+                onChange={(e) => {
+                  setFirstRowContainsHeaders(e.target.checked)
+                  reprocessPasteData()
+                }}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="firstRowContainsHeaders" className="text-sm font-medium text-gray-900 dark:text-gray-100 cursor-pointer">
+                First row contains column headers
+              </label>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {firstRowContainsHeaders 
+                  ? "Headers will be used for mapping but not saved as data"
+                  : "All rows will be treated as data"
+                }
+              </div>
+            </div>
+
             {/* Table preview with editable data cells */}
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto max-w-full max-h-[400px] overflow-y-auto">
@@ -4372,15 +4456,27 @@ export default function DatasetWorkspacePage() {
                                   </SelectItem>
                                   {Array.from({ length: pastePreviewData[0]?.length || 0 }).map((_, pasteColIdx) => {
                                     const dataPreview = pastePreviewData[0]?.[pasteColIdx] ? String(pastePreviewData[0][pasteColIdx]).substring(0, 50) : ''
-                                    // Find the dataset column that this pasted column is mapped to
+                                    // Use actual header name if available, otherwise use dataset column name
+                                    const headerName = pasteHeaders[pasteColIdx] || null
                                     const mappedColumnId = pasteColumnMapping[pasteColIdx]
                                     const mappedColumn = mappedColumnId ? currentDataset?.columns.find((c: any) => c.id === mappedColumnId) : null
-                                    const columnName = mappedColumn ? mappedColumn.name : `Column ${pasteColIdx + 1}`
+                                    
+                                    let displayName = ''
+                                    if (headerName && firstRowContainsHeaders) {
+                                      // Show the actual header from pasted data
+                                      displayName = headerName
+                                    } else if (mappedColumn) {
+                                      // Show the dataset column name
+                                      displayName = mappedColumn.name
+                                    } else {
+                                      // Fallback to generic column name
+                                      displayName = `Column ${pasteColIdx + 1}`
+                                    }
                                     
                                     return (
                                       <SelectItem key={pasteColIdx} value={String(pasteColIdx)}>
                                         <div className="text-xs">
-                                          <span className="font-semibold text-gray-900 dark:text-gray-100">{columnName}</span>
+                                          <span className="font-semibold text-gray-900 dark:text-gray-100">{displayName}</span>
                                           {dataPreview && (
                                             <span className="text-gray-500 dark:text-gray-400"> ({dataPreview})</span>
                                           )}
