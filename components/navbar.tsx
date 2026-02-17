@@ -57,8 +57,11 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
-            <Database className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">DataMotionPro</span>
+            <img 
+              src="/logo.png" 
+              alt="DataMotionPro" 
+              className="h-8 w-auto"
+            />
           </Link>
 
           {/* Navigation Links */}

@@ -799,7 +799,11 @@ export default function DatasetWorkspacePage() {
   if (loading || !mounted) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Database className="h-16 w-16 opacity-20 animate-pulse" />
+        <img 
+          src="/logo.png" 
+          alt="DataMotionPro" 
+          className="h-16 w-auto opacity-20 animate-pulse"
+        />
       </div>
     )
   }
@@ -808,7 +812,11 @@ export default function DatasetWorkspacePage() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="text-center">
-          <Database className="h-16 w-16 mx-auto mb-4 opacity-20" />
+          <img 
+            src="/logo.png" 
+            alt="DataMotionPro" 
+            className="h-16 w-auto mx-auto mb-4 opacity-20"
+          />
           <h1 className="text-2xl font-bold mb-2">Dataset not found</h1>
           <Link href="/dashboard">
             <Button>

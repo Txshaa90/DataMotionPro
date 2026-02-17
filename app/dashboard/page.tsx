@@ -349,7 +349,11 @@ export default function Dashboard() {
   if (!mounted) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Database className="h-16 w-16 opacity-20 animate-pulse" />
+        <img 
+          src="/logo.png" 
+          alt="DataMotionPro" 
+          className="h-16 w-auto opacity-20 animate-pulse"
+        />
       </div>
     )
   }
@@ -757,7 +761,11 @@ export default function Dashboard() {
               }`}
             >
               <div className="flex items-center gap-2">
-                <Database className="h-4 w-4" />
+                <img 
+                  src="/logo.png" 
+                  alt="DataMotionPro" 
+                  className="h-4 w-auto"
+                />
                 My Workspace
                 <span className="ml-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full text-xs">
                   {displayTables.length + displayFolders.length}
@@ -1056,7 +1064,11 @@ export default function Dashboard() {
             </div>
               ) : (
                 <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <Database className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                  <img 
+                    src="/logo.png" 
+                    alt="DataMotionPro" 
+                    className="h-16 w-auto mx-auto mb-4 opacity-20"
+                  />
                   <p className="text-gray-500 dark:text-gray-400 mb-4">
                     {searchQuery ? 'No datasets found' : 'No datasets yet'}
                   </p>
