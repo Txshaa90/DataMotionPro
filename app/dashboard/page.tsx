@@ -124,15 +124,12 @@ export default function Dashboard() {
   const [datasetViewers, setDatasetViewers] = useState<Map<string, Array<{ user_email: string; user_name?: string }>>>(new Map())
 
   const {
-    tables,
-    folders,
     addTable,
     deleteTable,
     updateTable,
     addFolder,
     deleteFolder,
     updateFolder,
-    getFolderTables,
     moveTableToFolder,
   } = useTableStore()
 
@@ -344,14 +341,6 @@ export default function Dashboard() {
       clearInterval(interval)
     }
   }, [mounted, supabaseTables, sharedTables])
-
-  useEffect(() => {
-    // Auto-expand all folders when folders are loaded (for local store)
-    if (mounted && folders.length > 0) {
-      const allFolderIds = new Set(folders.map(f => f.id))
-      setExpandedFolders(allFolderIds)
-    }
-  }, [mounted, folders])
 
   if (!mounted || authLoading) {
     return (
@@ -681,17 +670,13 @@ export default function Dashboard() {
     }
   }
 
-  // Use Supabase data if available, otherwise fall back to local store
-  // Map Supabase data to match local store format
-  const displayFolders = supabaseFolders.length > 0 ? supabaseFolders : folders
-  const displayTables = supabaseTables.length > 0 
-    ? supabaseTables.map(t => ({
-        ...t,
-        folderId: t.folder_id,
-        updatedAt: t.updated_at,
-        createdAt: t.created_at
-      }))
-    : tables
+  const displayFolders = supabaseFolders
+  const displayTables = supabaseTables.map(t => ({
+    ...t,
+    folderId: t.folder_id,
+    updatedAt: t.updated_at,
+    createdAt: t.created_at
+  }))
 
   // Filter tables and folders based on search, then sort folders alphabetically
   const filteredFolders = displayFolders
