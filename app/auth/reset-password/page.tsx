@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Database, Mail, Lock, ArrowLeft } from 'lucide-react'
+import { Mail, Lock, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ResetPasswordPage() {
@@ -82,9 +82,9 @@ export default function ResetPasswordPage() {
 
   if (!isConfigured) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-blue-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 text-center">
-          <Database className="h-16 w-16 mx-auto mb-4 text-yellow-500" />
+          <img src="/logo.png" alt="DataMotionPro logo" className="h-16 w-16 mx-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold mb-4">Supabase Not Configured</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             Password reset requires Supabase configuration.
@@ -99,10 +99,10 @@ export default function ResetPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-blue-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 text-center">
-          <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Lock className="h-8 w-8 text-green-600 dark:text-green-400" />
+          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-950 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Lock className="h-8 w-8 text-blue-600 dark:text-blue-400" />
           </div>
           <h1 className="text-2xl font-bold mb-4">Password Reset Successful!</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
@@ -114,16 +114,16 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-blue-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-6">
-            <Database className="h-10 w-10 text-white" />
-            <span className="text-3xl font-bold text-white">ZeroStack</span>
+            <img src="/logo.png" alt="DataMotionPro logo" className="h-12 w-12 object-contain" />
+            <span className="text-3xl font-bold text-white">DataMotionPro</span>
           </Link>
           <h1 className="text-2xl font-bold text-white mb-2">Reset Password</h1>
-          <p className="text-green-200">
+          <p className="text-blue-100/85">
             {step === 'email' && 'Enter your email to receive a reset code'}
             {step === 'otp' && 'Enter the code sent to your email'}
             {step === 'newPassword' && 'Create your new password'}

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Database, Mail, Lock, Chrome, Sparkles, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, Chrome, Sparkles, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 
 export default function SignInPage() {
@@ -71,9 +71,9 @@ export default function SignInPage() {
 
   if (!isConfigured) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-blue-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 text-center">
-          <Database className="h-16 w-16 mx-auto mb-4 text-yellow-500" />
+          <img src="/logo.png" alt="DataMotionPro logo" className="h-16 w-16 mx-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold mb-4">Supabase Not Configured</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             DataMotionPro is running in <strong>local mode</strong> using localStorage.
@@ -93,16 +93,16 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-blue-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-6">
-            <Database className="h-10 w-10 text-white" />
+            <img src="/logo.png" alt="DataMotionPro logo" className="h-12 w-12 object-contain" />
             <span className="text-3xl font-bold text-white">DataMotionPro</span>
           </Link>
           <h1 className="text-2xl font-bold text-white mb-2">Welcome back</h1>
-          <p className="text-green-200">Sign in to access your workspace</p>
+          <p className="text-blue-100/85">Sign in to access your workspace</p>
         </div>
 
         {/* Sign In Form */}
@@ -150,7 +150,7 @@ export default function SignInPage() {
           )}
 
           {magicLinkSent && (
-            <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-600 dark:text-green-400 text-sm">
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-700 dark:text-blue-300 text-sm">
               <p className="font-medium mb-1">✨ Magic link sent!</p>
               <p>Check your email and click the link to sign in.</p>
             </div>
@@ -268,7 +268,7 @@ export default function SignInPage() {
           </p>
         </div>
 
-        <p className="text-center text-sm text-green-200 mt-6">
+        <p className="text-center text-sm text-blue-100/80 mt-6">
           By signing in, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>
