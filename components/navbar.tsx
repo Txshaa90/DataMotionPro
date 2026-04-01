@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
-import { Database, User, LogOut, Settings, ChevronDown, ChevronRight, ChevronLeft, Palette, Trash2, Sun, Moon, Monitor, Check } from 'lucide-react'
+import { User, LogOut, Settings, ChevronDown, ChevronRight, ChevronLeft, Palette, Trash2, Sun, Moon, Monitor, Check } from 'lucide-react'
 
 type Theme = 'light' | 'dark' | 'system'
 
 export function Navbar() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, loading } = useAuth()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showAppearanceMenu, setShowAppearanceMenu] = useState(false)
   const [theme, setTheme] = useState<Theme>('system')
@@ -60,8 +60,11 @@ export function Navbar() {
             <img 
               src="/logo.png" 
               alt="DataMotionPro" 
-              className="h-8 w-auto"
+              className="h-14 w-14 object-contain"
             />
+            <span className="hidden sm:block text-xl font-semibold text-gray-900 dark:text-white">
+              DataMotionPro
+            </span>
           </Link>
 
           {/* Navigation Links */}
@@ -81,7 +84,9 @@ export function Navbar() {
           </div>
 
           {/* User Menu */}
-          {user ? (
+          {loading ? (
+            <div className="h-10 w-36 rounded-lg bg-gray-100 dark:bg-gray-700 animate-pulse" />
+          ) : user ? (
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}

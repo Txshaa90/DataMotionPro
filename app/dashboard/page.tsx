@@ -48,6 +48,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { FolderCard } from '@/components/folder-card'
 import { DatasetCard } from '@/components/dataset-card'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
 
 type SupabaseFolder = {
   id: string
@@ -88,6 +89,7 @@ const FOLDER_COLORS = [
 
 export default function Dashboard() {
   const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [newFolderName, setNewFolderName] = useState('')
@@ -140,12 +142,17 @@ export default function Dashboard() {
     setMounted(true)
   }, [])
 
+  useEffect(() => {
+    if (!mounted || authLoading) return
+    if (!user) {
+      router.push('/auth/signin')
+    }
+  }, [mounted, authLoading, user, router])
+
   // Fetch data from Supabase
   useEffect(() => {
     async function fetchData() {
       try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser()
         console.log('🔍 Current logged in user:', { id: user?.id, email: user?.email })
         
         if (!user) {
@@ -256,10 +263,10 @@ export default function Dashboard() {
       }
     }
 
-    if (mounted) {
+    if (mounted && !authLoading && user) {
       fetchData()
     }
-  }, [mounted])
+  }, [mounted, authLoading, user])
 
   // Fetch viewer presence for datasets
   const fetchViewerPresence = async (tables: SupabaseTable[]) => {
@@ -346,7 +353,7 @@ export default function Dashboard() {
     }
   }, [mounted, folders])
 
-  if (!mounted) {
+  if (!mounted || authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <img 
@@ -356,6 +363,10 @@ export default function Dashboard() {
         />
       </div>
     )
+  }
+
+  if (!user) {
+    return null
   }
 
   const handleCreateFolder = async () => {

@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 
+const SESSION_MARKER_KEY = 'datamotionpro-session-approved'
+
 interface AuthContextType {
   user: User | null
   session: Session | null
@@ -57,7 +59,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const sessionApproved = typeof window !== 'undefined' && localStorage.getItem(SESSION_MARKER_KEY) === 'true'
+
+      if (session && !sessionApproved) {
+        await supabase.auth.signOut()
+        setSession(null)
+        setUser(null)
+        setLoading(false)
+        return
+      }
+
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
@@ -67,6 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (typeof window !== 'undefined') {
+        if (session) {
+          localStorage.setItem(SESSION_MARKER_KEY, 'true')
+        } else {
+          localStorage.removeItem(SESSION_MARKER_KEY)
+        }
+      }
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
@@ -87,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     })
     if (error) throw error
+    localStorage.setItem(SESSION_MARKER_KEY, 'true')
   }
 
   const signInWithEmail = async (email: string, password: string, rememberMe: boolean = false) => {
@@ -99,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
     })
     if (error) throw error
+    localStorage.setItem(SESSION_MARKER_KEY, 'true')
     
     // Store remember me preference
     if (rememberMe) {
@@ -120,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     })
     if (error) throw error
+    localStorage.setItem(SESSION_MARKER_KEY, 'true')
   }
 
   const signUpWithEmail = async (email: string, password: string) => {
@@ -135,6 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     })
     if (error) throw error
+    localStorage.setItem(SESSION_MARKER_KEY, 'true')
   }
 
   const verifyOtp = async (email: string, token: string, type: 'signup' | 'recovery' | 'email') => {
@@ -148,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       type,
     })
     if (error) throw error
+    localStorage.setItem(SESSION_MARKER_KEY, 'true')
   }
 
   const resetPasswordForEmail = async (email: string) => {
@@ -188,6 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+    localStorage.removeItem(SESSION_MARKER_KEY)
   }
 
   return (
