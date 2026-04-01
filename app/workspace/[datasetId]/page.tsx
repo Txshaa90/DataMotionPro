@@ -713,7 +713,9 @@ export default function DatasetWorkspacePage() {
             return
           }
 
-          const changedViewId = payload.new?.view_id || payload.old?.view_id
+          const changedViewId =
+            (payload.new as { view_id?: string } | null)?.view_id ||
+            (payload.old as { view_id?: string } | null)?.view_id
           if (changedViewId) {
             loadedSheetRowsRef.current.delete(changedViewId)
             const matchingView = supabaseViews.find((view) => view.id === changedViewId)
