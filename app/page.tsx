@@ -11,7 +11,7 @@ export default function Home() {
       <nav className="border-b border-blue-800/40 bg-slate-950/80 backdrop-blur-sm fixed w-full z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Database className="h-8 w-8 text-primary" />
+            <img src="/logo.png" alt="DataMotionPro logo" className="h-10 w-10 object-contain" />
             <span className="text-2xl font-bold">DataMotionPro</span>
           </div>
           <div className="hidden md:flex items-center space-x-8">
