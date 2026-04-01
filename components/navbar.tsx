@@ -75,12 +75,6 @@ export function Navbar() {
             >
               Dashboard
             </Link>
-            <Link 
-              href="/workspace/nocodb" 
-              className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors"
-            >
-              Workspace
-            </Link>
           </div>
 
           {/* User Menu */}
