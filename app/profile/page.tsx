@@ -1,74 +1,64 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { 
-  User, 
-  Mail, 
-  Lock, 
-  AlertTriangle, 
-  CheckCircle, 
-  ArrowLeft, 
-  Palette, 
-  CreditCard, 
-  MessageSquare, 
-  Trash2,
-  Sun,
-  Moon,
-  Monitor,
+import {
+  AlertTriangle,
+  ArrowLeft,
   Camera,
-  DollarSign
+  CheckCircle,
+  Lock,
+  Mail,
+  Monitor,
+  Moon,
+  Palette,
+  Sun,
+  Trash2,
+  User,
 } from 'lucide-react'
-import Link from 'next/link'
 
 type Theme = 'light' | 'dark' | 'system'
+type SettingsTab = 'account' | 'appearance' | 'trash'
 
 export default function ProfilePage() {
   const router = useRouter()
   const { user, updateProfile, updatePassword, signOut, isConfigured } = useAuth()
-  
-  const [activeTab, setActiveTab] = useState<'account' | 'appearance' | 'upgrade' | 'contact' | 'trash'>('account')
+
+  const [activeTab, setActiveTab] = useState<SettingsTab>('account')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [theme, setTheme] = useState<Theme>('system')
-  
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
-  const [subscription, setSubscription] = useState<any>(null)
-  const [loadingSubscription, setLoadingSubscription] = useState(false)
-  const [profilePicture, setProfilePicture] = useState<string>('')
+  const [profilePicture, setProfilePicture] = useState('')
   const [uploadingPicture, setUploadingPicture] = useState(false)
-  const [credits, setCredits] = useState(0)
 
   useEffect(() => {
     if (!user) {
       router.push('/auth/signin')
       return
     }
-    
+
     setEmail(user.email || '')
     setName(user.user_metadata?.name || '')
     setProfilePicture(user.user_metadata?.avatar_url || '')
-    
-    // Load theme from localStorage
+
     const savedTheme = localStorage.getItem('theme') as Theme
     if (savedTheme) {
       setTheme(savedTheme)
     }
 
-    // Check for tab query parameter
-    const urlParams = new URLSearchParams(window.location.search)
-    const tab = urlParams.get('tab')
-    if (tab && ['account', 'appearance', 'upgrade', 'contact', 'trash'].includes(tab)) {
-      setActiveTab(tab as 'account' | 'appearance' | 'upgrade' | 'contact' | 'trash')
+    const tab = new URLSearchParams(window.location.search).get('tab')
+    if (tab && ['account', 'appearance', 'trash'].includes(tab)) {
+      setActiveTab(tab as SettingsTab)
     }
   }, [user, router])
 
@@ -79,10 +69,8 @@ export default function ProfilePage() {
     setLoading(true)
 
     try {
-      await updateProfile({
-        data: { name },
-      })
-      setSuccess('Profile updated successfully!')
+      await updateProfile({ data: { name } })
+      setSuccess('Profile updated successfully.')
     } catch (err: any) {
       setError(err.message || 'Failed to update profile')
     } finally {
@@ -109,7 +97,7 @@ export default function ProfilePage() {
 
     try {
       await updatePassword(newPassword)
-      setSuccess('Password updated successfully!')
+      setSuccess('Password updated successfully.')
       setNewPassword('')
       setConfirmPassword('')
     } catch (err: any) {
@@ -119,26 +107,20 @@ export default function ProfilePage() {
     }
   }
 
-  const handleThemeChange = (newTheme: Theme) => {
-    setTheme(newTheme)
-    localStorage.setItem('theme', newTheme)
-    
-    // Apply theme
-    if (newTheme === 'dark') {
+  const handleThemeChange = (nextTheme: Theme) => {
+    setTheme(nextTheme)
+    localStorage.setItem('theme', nextTheme)
+
+    if (nextTheme === 'dark') {
       document.documentElement.classList.add('dark')
-    } else if (newTheme === 'light') {
+    } else if (nextTheme === 'light') {
       document.documentElement.classList.remove('dark')
     } else {
-      // System theme
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      if (prefersDark) {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
+      document.documentElement.classList.toggle('dark', prefersDark)
     }
-    
-    setSuccess('Theme updated successfully!')
+
+    setSuccess('Theme updated successfully.')
   }
 
   const handleSignOut = async () => {
@@ -150,82 +132,15 @@ export default function ProfilePage() {
     }
   }
 
-  const handleDeleteAccount = async () => {
-    // This would typically call an API endpoint to delete the account
-    alert('Account deletion is not yet implemented')
-    setShowDeleteConfirm(false)
-  }
-
-  const handleCancelSubscription = async () => {
-    if (!user) return
-    
-    setLoadingSubscription(true)
-    setError('')
-    setSuccess('')
-
-    try {
-      const response = await fetch('/api/subscription/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        setError(data.error)
-      } else {
-        setSuccess('Subscription will be cancelled at the end of the billing period')
-        setSubscription({ ...subscription, cancel_at_period_end: true })
-      }
-    } catch (err: any) {
-      setError('Failed to cancel subscription')
-    } finally {
-      setLoadingSubscription(false)
-      setShowCancelConfirm(false)
-    }
-  }
-
-  const handleReactivateSubscription = async () => {
-    if (!user) return
-    
-    setLoadingSubscription(true)
-    setError('')
-    setSuccess('')
-
-    try {
-      const response = await fetch('/api/subscription/reactivate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        setError(data.error)
-      } else {
-        setSuccess('Subscription has been reactivated')
-        setSubscription({ ...subscription, cancel_at_period_end: false })
-      }
-    } catch (err: any) {
-      setError('Failed to reactivate subscription')
-    } finally {
-      setLoadingSubscription(false)
-    }
-  }
-
   const handleProfilePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       setError('Please upload an image file')
       return
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       setError('Image size must be less than 5MB')
       return
@@ -235,25 +150,12 @@ export default function ProfilePage() {
     setError('')
 
     try {
-      // Convert to base64 for preview
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setProfilePicture(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-
-      // Here you would upload to Supabase Storage
-      // For now, we'll just store the base64 in user metadata
-      await updateProfile({
-        data: { 
-          name,
-          avatar_url: reader.result as string 
-        },
-      })
-
-      setSuccess('Profile picture updated successfully!')
+      const preview = await readFileAsDataUrl(file)
+      setProfilePicture(preview)
+      await updateProfile({ data: { name, avatar_url: preview } })
+      setSuccess('Profile picture updated successfully.')
     } catch (err: any) {
-      setError('Failed to upload profile picture')
+      setError(err.message || 'Failed to upload profile picture')
     } finally {
       setUploadingPicture(false)
     }
@@ -278,7 +180,6 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <Link href="/dashboard" className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
@@ -291,137 +192,45 @@ export default function ProfilePage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Settings</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage your account settings and preferences
-          </p>
+          <p className="text-gray-600 dark:text-gray-400">Manage your account settings and preferences</p>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-600 dark:text-green-400 flex items-center">
-            <CheckCircle className="h-5 w-5 mr-2" />
-            {success}
-          </div>
-        )}
+        {error && <MessageBanner tone="error" message={error} />}
+        {success && <MessageBanner tone="success" message={success} />}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar Navigation */}
           <div className="lg:col-span-1">
             <nav className="space-y-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2">
-              <button
-                onClick={() => setActiveTab('account')}
-                className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                  activeTab === 'account'
-                    ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                <User className="h-5 w-5 mr-3" />
-                Account
-              </button>
-
-              <button
-                onClick={() => setActiveTab('appearance')}
-                className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                  activeTab === 'appearance'
-                    ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                <Palette className="h-5 w-5 mr-3" />
-                Appearance
-              </button>
-
-              <button
-                onClick={() => setActiveTab('upgrade')}
-                className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                  activeTab === 'upgrade'
-                    ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                <CreditCard className="h-5 w-5 mr-3" />
-                Upgrade
-              </button>
-
-              <button
-                onClick={() => setActiveTab('contact')}
-                className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                  activeTab === 'contact'
-                    ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                <MessageSquare className="h-5 w-5 mr-3" />
-                Contact Sales
-              </button>
-
-              <button
-                onClick={() => setActiveTab('trash')}
-                className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                  activeTab === 'trash'
-                    ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                <Trash2 className="h-5 w-5 mr-3" />
-                Trash
-              </button>
+              <TabButton active={activeTab === 'account'} onClick={() => setActiveTab('account')} icon={<User className="h-5 w-5 mr-3" />} label="Account" />
+              <TabButton active={activeTab === 'appearance'} onClick={() => setActiveTab('appearance')} icon={<Palette className="h-5 w-5 mr-3" />} label="Appearance" />
+              <TabButton active={activeTab === 'trash'} onClick={() => setActiveTab('trash')} icon={<Trash2 className="h-5 w-5 mr-3" />} label="Trash" danger />
             </nav>
           </div>
 
-          {/* Main Content */}
           <div className="lg:col-span-3">
-            {/* Account Tab */}
             {activeTab === 'account' && (
               <div className="space-y-6">
-                {/* Account Overview */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                   <h2 className="text-xl font-semibold mb-6">Account Overview</h2>
-                  
+
                   <div className="flex items-start space-x-6 mb-6">
-                    {/* Profile Picture */}
                     <div className="relative">
                       <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-                        {profilePicture || user?.user_metadata?.avatar_url ? (
-                          <img 
-                            src={profilePicture || user?.user_metadata?.avatar_url} 
-                            alt="Profile" 
-                            className="w-full h-full object-cover"
-                          />
+                        {profilePicture ? (
+                          <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
                           <User className="h-12 w-12 text-gray-400" />
                         )}
                       </div>
                       <label className="absolute bottom-0 right-0 bg-green-600 hover:bg-green-700 text-white rounded-full p-2 cursor-pointer shadow-lg">
                         <Camera className="h-4 w-4" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleProfilePictureUpload}
-                          className="hidden"
-                          disabled={uploadingPicture}
-                        />
+                        <input type="file" accept="image/*" onChange={handleProfilePictureUpload} className="hidden" disabled={uploadingPicture} />
                       </label>
                     </div>
 
-                    {/* User Info */}
                     <div className="flex-1">
                       <h3 className="text-2xl font-bold mb-1">{name || 'User'}</h3>
-                      <p className="text-gray-600 dark:text-gray-400 mb-4">{email}</p>
-                      
-                      {/* Credits Display */}
-                      <div className="inline-flex items-center px-4 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                        <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400 mr-2" />
-                        <span className="text-sm">
-                          You have <strong className="text-green-600 dark:text-green-400">₱{credits.toFixed(2)}</strong> in credit
-                        </span>
-                      </div>
+                      <p className="text-gray-600 dark:text-gray-400">{email}</p>
                     </div>
                   </div>
 
@@ -437,44 +246,26 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Edit Profile Information */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                   <h2 className="text-xl font-semibold mb-6">Edit Profile</h2>
-
                   <form onSubmit={handleUpdateProfile} className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Name</label>
-                      <Input
-                        type="text"
-                        placeholder="Your name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                      />
+                      <Input type="text" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium mb-2">Email</label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                        <Input
-                          type="email"
-                          value={email}
-                          disabled
-                          className="pl-10 bg-gray-50 dark:bg-gray-700"
-                        />
+                        <Input type="email" value={email} disabled className="pl-10 bg-gray-50 dark:bg-gray-700" />
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Email cannot be changed
-                      </p>
                     </div>
 
-                    <Button type="submit" disabled={loading}>
-                      {loading ? 'Saving...' : 'Save Changes'}
-                    </Button>
+                    <Button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</Button>
                   </form>
                 </div>
 
-                {/* Change Password */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                   <div className="flex items-center mb-6">
                     <Lock className="h-6 w-6 text-primary mr-2" />
@@ -484,335 +275,42 @@ export default function ProfilePage() {
                   <form onSubmit={handleUpdatePassword} className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">New Password</label>
-                      <Input
-                        type="password"
-                        placeholder="Enter new password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        minLength={6}
-                      />
+                      <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={6} />
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium mb-2">Confirm New Password</label>
-                      <Input
-                        type="password"
-                        placeholder="Confirm new password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        minLength={6}
-                      />
+                      <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} minLength={6} />
                     </div>
-
                     <Button type="submit" disabled={loading || !newPassword || !confirmPassword}>
                       {loading ? 'Updating...' : 'Update Password'}
                     </Button>
                   </form>
                 </div>
 
-                {/* Sign Out */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Sign Out</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Sign out from this device
-                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Sign out from this device</p>
                     </div>
-                    <Button variant="outline" onClick={handleSignOut}>
-                      Sign Out
-                    </Button>
+                    <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Appearance Tab */}
             {activeTab === 'appearance' && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <h2 className="text-xl font-semibold mb-6">Appearance</h2>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Customize how DataMotionPro looks on your device
-                </p>
-
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Light Theme */}
-                    <button
-                      onClick={() => handleThemeChange('light')}
-                      className={`p-6 border-2 rounded-xl transition-all ${
-                        theme === 'light'
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      <Sun className="h-8 w-8 mx-auto mb-3 text-yellow-500" />
-                      <p className="font-medium">Light</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Bright and clear
-                      </p>
-                    </button>
-
-                    {/* Dark Theme */}
-                    <button
-                      onClick={() => handleThemeChange('dark')}
-                      className={`p-6 border-2 rounded-xl transition-all ${
-                        theme === 'dark'
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      <Moon className="h-8 w-8 mx-auto mb-3 text-blue-500" />
-                      <p className="font-medium">Dark</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Easy on the eyes
-                      </p>
-                    </button>
-
-                    {/* System Theme */}
-                    <button
-                      onClick={() => handleThemeChange('system')}
-                      className={`p-6 border-2 rounded-xl transition-all ${
-                        theme === 'system'
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      <Monitor className="h-8 w-8 mx-auto mb-3 text-gray-500" />
-                      <p className="font-medium">System</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Match device
-                      </p>
-                    </button>
-                  </div>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">Customize how DataMotionPro looks on your device</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <ThemeCard active={theme === 'light'} onClick={() => handleThemeChange('light')} icon={<Sun className="h-8 w-8 mx-auto mb-3 text-yellow-500" />} label="Light" description="Bright and clear" />
+                  <ThemeCard active={theme === 'dark'} onClick={() => handleThemeChange('dark')} icon={<Moon className="h-8 w-8 mx-auto mb-3 text-blue-500" />} label="Dark" description="Easy on the eyes" />
+                  <ThemeCard active={theme === 'system'} onClick={() => handleThemeChange('system')} icon={<Monitor className="h-8 w-8 mx-auto mb-3 text-gray-500" />} label="System" description="Match device" />
                 </div>
               </div>
             )}
 
-            {/* Upgrade Tab */}
-            {activeTab === 'upgrade' && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h2 className="text-xl font-semibold mb-6">Upgrade Your Plan</h2>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Unlock more features and capabilities with a premium plan
-                </p>
-
-                <div className="space-y-4">
-                  {/* Current Plan */}
-                  <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-green-600 dark:text-green-400">Current Plan</p>
-                        <p className="text-2xl font-bold mt-1">Free</p>
-                      </div>
-                      <CheckCircle className="h-8 w-8 text-green-500" />
-                    </div>
-                  </div>
-
-                  {/* Active Subscription Management (shown if user has paid plan) */}
-                  {subscription && subscription.plan !== 'free' && (
-                    <div className="p-6 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-semibold capitalize">{subscription.plan} Plan</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {subscription.cancel_at_period_end ? (
-                              <span className="text-yellow-600 dark:text-yellow-400">
-                                Cancels on {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'N/A'}
-                              </span>
-                            ) : (
-                              <span>
-                                Renews on {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'N/A'}
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold">
-                            ₱{subscription.plan === 'plus' ? '1,200' : '2,400'}
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">per month</p>
-                        </div>
-                      </div>
-
-                      {subscription.cancel_at_period_end ? (
-                        <div className="space-y-3">
-                          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                            <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                              Your subscription is scheduled to cancel at the end of the billing period. You'll continue to have access until then.
-                            </p>
-                          </div>
-                          <Button
-                            onClick={handleReactivateSubscription}
-                            disabled={loadingSubscription}
-                            className="w-full"
-                          >
-                            {loadingSubscription ? 'Processing...' : 'Reactivate Subscription'}
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => setShowCancelConfirm(true)}
-                          disabled={loadingSubscription}
-                          variant="outline"
-                          className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          Cancel Subscription
-                        </Button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Cancel Confirmation Dialog */}
-                  {showCancelConfirm && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
-                        <div className="flex items-center mb-4">
-                          <AlertTriangle className="h-6 w-6 text-yellow-500 mr-2" />
-                          <h3 className="text-lg font-semibold">Cancel Subscription?</h3>
-                        </div>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6">
-                          Your subscription will remain active until the end of your billing period. After that, you'll be downgraded to the Free plan.
-                        </p>
-                        <div className="flex space-x-3">
-                          <Button
-                            onClick={() => setShowCancelConfirm(false)}
-                            variant="outline"
-                            className="flex-1"
-                          >
-                            Keep Subscription
-                          </Button>
-                          <Button
-                            onClick={handleCancelSubscription}
-                            disabled={loadingSubscription}
-                            className="flex-1 bg-red-600 hover:bg-red-700"
-                          >
-                            {loadingSubscription ? 'Cancelling...' : 'Yes, Cancel'}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Available Plans */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                    <div className="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl">
-                      <h3 className="text-lg font-semibold mb-2">Plus</h3>
-                      <p className="text-3xl font-bold mb-4">₱1,200<span className="text-sm font-normal text-gray-600 dark:text-gray-400">/month</span></p>
-                      <ul className="space-y-2 mb-6 text-sm">
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                          Unlimited seats
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                          50,000 records
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                          20 GB storage
-                        </li>
-                      </ul>
-                      <Link href="/pricing">
-                        <Button className="w-full">Upgrade to Plus</Button>
-                      </Link>
-                    </div>
-
-                    <div className="p-6 border-2 border-green-500 rounded-xl relative">
-                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                        <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                          POPULAR
-                        </span>
-                      </div>
-                      <h3 className="text-lg font-semibold mb-2">Business</h3>
-                      <p className="text-3xl font-bold mb-4">₱2,400<span className="text-sm font-normal text-gray-600 dark:text-gray-400">/month</span></p>
-                      <ul className="space-y-2 mb-6 text-sm">
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                          Unlimited seats
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                          300,000 records
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                          100 GB storage
-                        </li>
-                      </ul>
-                      <Link href="/pricing">
-                        <Button className="w-full bg-green-600 hover:bg-green-700">Upgrade to Business</Button>
-                      </Link>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 text-center">
-                    <Link href="/pricing" className="text-green-600 dark:text-green-400 hover:underline">
-                      View all plans and features →
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Contact Sales Tab */}
-            {activeTab === 'contact' && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h2 className="text-xl font-semibold mb-6">Contact Sales</h2>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Need help with enterprise features or have questions? Our sales team is here to help.
-                </p>
-
-                <div className="space-y-6">
-                  <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl border border-green-200 dark:border-green-800">
-                    <h3 className="text-lg font-semibold mb-4">Enterprise Solutions</h3>
-                    <ul className="space-y-3 mb-6">
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-600 mr-3 mt-0.5" />
-                        <span>Custom pricing and volume discounts</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-600 mr-3 mt-0.5" />
-                        <span>Dedicated account manager</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-600 mr-3 mt-0.5" />
-                        <span>On-premise deployment options</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-600 mr-3 mt-0.5" />
-                        <span>Priority support and SLA</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                      <Mail className="h-6 w-6 text-green-600 mb-2" />
-                      <p className="font-medium mb-1">Email Us</p>
-                      <a href="mailto:sales@datamotionpro.com" className="text-sm text-green-600 dark:text-green-400 hover:underline">
-                        sales@datamotionpro.com
-                      </a>
-                    </div>
-
-                    <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                      <MessageSquare className="h-6 w-6 text-green-600 mb-2" />
-                      <p className="font-medium mb-1">Schedule a Call</p>
-                      <a href="#" className="text-sm text-green-600 dark:text-green-400 hover:underline">
-                        Book a demo
-                      </a>
-                    </div>
-                  </div>
-
-                  <Button className="w-full" size="lg">
-                    <Mail className="h-5 w-5 mr-2" />
-                    Contact Sales Team
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Trash Tab */}
             {activeTab === 'trash' && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-red-200 dark:border-red-800 p-6">
                 <div className="flex items-center mb-6">
@@ -820,29 +318,13 @@ export default function ProfilePage() {
                   <h2 className="text-xl font-semibold text-red-600 dark:text-red-400">Danger Zone</h2>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                    <AlertTriangle className="h-6 w-6 text-red-600 mb-3" />
-                    <h3 className="font-semibold text-red-600 dark:text-red-400 mb-2">Delete Account</h3>
-                    <p className="text-sm text-red-600 dark:text-red-400 mb-4">
-                      Once you delete your account, there is no going back. This action cannot be undone.
-                    </p>
-                    <p className="text-sm text-red-600 dark:text-red-400 mb-4">
-                      All your data will be permanently deleted, including:
-                    </p>
-                    <ul className="text-sm text-red-600 dark:text-red-400 space-y-1 mb-4 ml-4">
-                      <li>• All datasets and tables</li>
-                      <li>• All folders and organization</li>
-                      <li>• All views and customizations</li>
-                      <li>• Account information and settings</li>
-                    </ul>
-                  </div>
-
-                  <Button 
-                    variant="destructive" 
-                    className="w-full"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <AlertTriangle className="h-6 w-6 text-red-600 mb-3" />
+                  <h3 className="font-semibold text-red-600 dark:text-red-400 mb-2">Delete Account</h3>
+                  <p className="text-sm text-red-600 dark:text-red-400 mb-4">
+                    Once you delete your account, there is no going back. This action cannot be undone.
+                  </p>
+                  <Button variant="destructive" className="w-full" onClick={() => setShowDeleteConfirm(true)}>
                     <Trash2 className="h-5 w-5 mr-2" />
                     Delete My Account
                   </Button>
@@ -853,36 +335,105 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 max-w-md w-full">
             <div className="flex items-center mb-4">
-              <AlertTriangle className="h-6 w-6 text-red-500 mr-2" />
-              <h3 className="text-xl font-bold">Delete Account?</h3>
+              <AlertTriangle className="h-6 w-6 text-red-600 mr-2" />
+              <h3 className="text-lg font-semibold">Delete account?</h3>
             </div>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              This action cannot be undone. All your data, folders, and datasets will be permanently deleted.
+              Account deletion is not yet implemented. This dialog remains as a safeguard for future work.
             </p>
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowDeleteConfirm(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                className="flex-1"
-                onClick={handleDeleteAccount}
-              >
-                Delete Forever
-              </Button>
+              <Button variant="outline" className="flex-1" onClick={() => setShowDeleteConfirm(false)}>Close</Button>
+              <Button variant="destructive" className="flex-1" onClick={() => setShowDeleteConfirm(false)}>Understood</Button>
             </div>
           </div>
         </div>
       )}
     </div>
   )
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+  danger,
+}: {
+  active: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  label: string
+  danger?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
+        active
+          ? danger
+            ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+            : 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
+          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+}
+
+function ThemeCard({
+  active,
+  onClick,
+  icon,
+  label,
+  description,
+}: {
+  active: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  label: string
+  description: string
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`p-6 border-2 rounded-xl transition-all ${
+        active
+          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+      }`}
+    >
+      {icon}
+      <p className="font-medium">{label}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{description}</p>
+    </button>
+  )
+}
+
+function MessageBanner({ tone, message }: { tone: 'success' | 'error'; message: string }) {
+  const base =
+    tone === 'success'
+      ? 'mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-600 dark:text-green-400 flex items-center'
+      : 'mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400'
+
+  return (
+    <div className={base}>
+      {tone === 'success' && <CheckCircle className="h-5 w-5 mr-2" />}
+      {message}
+    </div>
+  )
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = () => reject(new Error('Failed to read image file'))
+    reader.readAsDataURL(file)
+  })
 }

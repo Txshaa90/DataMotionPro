@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
-import { Database, User, LogOut, Settings, ChevronDown, ChevronRight, ChevronLeft, Palette, CreditCard, MessageSquare, Trash2, Sun, Moon, Monitor, Check } from 'lucide-react'
+import { Database, User, LogOut, Settings, ChevronDown, ChevronRight, ChevronLeft, Palette, Trash2, Sun, Moon, Monitor, Check } from 'lucide-react'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -130,24 +130,6 @@ export function Navbar() {
                           </div>
                           <ChevronRight className="h-4 w-4" />
                         </button>
-
-                        <Link
-                          href="/pricing"
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <CreditCard className="h-4 w-4 mr-3" />
-                          Upgrade
-                        </Link>
-
-                        <Link
-                          href="/profile?tab=contact"
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <MessageSquare className="h-4 w-4 mr-3" />
-                          Contact Sales
-                        </Link>
 
                         <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
 

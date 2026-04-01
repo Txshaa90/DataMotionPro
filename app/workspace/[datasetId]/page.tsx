@@ -97,7 +97,7 @@ export default function DatasetWorkspacePage() {
   const [supabaseViews, setSupabaseViews] = useState<any[]>([])
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
-  const [sidebarColor, setSidebarColor] = useState('#22c55e')
+  const [sidebarColor, setSidebarColor] = useState('#2563eb')
 
   const [localVisibleColumns, setLocalVisibleColumns] = useState<string[]>([])
   const [localGroupBy, setLocalGroupBy] = useState<string | null>(null)
@@ -208,6 +208,8 @@ export default function DatasetWorkspacePage() {
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const topScrollRef = useRef<HTMLDivElement>(null)
   const saveTimerRef = useRef<Record<string, NodeJS.Timeout>>({})
+  const loadedSheetRowsRef = useRef<Set<string>>(new Set())
+  const loadingSheetRowsRef = useRef<Set<string>>(new Set())
   
   const baseDataset = supabaseDataset || tables.find(t => t.id === datasetId)
   const currentDataset = baseDataset ? {
@@ -281,6 +283,29 @@ export default function DatasetWorkspacePage() {
     }
   }
 
+  const ensureSheetRowsLoaded = async (view: any) => {
+    if (!view?.id) return
+    if (loadedSheetRowsRef.current.has(view.id) || loadingSheetRowsRef.current.has(view.id)) return
+
+    loadingSheetRowsRef.current.add(view.id)
+
+    try {
+      const rows = await fetchSheetRows(view.id)
+      const resolvedRows =
+        rows.length === 0 && view.rows && Array.isArray(view.rows) && view.rows.length > 0
+          ? view.rows
+          : rows
+
+      setSheetRowsCache((prev) => ({
+        ...prev,
+        [view.id]: resolvedRows,
+      }))
+      loadedSheetRowsRef.current.add(view.id)
+    } finally {
+      loadingSheetRowsRef.current.delete(view.id)
+    }
+  }
+
   useEffect(() => {
     async function fetchData() {
       if (!datasetId) return
@@ -302,9 +327,13 @@ export default function DatasetWorkspacePage() {
 
         setSupabaseDataset(datasetData)
         setSupabaseViews(viewsData || [])
+        if (viewsData && viewsData.length > 0 && !activeSheetId) {
+          setActiveSheetId(viewsData[0].id)
+          setActiveView(viewsData[0].id)
+        }
         
         // Fetch rows for all views from sheet_rows table
-        if (viewsData && viewsData.length > 0) {
+        if (false && viewsData && viewsData.length > 0) {
           console.log(`📊 Fetching rows for ${viewsData.length} views`)
           const rowsCache: { [viewId: string]: any[] } = {}
           await Promise.all(
@@ -338,6 +367,12 @@ export default function DatasetWorkspacePage() {
     }
     fetchData()
   }, [datasetId])
+
+  useEffect(() => {
+    if (!currentSheet) return
+    ensureSheetRowsLoaded(currentSheet)
+    setCurrentPage(1)
+  }, [currentSheet?.id])
 
   // Update user presence when viewing dataset
   const updatePresence = async () => {
@@ -646,6 +681,15 @@ export default function DatasetWorkspacePage() {
           const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId)
           if (viewsData) {
             setSupabaseViews(viewsData)
+            const lastView = viewsData[viewsData.length - 1]
+            if (lastView) {
+              setActiveSheetId(lastView.id)
+              setActiveView(lastView.id)
+              loadedSheetRowsRef.current.delete(lastView.id)
+              await ensureSheetRowsLoaded(lastView)
+              setImportDialogOpen(false)
+              return
+            }
           }
         }
       )
@@ -668,6 +712,16 @@ export default function DatasetWorkspacePage() {
             console.log('Skipping sync - user is editing')
             return
           }
+
+          const changedViewId = payload.new?.view_id || payload.old?.view_id
+          if (changedViewId) {
+            loadedSheetRowsRef.current.delete(changedViewId)
+            const matchingView = supabaseViews.find((view) => view.id === changedViewId)
+            if (matchingView) {
+              await ensureSheetRowsLoaded(matchingView)
+            }
+            return
+          }
           
           // Refetch rows for all views when sheet_rows changes
           const { data: viewsData } = await (supabase as any).from('views').select('*').eq('table_id', datasetId)
@@ -675,7 +729,7 @@ export default function DatasetWorkspacePage() {
             const rowsCache: { [viewId: string]: any[] } = {}
             await Promise.all(
               viewsData.map(async (view: any) => {
-                const rows = await fetchSheetRows(view.id)
+                const rows = sheetRowsCache[view.id] || []
                 // Fallback to views.rows if sheet_rows is empty
                 if (rows.length === 0 && view.rows && Array.isArray(view.rows) && view.rows.length > 0) {
                   rowsCache[view.id] = view.rows
@@ -697,7 +751,7 @@ export default function DatasetWorkspacePage() {
       supabase.removeChannel(viewChannel)
       supabase.removeChannel(sheetRowsChannel)
     }
-  }, [datasetId, editingCell])
+  }, [datasetId, editingCell, supabaseViews])
 
   // Global keyboard shortcut for undo
   useEffect(() => {
@@ -3566,6 +3620,8 @@ export default function DatasetWorkspacePage() {
               console.log(`🔄 Switching to imported sheet: ${lastView.name}`)
               setActiveSheetId(lastView.id)
               setActiveView(lastView.id)
+              loadedSheetRowsRef.current.delete(lastView.id)
+              await ensureSheetRowsLoaded(lastView)
             }
           }
           setImportDialogOpen(false)

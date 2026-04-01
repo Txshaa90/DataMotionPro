@@ -9,6 +9,11 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'DataMotionPro - Build Databases Like Spreadsheets',
   description: 'The modern no-code database platform. Create powerful databases with the simplicity of a spreadsheet.',
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+    shortcut: '/icon.png',
+  },
 }
 
 export default function RootLayout({
